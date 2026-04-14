@@ -60,7 +60,7 @@ When adding a new endpoint:
 
 ### OpenGate API conventions
 
-- All API paths use the prefix `/north/v80/`
+- All API paths use the prefix `/north/v80/` (including operations, despite the YAML spec showing `/v80/`)
 - Provision endpoints: `/north/v80/provision/organizations/{org}/...`
 - Search endpoints: `/north/v80/search/...`
 - Auth: `POST /north/v80/provision/users/login` with `{"email":"...","password":"..."}` → JWT in `response.user.jwt`

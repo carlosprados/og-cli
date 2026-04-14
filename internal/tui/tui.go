@@ -22,6 +22,9 @@ const (
 	viewTimeSeriesData
 	viewDatasets
 	viewDatasetData
+	viewJobs
+	viewJobDetail
+	viewTasks
 )
 
 // model is the top-level Bubble Tea model.
@@ -51,6 +54,10 @@ type model struct {
 	tsData          timeseriesDataModel
 	datasets        datasetsModel
 	dsData          datasetsDataModel
+	jobs            jobsModel
+	jobDetail       jobDetailModel
+	tasks           tasksModel
+	opMenu          operationMenuModel
 
 	// status
 	err     error
@@ -111,7 +118,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case viewDatamodelDetail:
 		return m.updateDatamodelDetail(msg)
 	case viewDevices:
-		return m.updateDevices(msg)
+		return m.updateDevicesWithOps(msg)
 	case viewDeviceDetail:
 		return m.updateDeviceDetail(msg)
 	case viewAlarms:
@@ -124,6 +131,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateDatasets(msg)
 	case viewDatasetData:
 		return m.updateDatasetData(msg)
+	case viewJobs:
+		return m.updateJobs(msg)
+	case viewJobDetail:
+		return m.updateJobDetail(msg)
+	case viewTasks:
+		return m.updateTasks(msg)
 	}
 
 	return m, nil
@@ -140,7 +153,7 @@ func (m model) View() string {
 	case viewDatamodelDetail:
 		return m.viewDatamodelDetailScreen()
 	case viewDevices:
-		return m.viewDevicesScreen()
+		return m.viewDevicesScreenWithOps()
 	case viewDeviceDetail:
 		return m.viewDeviceDetailScreen()
 	case viewAlarms:
@@ -153,6 +166,12 @@ func (m model) View() string {
 		return m.viewDatasetsScreen()
 	case viewDatasetData:
 		return m.viewDatasetDataScreen()
+	case viewJobs:
+		return m.viewJobsScreen()
+	case viewJobDetail:
+		return m.viewJobDetailScreen()
+	case viewTasks:
+		return m.viewTasksScreen()
 	}
 	return ""
 }
@@ -167,6 +186,8 @@ func (m model) goBack() model {
 		m.view = viewTimeSeries
 	case viewDatasetData:
 		m.view = viewDatasets
+	case viewJobDetail:
+		m.view = viewJobs
 	default:
 		m.view = viewMenu
 	}

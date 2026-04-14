@@ -352,6 +352,62 @@ og ds update <id> -f dataset.json
 og ds delete <id>
 ```
 
+### jobs
+
+Manage OpenGate operation jobs — execute operations on devices.
+
+#### search
+
+```bash
+og jobs search
+og jobs search --limit 10
+```
+
+#### get / create / cancel
+
+```bash
+og jobs get <job-id>
+og jobs create -f job.json
+og jobs cancel <job-id>
+```
+
+#### operations
+
+List individual operations within a job (one per target entity):
+
+```bash
+og jobs operations <job-id>
+```
+
+Example job JSON for REFRESH_INFO on a device:
+
+```json
+{
+  "job": {
+    "request": {
+      "name": "REFRESH_INFO",
+      "parameters": {},
+      "active": true,
+      "schedule": { "stop": { "delayed": 90000 } },
+      "operationParameters": { "timeout": 85000, "retries": 0 },
+      "target": { "append": { "entities": ["sense-001"] } }
+    }
+  }
+}
+```
+
+### tasks
+
+Manage OpenGate operation tasks — scheduled/recurring operations.
+
+```bash
+og tasks search
+og tasks get <task-id>
+og tasks create -f task.json
+og tasks cancel <task-id>
+og tasks jobs <task-id>    # list jobs within a task
+```
+
 ### iot
 
 Device integration via the South API (X-ApiKey authentication). The API key is obtained automatically from the login response.
@@ -443,6 +499,15 @@ Configuration for MCP clients (Claude Code, LM Studio, etc.):
 | `datasets_update` | Update dataset from JSON |
 | `datasets_delete` | Delete dataset |
 | `datasets_data` | Query data from a dataset |
+| `jobs_search` | Search operation jobs |
+| `jobs_get` | Get job report |
+| `jobs_create` | Create operation job |
+| `jobs_cancel` | Cancel a job |
+| `jobs_operations` | List operations within a job |
+| `tasks_search` | Search operation tasks |
+| `tasks_get` | Get task detail |
+| `tasks_create` | Create operation task |
+| `tasks_cancel` | Cancel a task |
 | `iot_collect` | Send a single data point to a device |
 | `iot_collect_payload` | Send a full IoT payload to a device |
 

@@ -37,6 +37,8 @@ When the user says...          → Use this tool
 "alarm", "alarma"              → alarms_search, alarms_summary, alarms_attend, alarms_close
 "time series", "serie temporal" → timeseries_list, timeseries_get, timeseries_data, timeseries_create, timeseries_delete, timeseries_export
 "dataset", "conjunto de datos"  → datasets_list, datasets_get, datasets_data, datasets_create, datasets_delete
+"job", "operation", "operación", "ejecutar" → jobs_search, jobs_get, jobs_create, jobs_cancel, jobs_operations
+"task", "tarea", "scheduled", "programada" → tasks_search, tasks_get, tasks_create, tasks_cancel
 "send data", "enviar dato", "collect", "publicar" → iot_collect
 "send IoT", "enviar IoT"      → iot_collect or iot_collect_payload
 

@@ -26,6 +26,7 @@ func newMenuModel() menuModel {
 			{"Alarms", viewAlarms},
 			{"Time Series", viewTimeSeries},
 			{"Datasets", viewDatasets},
+			{"Jobs", viewJobs},
 		},
 	}
 }
@@ -56,6 +57,8 @@ func (m model) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.fetchTimeSeries()
 			case viewDatasets:
 				return m, m.fetchDatasets()
+			case viewJobs:
+				return m, m.fetchJobs()
 			}
 			return m, nil
 		case "q":
