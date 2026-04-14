@@ -2,8 +2,6 @@
 
 Unofficial command-line interface for the [OpenGate](https://opengate.es) IoT platform REST API.
 
-> **Disclaimer:** This software is NOT an official product of [Amplía Soluciones](https://amplia-iiot.com). It is provided "as is", without warranty of any kind, express or implied. Use it at your own risk. For official documentation, visit [documentation.opengate.es](https://documentation.opengate.es).
-
 Three modes of operation:
 
 | Mode | Invocation | Description |
@@ -468,6 +466,23 @@ og version
 - [Amplía Soluciones](https://amplia-iiot.com) — company behind OpenGate
 - [OpenGate Documentation](https://documentation.opengate.es) — official API reference
 - [OpenGate Platform](https://opengate.es) — product page
+
+## Disclaimer
+
+This software is **NOT** an official product of, endorsed by, or affiliated with [Amplía Soluciones](https://amplia-iiot.com) or the OpenGate platform. "OpenGate" is a trademark of Amplía Soluciones. This project is an independent, community-driven tool.
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+**By using this software, you acknowledge and agree that:**
+
+1. **You are solely responsible** for any and all consequences arising from the use of this tool, including but not limited to data loss, service disruption, unauthorized access, or any damage to production or non-production environments.
+2. **Any misuse**, including but not limited to unauthorized access to systems, malicious operations, denial-of-service actions, or any activity that violates applicable laws or the terms of service of the OpenGate platform, is **strictly prohibited** and is the sole responsibility of the individual performing such actions.
+3. **You assume all risk** associated with connecting this tool to any OpenGate instance, whether in development, staging, or production environments. The authors bear no responsibility for any impact on such environments.
+4. **You are responsible** for securing any credentials (JWT tokens, API keys) stored by this tool in configuration files and for ensuring compliance with your organization's security policies.
+
+For official support, documentation, and tools, contact [Amplía Soluciones](https://amplia-iiot.com) directly.
 
 ## License
 
