@@ -1,6 +1,8 @@
 # og — OpenGate CLI
 
-Command-line interface for the [OpenGate](https://opengate.es) IoT platform REST API by Amplía Soluciones.
+Unofficial command-line interface for the [OpenGate](https://opengate.es) IoT platform REST API.
+
+> **Disclaimer:** This software is NOT an official product of [Amplía Soluciones](https://amplia-iiot.com). It is provided "as is", without warranty of any kind, express or implied. Use it at your own risk. For official documentation, visit [documentation.opengate.es](https://documentation.opengate.es).
 
 Three modes of operation:
 
@@ -461,6 +463,12 @@ og version
 | [INTEGRATION_PLAN.md](INTEGRATION_PLAN.md) | API integration roadmap and progress |
 | [CLAUDE.md](CLAUDE.md) | Instructions for Claude Code when working in this repo |
 
+## Links
+
+- [Amplía Soluciones](https://amplia-iiot.com) — company behind OpenGate
+- [OpenGate Documentation](https://documentation.opengate.es) — official API reference
+- [OpenGate Platform](https://opengate.es) — product page
+
 ## License
 
-Proprietary — Amplía Soluciones.
+Apache License 2.0 — see [LICENSE](LICENSE).
