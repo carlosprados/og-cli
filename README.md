@@ -525,9 +525,9 @@ devices_search(
 
 | Prompt | Description |
 |--------|-------------|
-| `opengate-guide` | Teaches the LLM how to use the OpenGate tools: query syntax, operator mapping (natural language → eq/like/gt/...), common field names per resource, and worked examples in English and Spanish |
+| `opengate-guide` | Complete guide covering all tools, query syntax with operator mapping (ES/EN → eq/like/gt/...), fields per entity, job creation format, IoT data collection, and worked examples |
 
-LLMs that load this prompt can interpret natural language like "Give me active devices" or "Dispositivos cuyo estado sea ACTIVE" and translate it to the correct tool call.
+LLMs that load this prompt can interpret natural language like "Give me active devices", "Dispositivos cuyo estado sea ACTIVE", or "Lanza un REBOOT al dispositivo sense-001" and translate it to the correct tool call with proper parameters.
 
 #### Resources
 

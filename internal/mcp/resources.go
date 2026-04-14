@@ -53,19 +53,42 @@ Operators:
   in      — one of (comma-separated values)
   exists  — field exists (no value needed)
 
-Device fields:
-  provision.device.identifier
-  provision.device.name
-  provision.device.administrativeState   (ACTIVE, TESTING, BANNED)
-  provision.device.operationalStatus     (NORMAL, ALARM, DOWN)
-  provision.administration.organization
-  provision.administration.channel
+Device fields (devices_search):
+  provision.device.identifier              — device ID
+  provision.device.name                    — device name
+  provision.device.administrativeState     — ACTIVE, TESTING, BANNED
+  provision.device.operationalStatus       — NORMAL, ALARM, DOWN
+  provision.administration.organization    — organization name
+  provision.administration.channel         — channel name
 
-Datamodel fields:
-  datamodels.identifier
-  datamodels.name
-  datamodels.organizationName
-  datamodels.version
+Datamodel fields (datamodels_search):
+  datamodels.identifier       — datamodel ID
+  datamodels.name             — datamodel name
+  datamodels.organizationName — organization
+  datamodels.version          — version
+
+Alarm fields (alarms_search):
+  alarm.severity          — INFORMATIVE, URGENT, CRITICAL
+  alarm.status            — OPEN, ATTEND, CLOSED
+  alarm.name              — alarm name
+  alarm.rule              — rule name
+  alarm.entityIdentifier  — device/entity ID
+  alarm.organization      — organization
+  alarm.priority          — LOW, MEDIUM, HIGH
+  alarm.openingDate       — ISO 8601 datetime
+
+Job fields (jobs_search):
+  jobs.request.name            — operation name (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC)
+  jobs.report.summary.status   — IN_PROGRESS, FINISHED, CANCELLED, PAUSED
+
+Task fields (tasks_search):
+  tasks.name   — task name
+  tasks.state  — ACTIVE, PAUSED, FINISHED
+  tasks.id     — task UUID
+
+Job operation types (for jobs_create):
+  REBOOT_EQUIPMENT       — hardware reboot (parameters: {"type":"HARDWARE"})
+  EQUIPMENT_DIAGNOSTIC   — self-diagnostic
 
 Custom datastream fields depend on the organization's datamodels.
 Use opengate://organizations/{org}/datamodel-fields to discover them.
