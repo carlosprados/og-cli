@@ -35,6 +35,8 @@ When the user says...          → Use this tool
 "device", "dispositivo"        → devices_search or devices_get
 "datamodel", "modelo de datos" → datamodels_search or datamodels_get
 "alarm", "alarma"              → alarms_search, alarms_summary, alarms_attend, alarms_close
+"time series", "serie temporal" → timeseries_list, timeseries_get, timeseries_data, timeseries_create, timeseries_delete, timeseries_export
+"dataset", "conjunto de datos"  → datasets_list, datasets_get, datasets_data, datasets_create, datasets_delete
 "send data", "enviar dato", "collect", "publicar" → iot_collect
 "send IoT", "enviar IoT"      → iot_collect or iot_collect_payload
 

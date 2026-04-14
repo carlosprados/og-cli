@@ -17,7 +17,7 @@ TUI: pantalla de alarmas con tabla coloreada por severidad, enter para detalle, 
 
 MCP: tools `alarms_search`, `alarms_summary`, `alarms_attend`, `alarms_close`.
 
-## Fase 2: Time Series
+## Fase 2: Time Series ✅ COMPLETADA
 
 Análisis temporal.
 
@@ -37,7 +37,7 @@ TUI: lista de time series, enter para ver config, submenú para consultar datos 
 
 MCP: tools `timeseries_list`, `timeseries_get`, `timeseries_create`, `timeseries_update`, `timeseries_delete`, `timeseries_data`, `timeseries_export`.
 
-## Fase 3: Data Sets
+## Fase 3: Data Sets ✅ COMPLETADA
 
 Reporting.
 

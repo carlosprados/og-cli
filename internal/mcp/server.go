@@ -24,6 +24,8 @@ func newServer(host, token, apiKey string) *server.MCPServer {
 
 	registerTools(s, host, token)
 	registerAlarmTools(s, c)
+	registerTimeSeriesTools(s, c)
+	registerDatasetTools(s, c)
 	registerIoTTools(s, host, apiKey)
 	registerPrompts(s)
 	registerResources(s, c)

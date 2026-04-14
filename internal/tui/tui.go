@@ -18,6 +18,10 @@ const (
 	viewDevices
 	viewDeviceDetail
 	viewAlarms
+	viewTimeSeries
+	viewTimeSeriesData
+	viewDatasets
+	viewDatasetData
 )
 
 // model is the top-level Bubble Tea model.
@@ -43,6 +47,10 @@ type model struct {
 	devices         devicesModel
 	deviceDetail    deviceDetailModel
 	alarms          alarmsModel
+	timeseries      timeseriesModel
+	tsData          timeseriesDataModel
+	datasets        datasetsModel
+	dsData          datasetsDataModel
 
 	// status
 	err     error
@@ -108,6 +116,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateDeviceDetail(msg)
 	case viewAlarms:
 		return m.updateAlarms(msg)
+	case viewTimeSeries:
+		return m.updateTimeSeries(msg)
+	case viewTimeSeriesData:
+		return m.updateTimeSeriesData(msg)
+	case viewDatasets:
+		return m.updateDatasets(msg)
+	case viewDatasetData:
+		return m.updateDatasetData(msg)
 	}
 
 	return m, nil
@@ -129,6 +145,14 @@ func (m model) View() string {
 		return m.viewDeviceDetailScreen()
 	case viewAlarms:
 		return m.viewAlarmsScreen()
+	case viewTimeSeries:
+		return m.viewTimeSeriesScreen()
+	case viewTimeSeriesData:
+		return m.viewTimeSeriesDataScreen()
+	case viewDatasets:
+		return m.viewDatasetsScreen()
+	case viewDatasetData:
+		return m.viewDatasetDataScreen()
 	}
 	return ""
 }
@@ -139,6 +163,10 @@ func (m model) goBack() model {
 		m.view = viewDatamodels
 	case viewDeviceDetail:
 		m.view = viewDevices
+	case viewTimeSeriesData:
+		m.view = viewTimeSeries
+	case viewDatasetData:
+		m.view = viewDatasets
 	default:
 		m.view = viewMenu
 	}

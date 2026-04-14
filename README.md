@@ -254,6 +254,104 @@ og alarms attend <uuid1> <uuid2> <uuid3>
 og alarms close <alarm-uuid> --notes "Resolved"
 ```
 
+### timeseries (alias: ts)
+
+Manage OpenGate time series — aggregated temporal data.
+
+#### list
+
+```bash
+og ts list
+```
+
+#### get
+
+```bash
+og ts get <timeseries-id>
+og ts get <timeseries-id> -o json
+```
+
+Shows the definition including columns (with aggregation functions), context, and sorts.
+
+#### data
+
+Query collected data from a time series:
+
+```bash
+# All data
+og ts data <timeseries-id>
+
+# Filter by column values
+og ts data <id> -w "Prov Identifier eq MyDevice1"
+
+# With sort and limit
+og ts data <id> --sort EntityAscBucketDesc --limit 50
+
+# JSON output
+og ts data <id> -o json
+```
+
+#### create / update / delete
+
+```bash
+og ts create -f timeseries.json
+og ts update <id> -f timeseries.json
+og ts delete <id>
+```
+
+#### export
+
+Trigger a Parquet export:
+
+```bash
+og ts export <id>
+```
+
+### datasets (alias: ds)
+
+Manage OpenGate datasets — columnar snapshots of device data.
+
+#### list
+
+```bash
+og ds list
+```
+
+#### get
+
+```bash
+og ds get <dataset-id>
+og ds get <dataset-id> -o json
+```
+
+Shows the definition including columns with paths and filter/sort settings.
+
+#### data
+
+Query data from a dataset:
+
+```bash
+# All data
+og ds data <dataset-id>
+
+# Filter by column values
+og ds data <id> -w "Prov Identifier eq MyDevice1"
+
+# With limit
+og ds data <id> --limit 50
+
+# JSON output
+og ds data <id> -o json
+```
+
+#### create / update / delete
+
+```bash
+og ds create -f dataset.json
+og ds update <id> -f dataset.json
+og ds delete <id>
+```
+
 ### iot
 
 Device integration via the South API (X-ApiKey authentication). The API key is obtained automatically from the login response.
@@ -332,6 +430,19 @@ Configuration for MCP clients (Claude Code, LM Studio, etc.):
 | `alarms_summary` | Alarm counts by severity/status/rule |
 | `alarms_attend` | Mark alarms as attended |
 | `alarms_close` | Close alarms |
+| `timeseries_list` | List time series in organization |
+| `timeseries_get` | Get time series definition |
+| `timeseries_create` | Create time series from JSON |
+| `timeseries_update` | Update time series from JSON |
+| `timeseries_delete` | Delete time series |
+| `timeseries_data` | Query data from a time series |
+| `timeseries_export` | Trigger Parquet export |
+| `datasets_list` | List datasets in organization |
+| `datasets_get` | Get dataset definition |
+| `datasets_create` | Create dataset from JSON |
+| `datasets_update` | Update dataset from JSON |
+| `datasets_delete` | Delete dataset |
+| `datasets_data` | Query data from a dataset |
 | `iot_collect` | Send a single data point to a device |
 | `iot_collect_payload` | Send a full IoT payload to a device |
 
