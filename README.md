@@ -454,7 +454,11 @@ og mcp
 og mcp --http :8080
 ```
 
-Configuration for MCP clients (Claude Code, LM Studio, etc.):
+**Prerequisites:** run `og login` first to store credentials.
+
+Configuration for MCP clients:
+
+**Claude Code** (`~/.claude/settings.json` or project `.mcp.json`):
 
 ```json
 {
@@ -466,6 +470,38 @@ Configuration for MCP clients (Claude Code, LM Studio, etc.):
   }
 }
 ```
+
+**LM Studio** (MCP server configuration):
+
+```json
+{
+  "mcpServers": {
+    "opengate": {
+      "command": "/path/to/og",
+      "args": ["mcp", "--stdio"]
+    }
+  }
+}
+```
+
+**Multiple environments** (use `--profile`):
+
+```json
+{
+  "mcpServers": {
+    "opengate-production": {
+      "command": "og",
+      "args": ["mcp", "--stdio", "--profile", "production"]
+    },
+    "opengate-staging": {
+      "command": "og",
+      "args": ["mcp", "--stdio", "--profile", "staging"]
+    }
+  }
+}
+```
+
+For a detailed guide on how prompts, resources, and tools work together, see [doc/mcp-integration.md](doc/mcp-integration.md).
 
 #### Tools
 
