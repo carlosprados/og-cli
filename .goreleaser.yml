@@ -1,0 +1,39 @@
+version: 2
+
+project_name: og
+
+builds:
+  - main: .
+    binary: og
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X github.com/carlosprados/og-cli/cmd.version={{.Version}}
+      - -X github.com/carlosprados/og-cli/cmd.commit={{.ShortCommit}}
+      - -X github.com/carlosprados/og-cli/cmd.date={{.Date}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
+      - "^test:"
