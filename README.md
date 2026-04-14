@@ -1,6 +1,6 @@
 # og — OpenGate CLI
 
-Unofficial command-line interface for the [OpenGate](https://opengate.es) IoT platform REST API.
+Unofficial command-line interface for the [OpenGate](https://opengate.es) IoT platform REST API. See the [official OpenGate documentation](https://documentation.opengate.es) for API reference.
 
 Three modes of operation:
 
