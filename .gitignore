@@ -1,0 +1,27 @@
+# Binary
+og
+og-cli
+dist/
+
+# Environment
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Task runner cache
+.task/
+
+# API documentation (local only)
+ogdoc/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage.out

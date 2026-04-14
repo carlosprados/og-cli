@@ -1,0 +1,60 @@
+version: "3"
+
+vars:
+  APP_NAME: og
+  MODULE: github.com/carlosprados/og-cli
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  DATE:
+    sh: date -u +"%Y-%m-%dT%H:%M:%SZ"
+  LDFLAGS: >-
+    -s -w
+    -X {{.MODULE}}/cmd.version={{.VERSION}}
+    -X {{.MODULE}}/cmd.commit={{.COMMIT}}
+    -X {{.MODULE}}/cmd.date={{.DATE}}
+
+tasks:
+  build:
+    desc: Build the og binary
+    cmds:
+      - go build -ldflags '{{.LDFLAGS}}' -o {{.APP_NAME}} .
+    sources:
+      - "**/*.go"
+      - go.mod
+      - go.sum
+    generates:
+      - "{{.APP_NAME}}"
+
+  install:
+    desc: Install og to $GOPATH/bin
+    cmds:
+      - go install -ldflags '{{.LDFLAGS}}' .
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test ./... -v
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run ./...
+
+  fmt:
+    desc: Format code
+    cmds:
+      - gofmt -s -w .
+      - goimports -w .
+
+  tidy:
+    desc: Tidy Go modules
+    cmds:
+      - go mod tidy
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -f {{.APP_NAME}}
+      - rm -f coverage.out
