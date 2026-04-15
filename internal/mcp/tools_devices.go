@@ -26,17 +26,33 @@ func devicesSearchTool() mcp.Tool {
 	return mcp.NewTool("devices_search",
 		mcp.WithDescription(`Search OpenGate devices. ALWAYS use the 'query' parameter for filtering — do NOT build JSON manually.
 
-Common device fields for filtering:
+IMPORTANT: devices_search filters on BOTH provisioned metadata AND the latest collected datastream values
+(the server stores the _current value of every datastream on the device document, so filters like
+"wt gt 20" or "device.temperature.value lte 50" are fully supported by POST /north/v80/search/devices).
+Do NOT redirect the user to timeseries_data or datasets_data just because they filter by a datastream
+value — only use those tools when the user explicitly asks for historical/time-windowed data.
+
+Provision (metadata) fields:
 - provision.device.identifier — device ID
 - provision.device.name — device name
 - provision.device.administrativeState — ACTIVE, TESTING, BANNED, etc.
 - provision.device.operationalStatus — NORMAL, ALARM, etc.
 - provision.administration.organization — organization name
 
+Collected datastream fields (current value on the device):
+- Default datamodel streams, e.g. device.temperature.value, device.cpu.total, device.ram.total, anin1
+- Organization-specific streams defined in custom datamodels, e.g. wt, wp, batteryPercentage
+- To discover which datastreams are available in an org, read the resource
+  opengate://organizations/{org}/datamodel-fields
+
 Examples:
   query: "provision.device.administrativeState eq ACTIVE"
   query: "provision.device.identifier like sense AND provision.device.administrativeState eq ACTIVE"
-  query: "provision.administration.organization eq sensehat"`),
+  query: "provision.administration.organization eq sensehat"
+  query: "wt gt 20"                                              # devices with temperature > 20
+  query: "wt gte 10 AND wt lte 30"                               # temperature between 10 and 30
+  query: "device.temperature.value gt 50 AND provision.device.operationalStatus eq NORMAL"
+  query: "anin1 gt 5 AND provision.administration.organization eq sensehat"`),
 		mcp.WithString("query",
 			mcp.Description("Filter using: \"field op value\". Multiple conditions joined with AND. Operators: eq, neq, like, gt, lt, gte, lte, in, exists. Example: \"provision.device.administrativeState eq ACTIVE\". Omit to list all devices."),
 		),

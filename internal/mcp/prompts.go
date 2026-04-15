@@ -52,12 +52,23 @@ Read opengate://organizations/{org}/datamodel-fields when the user asks about sp
 ## Common fields per entity
 
 ### Devices (used in devices_search query)
+
+Provision (metadata) fields:
 - provision.device.identifier — device ID
 - provision.device.name — device name
 - provision.device.administrativeState — ACTIVE, TESTING, BANNED
 - provision.device.operationalStatus — NORMAL, ALARM, DOWN
 - provision.administration.organization — organization name
 - provision.administration.channel — channel name
+
+Collected datastream fields (latest value stored on the device):
+- Default streams: device.temperature.value, device.cpu.total, device.ram.total, device.upTime, anin1, gpio4, ...
+- Organization-specific streams defined in custom datamodels: wt (temperature), wp (pressure), batteryPercentage, ...
+- Read opengate://organizations/{org}/datamodel-fields to discover them.
+
+devices_search filters on BOTH groups at the same time. A user asking "devices with wt > 20" maps
+directly to devices_search(query: "wt gt 20"). Do NOT redirect them to timeseries_data or datasets_data
+unless they ask for historical / time-windowed data.
 
 ### Datamodels (used in datamodels_search query)
 - datamodels.identifier — datamodel ID
@@ -116,6 +127,9 @@ User: "Dispositivos con identificador que contenga sense" → devices_search(que
 User: "Devices in sensehat org with state TESTING" → devices_search(query: "provision.administration.organization eq sensehat AND provision.device.administrativeState eq TESTING")
 User: "Muéstrame el dispositivo sense-001 de sensehat" → devices_get(organization: "sensehat", id: "sense-001")
 User: "Show me temperature and pressure for sense devices" → devices_search(query: "provision.device.identifier like sense", select: "provision.device.identifier,wt,wp")
+User: "Dispositivos con temperatura mayor que 20" → devices_search(query: "wt gt 20")
+User: "Devices where wt is between 10 and 30 in sensehat" → devices_search(query: "wt gte 10 AND wt lte 30 AND provision.administration.organization eq sensehat")
+User: "Dispositivos con device.temperature.value mayor que 50 y estado NORMAL" → devices_search(query: "device.temperature.value gt 50 AND provision.device.operationalStatus eq NORMAL")
 User: "Datamodels que contengan weather" → datamodels_search(query: "datamodels.identifier like weather")
 User: "Alarmas críticas abiertas" → alarms_search(query: "alarm.severity eq CRITICAL AND alarm.status eq OPEN")
 User: "Resumen de alarmas" → alarms_summary()

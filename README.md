@@ -167,6 +167,11 @@ og dev search
 og dev search -w "provision.device.administrativeState eq ACTIVE"
 og dev search -w "provision.device.identifier like sense" --limit 10
 
+# Filter by the latest collected datastream value (works for any default or custom stream)
+og dev search -w "wt gt 20"
+og dev search -w "wt gte 10 AND wt lte 30 AND provision.administration.organization eq sensehat"
+og dev search -w "device.temperature.value gt 50 AND provision.device.operationalStatus eq NORMAL"
+
 # Select specific fields (dynamic columns)
 og dev search -s provision.device.identifier -s wt -s wp \
               -w "provision.device.identifier like sense"
@@ -431,6 +436,10 @@ devices_search(
   select: "provision.device.identifier,wt",
   limit: 10
 )
+
+# Filtering by the latest collected datastream value is also supported
+devices_search(query: "wt gt 20")
+devices_search(query: "device.temperature.value gt 50 AND provision.device.operationalStatus eq NORMAL")
 ```
 
 #### Prompts

@@ -54,12 +54,30 @@ Operators:
   exists  — field exists (no value needed)
 
 Device fields (devices_search):
-  provision.device.identifier              — device ID
-  provision.device.name                    — device name
-  provision.device.administrativeState     — ACTIVE, TESTING, BANNED
-  provision.device.operationalStatus       — NORMAL, ALARM, DOWN
-  provision.administration.organization    — organization name
-  provision.administration.channel         — channel name
+
+  Provision (metadata):
+    provision.device.identifier              — device ID
+    provision.device.name                    — device name
+    provision.device.administrativeState     — ACTIVE, TESTING, BANNED
+    provision.device.operationalStatus       — NORMAL, ALARM, DOWN
+    provision.administration.organization    — organization name
+    provision.administration.channel         — channel name
+
+  Collected datastreams (latest value stored on the device — ALSO filterable):
+    device.temperature.value   — device temperature
+    device.cpu.total           — CPU usage
+    device.ram.total           — RAM usage
+    device.upTime              — uptime (seconds)
+    anin1, gpio4, ...          — generic IO streams
+    wt, wp, batteryPercentage  — organization-specific custom datastreams
+
+  devices_search filters on BOTH groups. Examples:
+    "wt gt 20"
+    "device.temperature.value gte 50 AND provision.device.operationalStatus eq NORMAL"
+    "wt gte 10 AND wt lte 30 AND provision.administration.organization eq sensehat"
+
+  Use the historical tools (timeseries_data, datasets_data) ONLY when the user asks for time-windowed
+  or historical data; for "current value" filters devices_search is the correct tool.
 
 Datamodel fields (datamodels_search):
   datamodels.identifier       — datamodel ID
