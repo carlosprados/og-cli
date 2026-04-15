@@ -24,10 +24,15 @@ var devicesSearchCmd = &cobra.Command{
 	Short: "Search devices",
 	Long: `Search devices with simple conditions or a raw JSON filter.
 
+Filters apply to BOTH provisioned metadata (provision.*) and the latest
+collected value of any datastream (default or organization-specific).
+
 Examples:
   og dev search -w "provision.device.administrativeState eq ACTIVE"
   og dev search -w "provision.device.identifier like sense" --limit 10
   og dev search -w "provision.device.administrativeState eq ACTIVE" -w "provision.device.identifier like sense"
+  og dev search -w "wt gt 20"
+  og dev search -w "device.temperature.value gte 50" -w "provision.device.operationalStatus eq NORMAL"
   og dev search --filter '{"filter":{"or":[...]}}'`,
 	RunE: runDevicesSearch,
 }
