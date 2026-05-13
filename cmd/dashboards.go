@@ -1,0 +1,434 @@
+package cmd
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/internal/output"
+	"github.com/spf13/cobra"
+)
+
+var dashboardCmd = &cobra.Command{
+	Use:     "dashboard",
+	Aliases: []string{"dash", "dashboards"},
+	Short:   "Manage OpenGate dashboards (Web API)",
+	Long: `Manage dashboards from the OpenGate Web API.
+
+Every dashboard belongs to exactly one workspace. Use "og workspace list"
+to discover workspace IDs and then list dashboards filtered by workspace.`,
+}
+
+// --- list ---
+
+var dashboardListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List dashboards (optionally filtered by workspace)",
+	Long: `List dashboards.
+
+Without flags: iterates all workspaces with ?full=1 and shows their dashboards.
+With --workspace <id>: shows dashboards of that workspace only.`,
+	RunE: runDashboardList,
+}
+
+var dashboardListWorkspace string
+
+type dashboardRow struct {
+	WorkspaceID   string
+	WorkspaceName string
+	DashboardID   string
+	Title         string
+	Owner         string
+}
+
+func runDashboardList(cmd *cobra.Command, args []string) error {
+	p, err := activeProfile()
+	if err != nil {
+		return err
+	}
+	c := newWebClient(p)
+
+	var rows []dashboardRow
+	if dashboardListWorkspace != "" {
+		w, err := c.GetWorkspace(dashboardListWorkspace, true)
+		if err != nil {
+			return err
+		}
+		rows = collectDashboardRows(w)
+	} else {
+		wss, err := c.ListWorkspaces(true)
+		if err != nil {
+			return err
+		}
+		for i := range wss {
+			rows = append(rows, collectDashboardRows(&wss[i])...)
+		}
+	}
+
+	return output.Print(outFmt, rows,
+		[]string{"Workspace", "Workspace ID", "Dashboard ID", "Title", "Owner"},
+		func(data any) [][]string {
+			items := data.([]dashboardRow)
+			out := make([][]string, len(items))
+			for i, r := range items {
+				out[i] = []string{r.WorkspaceName, r.WorkspaceID, r.DashboardID, r.Title, r.Owner}
+			}
+			return out
+		},
+	)
+}
+
+func collectDashboardRows(w *client.Workspace) []dashboardRow {
+	rows := make([]dashboardRow, 0, len(w.Dashboards))
+	for _, wd := range w.Dashboards {
+		if wd.Dashboard == nil {
+			rows = append(rows, dashboardRow{
+				WorkspaceID:   w.ID,
+				WorkspaceName: w.Name,
+				DashboardID:   wd.ID,
+			})
+			continue
+		}
+		rows = append(rows, dashboardRow{
+			WorkspaceID:   w.ID,
+			WorkspaceName: w.Name,
+			DashboardID:   wd.Dashboard.ID,
+			Title:         wd.Dashboard.Title,
+			Owner:         wd.Dashboard.Owner,
+		})
+	}
+	return rows
+}
+
+// --- get ---
+
+var dashboardGetCmd = &cobra.Command{
+	Use:   "get <dashboard-id>",
+	Short: "Get a dashboard by ID",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runDashboardGet,
+}
+
+func runDashboardGet(cmd *cobra.Command, args []string) error {
+	p, err := activeProfile()
+	if err != nil {
+		return err
+	}
+	c := newWebClient(p)
+
+	d, err := c.GetDashboard(args[0])
+	if err != nil {
+		return err
+	}
+
+	return output.Print(outFmt, d,
+		[]string{"Field", "Value"},
+		func(data any) [][]string {
+			d := data.(*client.Dashboard)
+			return [][]string{
+				{"ID", d.ID},
+				{"Title", d.Title},
+				{"Owner", d.Owner},
+				{"Workspace", d.Workspaces},
+				{"Icon", d.Icon},
+				{"Widgets", fmt.Sprintf("%d", len(d.Grid))},
+				{"LastAccess", d.LastAccess},
+			}
+		},
+	)
+}
+
+// --- export ---
+
+var dashboardExportCmd = &cobra.Command{
+	Use:   "export <dashboard-id>",
+	Short: "Export a dashboard as JSON",
+	Long: `Export a dashboard using the dedicated /dashboards/export endpoint.
+The resulting JSON can be passed to "og dashboard import" on another tenant.
+
+Output destinations (precedence: --out > --dir > stdout):
+  --out file.json          write to that exact path
+  --dir backups/           write to backups/<dashboard-id>.json (auto-naming)
+
+Use --full to fetch via GET /dashboards/{id} instead.`,
+	Args: cobra.ExactArgs(1),
+	RunE: runDashboardExport,
+}
+
+var (
+	dashboardExportOut  string
+	dashboardExportDir  string
+	dashboardExportFull bool
+)
+
+func runDashboardExport(cmd *cobra.Command, args []string) error {
+	p, err := activeProfile()
+	if err != nil {
+		return err
+	}
+	c := newWebClient(p)
+
+	data, err := fetchDashboardExportData(c, args[0], dashboardExportFull)
+	if err != nil {
+		return err
+	}
+
+	dest, err := resolveOutputPath(dashboardExportOut, dashboardExportDir, args[0])
+	if err != nil {
+		return err
+	}
+
+	if dest == "" {
+		fmt.Println(string(data))
+		return nil
+	}
+	if err := writeExportFile(dest, data); err != nil {
+		return err
+	}
+	fmt.Printf("Dashboard exported to %s\n", dest)
+	return nil
+}
+
+func fetchDashboardExportData(c *client.Client, id string, full bool) ([]byte, error) {
+	if full {
+		d, err := c.GetDashboard(id)
+		if err != nil {
+			return nil, err
+		}
+		data, err := json.MarshalIndent(d, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("marshaling dashboard: %w", err)
+		}
+		return data, nil
+	}
+	return c.ExportDashboard(id)
+}
+
+// --- export-all ---
+
+var dashboardExportAllCmd = &cobra.Command{
+	Use:   "export-all --dir <dir>",
+	Short: "Export every dashboard to <dir>/<id>.json",
+	Long: `Export every dashboard accessible to the current user, writing one
+JSON file per dashboard into the given directory (named <dashboard-id>.json).
+
+Iterates all workspaces (with embedded dashboards) and exports each dashboard
+in turn. Use --workspace <id> to limit to dashboards of a single workspace.`,
+	RunE: runDashboardExportAll,
+}
+
+var (
+	dashboardExportAllDir       string
+	dashboardExportAllWorkspace string
+	dashboardExportAllFull      bool
+)
+
+func runDashboardExportAll(cmd *cobra.Command, args []string) error {
+	p, err := activeProfile()
+	if err != nil {
+		return err
+	}
+	c := newWebClient(p)
+
+	if err := os.MkdirAll(dashboardExportAllDir, 0o755); err != nil {
+		return fmt.Errorf("creating directory %s: %w", dashboardExportAllDir, err)
+	}
+
+	var rows []dashboardRow
+	if dashboardExportAllWorkspace != "" {
+		w, err := c.GetWorkspace(dashboardExportAllWorkspace, true)
+		if err != nil {
+			return err
+		}
+		rows = collectDashboardRows(w)
+	} else {
+		wss, err := c.ListWorkspaces(true)
+		if err != nil {
+			return err
+		}
+		for i := range wss {
+			rows = append(rows, collectDashboardRows(&wss[i])...)
+		}
+	}
+
+	var exported, failed int
+	for _, r := range rows {
+		if r.DashboardID == "" {
+			continue
+		}
+		data, err := fetchDashboardExportData(c, r.DashboardID, dashboardExportAllFull)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", r.DashboardID, err)
+			failed++
+			continue
+		}
+		dest := filepath.Join(dashboardExportAllDir, r.DashboardID+".json")
+		if err := writeExportFile(dest, data); err != nil {
+			fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", r.DashboardID, err)
+			failed++
+			continue
+		}
+		fmt.Printf("  ✓ %s (%s) → %s\n", r.DashboardID, r.Title, dest)
+		exported++
+	}
+
+	fmt.Printf("\n%d dashboard(s) exported, %d failed.\n", exported, failed)
+	if failed > 0 {
+		return fmt.Errorf("%d dashboard(s) failed to export", failed)
+	}
+	return nil
+}
+
+// --- import ---
+
+var dashboardImportCmd = &cobra.Command{
+	Use:   "import -f <file.json> [--workspace <id>] [--update]",
+	Short: "Import (create or update) a dashboard from a JSON file",
+	Long: `Import a dashboard from a JSON file.
+
+By default, the file is POSTed as a new dashboard. If the JSON contains an
+"_id" that already exists, OpenGate returns HTTP 400 with a duplicate-key
+error; re-run with --update to overwrite the existing dashboard via PUT.
+
+If --workspace is provided, the "workspaces" field of the payload is overridden
+with the given workspace ID — useful for migrating a dashboard from one tenant
+or workspace to another. --workspace is ignored when combined with --update.`,
+	RunE: runDashboardImport,
+}
+
+var (
+	dashboardImportFile      string
+	dashboardImportWorkspace string
+	dashboardImportUpdate    bool
+)
+
+func runDashboardImport(cmd *cobra.Command, args []string) error {
+	p, err := activeProfile()
+	if err != nil {
+		return err
+	}
+
+	body, err := os.ReadFile(dashboardImportFile)
+	if err != nil {
+		return fmt.Errorf("reading file: %w", err)
+	}
+
+	c := newWebClient(p)
+
+	if dashboardImportUpdate {
+		id, err := extractIDFromJSON(body)
+		if err != nil {
+			return fmt.Errorf("--update requires the file to contain an _id: %w", err)
+		}
+		if err := c.UpdateDashboard(id, body); err != nil {
+			return err
+		}
+		fmt.Printf("Dashboard %s updated successfully.\n", id)
+		return nil
+	}
+
+	resp, err := c.CreateDashboard(body, dashboardImportWorkspace)
+	if err != nil {
+		if isDuplicateKeyError(err) {
+			return fmt.Errorf("%w\n\nThe dashboard _id already exists. Re-run with --update to overwrite it via PUT", err)
+		}
+		return err
+	}
+
+	if len(resp) > 0 && outFmt == output.FormatJSON {
+		fmt.Println(string(resp))
+		return nil
+	}
+	fmt.Println("Dashboard imported successfully.")
+	return nil
+}
+
+// --- update ---
+
+var dashboardUpdateCmd = &cobra.Command{
+	Use:   "update <dashboard-id> -f <file.json>",
+	Short: "Update an existing dashboard from a JSON file",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runDashboardUpdate,
+}
+
+var dashboardUpdateFile string
+
+func runDashboardUpdate(cmd *cobra.Command, args []string) error {
+	p, err := activeProfile()
+	if err != nil {
+		return err
+	}
+
+	body, err := os.ReadFile(dashboardUpdateFile)
+	if err != nil {
+		return fmt.Errorf("reading file: %w", err)
+	}
+
+	c := newWebClient(p)
+	if err := c.UpdateDashboard(args[0], body); err != nil {
+		return err
+	}
+
+	fmt.Println("Dashboard updated successfully.")
+	return nil
+}
+
+// --- delete ---
+
+var dashboardDeleteCmd = &cobra.Command{
+	Use:   "delete <dashboard-id>",
+	Short: "Delete a dashboard",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runDashboardDelete,
+}
+
+func runDashboardDelete(cmd *cobra.Command, args []string) error {
+	p, err := activeProfile()
+	if err != nil {
+		return err
+	}
+
+	c := newWebClient(p)
+	if err := c.DeleteDashboard(args[0]); err != nil {
+		return err
+	}
+
+	fmt.Println("Dashboard deleted successfully.")
+	return nil
+}
+
+// --- init ---
+
+func init() {
+	dashboardListCmd.Flags().StringVar(&dashboardListWorkspace, "workspace", "", "filter by workspace ID")
+
+	dashboardExportCmd.Flags().StringVar(&dashboardExportOut, "out", "", "write export JSON to this file (default: stdout)")
+	dashboardExportCmd.Flags().StringVar(&dashboardExportDir, "dir", "", "write export to <dir>/<dashboard-id>.json (auto-naming)")
+	dashboardExportCmd.Flags().BoolVar(&dashboardExportFull, "full", false, "use GET /dashboards/{id} instead of /dashboards/export/{id}")
+
+	dashboardImportCmd.Flags().StringVarP(&dashboardImportFile, "file", "f", "", "path to JSON file with dashboard definition")
+	dashboardImportCmd.Flags().StringVar(&dashboardImportWorkspace, "workspace", "", "override the target workspace ID in the payload (ignored with --update)")
+	dashboardImportCmd.Flags().BoolVar(&dashboardImportUpdate, "update", false, "update an existing dashboard (PUT) instead of creating (POST)")
+	_ = dashboardImportCmd.MarkFlagRequired("file")
+
+	dashboardUpdateCmd.Flags().StringVarP(&dashboardUpdateFile, "file", "f", "", "path to JSON file with dashboard definition")
+	_ = dashboardUpdateCmd.MarkFlagRequired("file")
+
+	dashboardExportAllCmd.Flags().StringVar(&dashboardExportAllDir, "dir", "", "destination directory (required)")
+	dashboardExportAllCmd.Flags().StringVar(&dashboardExportAllWorkspace, "workspace", "", "limit to dashboards of this workspace")
+	dashboardExportAllCmd.Flags().BoolVar(&dashboardExportAllFull, "full", false, "use GET /dashboards/{id} instead of /dashboards/export/{id}")
+	_ = dashboardExportAllCmd.MarkFlagRequired("dir")
+
+	dashboardCmd.AddCommand(dashboardListCmd)
+	dashboardCmd.AddCommand(dashboardGetCmd)
+	dashboardCmd.AddCommand(dashboardExportCmd)
+	dashboardCmd.AddCommand(dashboardExportAllCmd)
+	dashboardCmd.AddCommand(dashboardImportCmd)
+	dashboardCmd.AddCommand(dashboardUpdateCmd)
+	dashboardCmd.AddCommand(dashboardDeleteCmd)
+
+	rootCmd.AddCommand(dashboardCmd)
+}

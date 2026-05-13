@@ -7,35 +7,35 @@ import (
 )
 
 const (
-	timeseriesBasePath = "/north/v80/timeseries/provision/organizations/%s"
-	timeseriesPath     = "/north/v80/timeseries/provision/organizations/%s/%s"
-	timeseriesDataPath = "/north/v80/timeseries/provision/organizations/%s/%s/data"
+	timeseriesBasePath   = "/north/v80/timeseries/provision/organizations/%s"
+	timeseriesPath       = "/north/v80/timeseries/provision/organizations/%s/%s"
+	timeseriesDataPath   = "/north/v80/timeseries/provision/organizations/%s/%s/data"
 	timeseriesExportPath = "/north/v80/timeseries/provision/organizations/%s/%s/export"
 )
 
 // TimeSeries represents a time series definition.
 type TimeSeries struct {
-	Identifier       string             `json:"identifier,omitempty"`
-	Name             string             `json:"name"`
-	Description      string             `json:"description,omitempty"`
-	OrganizationID   string             `json:"organizationId,omitempty"`
-	TimeBucket       int                `json:"timeBucket,omitempty"`
-	Retention        int                `json:"retention,omitempty"`
-	Origin           string             `json:"origin,omitempty"`
-	BucketColumn     string             `json:"bucketColumn,omitempty"`
-	BucketInitColumn string             `json:"bucketInitColumn,omitempty"`
-	IdentifierColumn string             `json:"identifierColumn,omitempty"`
-	Context          []TSColumn         `json:"context,omitempty"`
-	Columns          []TSColumn         `json:"columns,omitempty"`
-	Sorts            []TSSort           `json:"sorts,omitempty"`
+	Identifier       string     `json:"identifier,omitempty"`
+	Name             string     `json:"name"`
+	Description      string     `json:"description,omitempty"`
+	OrganizationID   string     `json:"organizationId,omitempty"`
+	TimeBucket       int        `json:"timeBucket,omitempty"`
+	Retention        int        `json:"retention,omitempty"`
+	Origin           string     `json:"origin,omitempty"`
+	BucketColumn     string     `json:"bucketColumn,omitempty"`
+	BucketInitColumn string     `json:"bucketInitColumn,omitempty"`
+	IdentifierColumn string     `json:"identifierColumn,omitempty"`
+	Context          []TSColumn `json:"context,omitempty"`
+	Columns          []TSColumn `json:"columns,omitempty"`
+	Sorts            []TSSort   `json:"sorts,omitempty"`
 }
 
 // TSColumn represents a context or data column in a time series.
 type TSColumn struct {
-	Path               string `json:"path"`
-	Name               string `json:"name"`
-	Filter             string `json:"filter,omitempty"`
-	Type               string `json:"type,omitempty"`
+	Path                string `json:"path"`
+	Name                string `json:"name"`
+	Filter              string `json:"filter,omitempty"`
+	Type                string `json:"type,omitempty"`
 	AggregationFunction string `json:"aggregationFunction,omitempty"`
 }
 

@@ -43,8 +43,8 @@ type SearchAlarmsResponse struct {
 
 // AlarmSummaryGroup is a single group entry in a summary.
 type AlarmSummaryGroup struct {
-	Count int                  `json:"count"`
-	List  []AlarmSummaryEntry  `json:"list"`
+	Count int                 `json:"count"`
+	List  []AlarmSummaryEntry `json:"list"`
 }
 
 // AlarmSummaryEntry is a name/count pair within a summary group.
@@ -55,8 +55,8 @@ type AlarmSummaryEntry struct {
 
 // AlarmSummary is the response from the alarms summary endpoint.
 type AlarmSummary struct {
-	Date         string                       `json:"date"`
-	Count        int                          `json:"count"`
+	Date         string                         `json:"date"`
+	Count        int                            `json:"count"`
 	SummaryGroup []map[string]AlarmSummaryGroup `json:"summaryGroup"`
 }
 

@@ -19,8 +19,16 @@ const (
 type Profile struct {
 	Host         string `mapstructure:"host"`
 	Token        string `mapstructure:"token"`
+	WebToken     string `mapstructure:"web_token"`
 	APIKey       string `mapstructure:"api_key"`
 	Organization string `mapstructure:"organization"`
+
+	// Fields below are used to refresh the WebToken when it is invalidated
+	// (e.g. when the user logs in via the OpenGate web UI in parallel).
+	Email       string `mapstructure:"email"`
+	Domain      string `mapstructure:"domain"`
+	UserProfile string `mapstructure:"user_profile"`
+	Workgroup   string `mapstructure:"workgroup"`
 }
 
 // Config is the top-level configuration.
@@ -113,6 +121,9 @@ func (c *Config) ActiveProfile(name string) (*Profile, error) {
 	if t := os.Getenv(EnvPrefix + "_TOKEN"); t != "" {
 		p.Token = t
 	}
+	if wt := os.Getenv(EnvPrefix + "_WEB_TOKEN"); wt != "" {
+		p.WebToken = wt
+	}
 	if o := os.Getenv(EnvPrefix + "_ORG"); o != "" {
 		p.Organization = o
 	}
@@ -122,8 +133,14 @@ func (c *Config) ActiveProfile(name string) (*Profile, error) {
 // Credentials holds the values to persist after login.
 type Credentials struct {
 	Token        string
+	WebToken     string
 	APIKey       string
 	Organization string
+
+	Email       string
+	Domain      string
+	UserProfile string
+	Workgroup   string
 }
 
 // SaveCredentials persists login credentials into the named profile.
@@ -158,8 +175,23 @@ func SaveCredentials(profileName string, creds Credentials, configPath string) e
 
 	v.Set(prefix+".token", creds.Token)
 
+	if creds.WebToken != "" {
+		v.Set(prefix+".web_token", creds.WebToken)
+	}
 	if creds.APIKey != "" {
 		v.Set(prefix+".api_key", creds.APIKey)
+	}
+	if creds.Email != "" {
+		v.Set(prefix+".email", creds.Email)
+	}
+	if creds.Domain != "" {
+		v.Set(prefix+".domain", creds.Domain)
+	}
+	if creds.UserProfile != "" {
+		v.Set(prefix+".user_profile", creds.UserProfile)
+	}
+	if creds.Workgroup != "" {
+		v.Set(prefix+".workgroup", creds.Workgroup)
 	}
 	if creds.Organization != "" {
 		// Only set if not already configured

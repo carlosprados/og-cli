@@ -16,12 +16,12 @@ const (
 
 // Dataset represents a dataset definition.
 type Dataset struct {
-	Identifier       string       `json:"identifier,omitempty"`
-	Name             string       `json:"name"`
-	Description      string       `json:"description,omitempty"`
-	OrganizationID   string       `json:"organizationId,omitempty"`
-	IdentifierColumn string       `json:"identifierColumn,omitempty"`
-	Columns          []DSColumn   `json:"columns,omitempty"`
+	Identifier       string     `json:"identifier,omitempty"`
+	Name             string     `json:"name"`
+	Description      string     `json:"description,omitempty"`
+	OrganizationID   string     `json:"organizationId,omitempty"`
+	IdentifierColumn string     `json:"identifierColumn,omitempty"`
+	Columns          []DSColumn `json:"columns,omitempty"`
 }
 
 // DSColumn represents a column in a dataset.

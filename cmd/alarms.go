@@ -192,4 +192,3 @@ func init() {
 
 	rootCmd.AddCommand(alarmsCmd)
 }
-

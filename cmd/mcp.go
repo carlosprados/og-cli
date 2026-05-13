@@ -15,8 +15,8 @@ var mcpCmd = &cobra.Command{
 }
 
 var (
-	mcpStdio   bool
-	mcpHTTP    string
+	mcpStdio bool
+	mcpHTTP  string
 )
 
 func init() {
@@ -33,8 +33,8 @@ func runMCP(cmd *cobra.Command, args []string) error {
 
 	if mcpHTTP != "" {
 		fmt.Printf("Starting MCP HTTP server on %s\n", mcpHTTP)
-		return ogmcp.ServeHTTP(mcpHTTP, p.Host, p.Token, p.APIKey)
+		return ogmcp.ServeHTTP(mcpHTTP, p.Host, p.Token, p.WebToken, p.APIKey)
 	}
 
-	return ogmcp.ServeStdio(p.Host, p.Token, p.APIKey)
+	return ogmcp.ServeStdio(p.Host, p.Token, p.WebToken, p.APIKey)
 }

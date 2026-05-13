@@ -8,16 +8,16 @@ import (
 
 // Operations API uses /v80/ prefix (not /north/v80/)
 const (
-	searchJobsPath      = "/north/v80/search/jobs"
-	searchJobsSummary   = "/north/v80/search/jobs/summary"
-	searchTasksPath     = "/north/v80/search/tasks"
-	jobsPath            = "/north/v80/operation/jobs"
-	jobPath             = "/north/v80/operation/jobs/%s"
-	jobOperationsPath   = "/north/v80/operation/jobs/%s/operations"
-	jobOperationPath    = "/north/v80/operation/jobs/%s/operations/%s"
-	tasksPath           = "/north/v80/operation/tasks"
-	taskPath            = "/north/v80/operation/tasks/%s"
-	taskJobsPath        = "/north/v80/operation/tasks/%s/jobs"
+	searchJobsPath    = "/north/v80/search/jobs"
+	searchJobsSummary = "/north/v80/search/jobs/summary"
+	searchTasksPath   = "/north/v80/search/tasks"
+	jobsPath          = "/north/v80/operation/jobs"
+	jobPath           = "/north/v80/operation/jobs/%s"
+	jobOperationsPath = "/north/v80/operation/jobs/%s/operations"
+	jobOperationPath  = "/north/v80/operation/jobs/%s/operations/%s"
+	tasksPath         = "/north/v80/operation/tasks"
+	taskPath          = "/north/v80/operation/tasks/%s"
+	taskJobsPath      = "/north/v80/operation/tasks/%s/jobs"
 )
 
 // Job represents an OpenGate operation job.
