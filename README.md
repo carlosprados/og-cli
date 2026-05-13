@@ -301,6 +301,160 @@ og tasks cancel <task-id>
 og tasks jobs <task-id>
 ```
 
+### workspace (alias: ws)
+
+Manage OpenGate **workspaces** (Web API `/api/v1`). Workspaces are the top-level UI
+container — every workspace owns one or more dashboards.
+
+```bash
+# List and get
+og workspace list
+og workspace list --full          # include embedded dashboards
+og workspace get <workspace-id>
+og workspace get <workspace-id> --full
+
+# Export (cross-tenant migration / backups)
+og workspace export <workspace-id> --out ws.json
+og workspace export <workspace-id> --dir backups/      # auto-naming: backups/<id>.json
+og workspace export <workspace-id> --full --out ws.json
+
+# Batch export every workspace
+og workspace export-all --dir backups/
+
+# Unwrap into editable directory tree (IDE / AI friendly)
+og workspace unwrap <workspace-id> --dir wsroot/
+og workspace unwrap-all --dir wsroot/
+og workspace unwrap-file ws.json --dir wsroot/      # from a local JSON file
+
+# All unwrap commands accept --force to overwrite an existing destination
+
+# Wrap back into a single JSON ready for import
+og workspace wrap wsroot/<workspace-slug> --out ws.json
+
+# Import / update / delete
+og workspace import -f ws.json              # POST: creates workspace + its dashboards (multi-phase)
+og workspace import -f ws.json --update     # PUT: overwrites workspace + all its dashboards
+og workspace update <workspace-id> -f ws.json
+og workspace delete <workspace-id>
+```
+
+`og workspace import` replays the same multi-phase flow the OpenGate web-UI
+wizard uses, so the workspace's dashboards (and the JavaScript inside their
+widgets) are actually persisted:
+
+```
+POST /api/workspaces                ← workspace shell (no dashboards inline)
+POST /api/dashboards × N            ← each dashboard with full grid + widgets
+PUT  /api/workspaces/{id}           ← shell + dashboards[] as grid-layout refs
+```
+
+`--update` is the symmetric variant for re-deploying after edit:
+
+```
+PUT /api/dashboards/{id} × N        ← each dashboard with its (edited) widgets
+PUT /api/workspaces/{id}            ← shell + dashboards[] as grid-layout refs
+```
+
+This makes the `unwrap → edit JS → wrap → import --update` cycle work
+correctly: changes to the extracted `.js` files land on the server.
+
+#### Unwrap structure (for IDE editing and AI agents)
+
+`og workspace unwrap` explodes a workspace into one folder per nesting level
+and extracts any embedded JavaScript code into standalone `.js` files. This
+lets you edit widget formatters and operation scripts as regular `.js` files
+with syntax highlighting, lints, and AI assistance.
+
+```
+wsroot/
+  dashboards-adif/                                   # <workspace-slug>
+    workspace.json                                   # workspace metadata (dashboards stripped)
+    00__visualizaci-n-pbi/                           # NN__<dashboard-slug> — preserves array order
+      dashboard.json                                 # dashboard metadata + _workspaceLayout
+      00__customchart__1727269767709-0/              # NN__<widget-type>__<wid>
+        widget.json                                  # grid item + cleaned config
+        _widgetConfigCode.js                         # extracted JS (9 KB of chart code)
+    01__visualizaci-n-pbi-m-ximos/
+      dashboard.json
+      00__customchart__1727358473084-0/
+        widget.json
+        _widgetConfigCode.js
+    02__comparativa-vibraciones/
+      ...
+```
+
+JavaScript is extracted automatically when the field is named `formatter`,
+`script`, `operation`, `code`, `fn`, `expression`, `_widgetConfigCode`, **or**
+when a string is long enough and contains JS keywords (`function`, `return`,
+`=>`, `const`, `let`, `var`). Nested fields keep their keypath in the
+filename, e.g. `columns__0__formatter.js`.
+
+The cycle is content-lossless: `og workspace wrap <dir>` produces a workspace
+JSON with identical configuration trees (same SHA256 per widget config) as the
+original export, modulo cosmetic differences in `null`/default field
+serialisation.
+
+### dashboard (alias: dash)
+
+Manage OpenGate **dashboards** (Web API `/api/v1`). Every dashboard belongs to exactly
+one workspace (1-N hierarchy).
+
+```bash
+# List — iterates workspaces with ?full=1 and shows their dashboards
+og dashboard list
+og dashboard list --workspace <workspace-id>          # filter by workspace
+
+# Get
+og dashboard get <dashboard-id>
+
+# Export (single)
+og dashboard export <dashboard-id> --out dash.json
+og dashboard export <dashboard-id> --dir backups/     # auto-naming: backups/<id>.json
+
+# Batch export every dashboard (or just a workspace's)
+og dashboard export-all --dir backups/
+og dashboard export-all --dir backups/ --workspace <workspace-id>
+
+# Import / update / delete
+og dashboard import -f dash.json                      # POST, uses workspace from JSON
+og dashboard import -f dash.json --workspace <id>     # POST, override target workspace
+og dashboard import -f dash.json --update             # PUT: overwrites the dashboard whose _id is in the file
+og dashboard update <dashboard-id> -f dash.json
+og dashboard delete <dashboard-id>
+```
+
+### Web API authentication
+
+Workspaces and dashboards live in the OpenGate **Web API** (`/api/...`), a
+separate surface from the North IoT API. The Web API uses its own JWT, obtained
+automatically by `og login` via `POST /api/auth/signin/internal`.
+
+OpenGate only allows **one active web session per user**. If you log into the
+OpenGate web UI in another tab, your CLI web token is invalidated. `og`
+detects HTTP 401 from the Web API and transparently re-signs in once before
+retrying, so commands keep working without manual `og login` reruns.
+
+Login flags:
+
+```bash
+og login --domain X --workgroup Y --user-profile Z   # override defaults
+og login --no-web                                     # skip web signin entirely
+```
+
+**Cross-tenant migration pattern**:
+
+```bash
+# 1. Log in to source tenant and export
+og login --profile source
+og workspace export ws-id -o ws.json
+og dashboard export dash-id -o dash.json
+
+# 2. Log in to destination tenant and import
+og login --profile destination
+og --profile destination workspace import -f ws.json
+og --profile destination dashboard import -f dash.json --workspace <new-ws-id>
+```
+
 ### iot
 
 Device integration via the South API (X-ApiKey authentication). The API key is obtained automatically from the login response.
@@ -427,6 +581,18 @@ For a detailed guide on how prompts, resources, and tools work together, see [do
 | `tasks_cancel` | Cancel a task |
 | `iot_collect` | Send a single data point to a device |
 | `iot_collect_payload` | Send a full IoT payload to a device |
+| `workspaces_list` | List workspaces (optionally with embedded dashboards) |
+| `workspaces_get` | Get a workspace by ID |
+| `workspaces_export` | Export a workspace via `/workspaces/export/{id}` |
+| `workspaces_import` | Create a workspace from JSON payload |
+| `workspaces_update` | Update a workspace |
+| `workspaces_delete` | Delete a workspace |
+| `dashboards_list` | List dashboards (all, or filtered by workspace) |
+| `dashboards_get` | Get a dashboard with grid layout and widgets |
+| `dashboards_export` | Export a dashboard via `/dashboards/export/{id}` |
+| `dashboards_import` | Create a dashboard from JSON payload, optionally overriding target workspace |
+| `dashboards_update` | Update a dashboard |
+| `dashboards_delete` | Delete a dashboard |
 
 Search tools accept a `query` parameter with the same syntax as `-w` flags:
 

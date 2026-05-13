@@ -1,0 +1,1829 @@
+openapi: 3.0.0
+info:
+  title: OpenGate Web API
+  description: API definition for the OpenGate Web API resources.
+  version: 1.0.0
+servers:
+  - url: /api/v1
+    description: Local API
+security:
+  - bearerAuth: []
+tags:
+  - name: Blueprints
+    description: Operations related to blueprints
+  - name: Dashboards
+    description: Operations related to dashboards
+  - name: Domains
+    description: Operations related to domains
+  - name: WizardViews
+    description: Operations related to wizard views
+  - name: Widgets
+    description: Operations related to widgets and bundles
+  - name: Logs
+    description: Operations related to logging (Elasticsearch)
+  - name: Files
+    description: Operations related to file management
+  - name: Formatter
+    description: Operations related to script formatters
+  - name: Auth
+    description: Authentication operations
+  - name: Lang
+    description: Language and localization operations
+  - name: OIDC
+    description: OIDC configuration operations
+  - name: Templates
+    description: Operations related to templates
+  - name: Users
+    description: User management operations
+  - name: WidgetDefaults
+    description: Default configuration for widgets
+  - name: Workspaces
+    description: Operations related to workspaces
+  - name: Wrapper
+    description: API wrappers and proxies
+
+paths:
+  # blueprint.js
+  /blueprints/{blueprintId}:
+    put:
+      tags: [Blueprints]
+      summary: Save a blueprint
+      parameters:
+        - name: blueprintId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    get:
+      tags: [Blueprints]
+      summary: Load a blueprint
+      parameters:
+        - name: blueprintId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /blueprints:
+    get:
+      tags: [Blueprints]
+      summary: Read all blueprints
+      responses:
+        '200':
+          description: Successful operation
+
+  /blueprints/domain/{domainId}:
+    delete:
+      tags: [Blueprints]
+      summary: Delete blueprints by domain
+      parameters:
+        - name: domainId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  # dashboard.js
+  /dashboards/{dashboardId}:
+    get:
+      tags: [Dashboards]
+      summary: Read a dashboard
+      parameters:
+        - name: dashboardId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+    put:
+      tags: [Dashboards]
+      summary: Update a dashboard
+      parameters:
+        - name: dashboardId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /dashboards/export/{dashboardId}:
+    get:
+      tags: [Dashboards]
+      summary: Export a dashboard
+      parameters:
+        - name: dashboardId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /dashboards/{dashboardId}/image:
+    get:
+      tags: [Dashboards]
+      summary: Read dashboard image
+      parameters:
+        - name: dashboardId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /dashboards/{dashboardId}/icon:
+    get:
+      tags: [Dashboards]
+      summary: Read dashboard icon
+      parameters:
+        - name: dashboardId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /dashboards/{dashboardId}/share:
+    put:
+      tags: [Dashboards]
+      summary: Share a dashboard
+      parameters:
+        - name: dashboardId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /dashboards/{dashboardId}/fav:
+    put:
+      tags: [Dashboards]
+      summary: Toggle favorite status for a dashboard
+      parameters:
+        - name: dashboardId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /dashboards:
+    post:
+      tags: [Dashboards]
+      summary: Create a dashboard
+      responses:
+        '201':
+          description: Created
+    delete:
+      tags: [Dashboards]
+      summary: Delete dashboards
+      responses:
+        '200':
+          description: Successful operation
+
+  # domain.js
+  /domains:
+    post:
+      tags: [Domains]
+      summary: Save a domain
+      responses:
+        '201':
+          description: Created
+
+  /domains/{domainName}:
+    put:
+      tags: [Domains]
+      summary: Update a domain
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    get:
+      tags: [Domains]
+      summary: Load a domain
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    delete:
+      tags: [Domains]
+      summary: Delete a domain
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  # domainWizardViews.js
+  /wiwi/wizard/domain/views/{domainName}:
+    get:
+      tags: [WizardViews]
+      summary: Get domain views
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    put:
+      tags: [WizardViews]
+      summary: Update domain views
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/wizard/entity/views/:
+    post:
+      tags: [WizardViews]
+      summary: Post entity view
+      responses:
+        '201':
+          description: Created
+
+  /wiwi/wizard/entity/views/{viewname}:
+    delete:
+      tags: [WizardViews]
+      summary: Delete entity view
+      parameters:
+        - name: viewname
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/wizard/entity/views/{viewname}/{domainName}:
+    put:
+      tags: [WizardViews]
+      summary: Put entity view
+      parameters:
+        - name: viewname
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/wizard/entity/views/domain/{domainName}:
+    delete:
+      tags: [WizardViews]
+      summary: Delete views by domain
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/wizard/domain/views:
+    post:
+      tags: [WizardViews]
+      summary: Save domain views
+      responses:
+        '201':
+          description: Created
+
+  # domainwidgets.js
+  /wiwi/{domainName}/actions:
+    get:
+      tags: [Widgets]
+      summary: Read actions
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/{domainName}/actions/widgets:
+    get:
+      tags: [Widgets]
+      summary: Read action widgets
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/{domainName}/bundles:
+    post:
+      tags: [Widgets]
+      summary: Post a bundle
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Created
+    get:
+      tags: [Widgets]
+      summary: Get widgets for a domain
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/{domainName}/{childDomain}/bundles:
+    get:
+      tags: [Widgets]
+      summary: Get widgets for a child domain
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: childDomain
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/{domainName}/bundles/{bundleName}:
+    put:
+      tags: [Widgets]
+      summary: Update a bundle
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: bundleName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    delete:
+      tags: [Widgets]
+      summary: Delete a widget
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: bundleName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    get:
+      tags: [Widgets]
+      summary: Get widget files
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: bundleName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/{domainName}/bundles/{bundleName}/bundle:
+    get:
+      tags: [Widgets]
+      summary: Get a specific bundle
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: bundleName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/{domainName}/bundles/{bundleName}/vendor:
+    get:
+      tags: [Widgets]
+      summary: Get vendor for a bundle
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: bundleName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/{domainName}/internal/bundles:
+    post:
+      tags: [Widgets]
+      summary: Post internal bundle
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Created
+
+  /wiwi/{domainName}/internal/{childDomain}/bundles:
+    put:
+      tags: [Widgets]
+      summary: Update internal bundle for child domain
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: childDomain
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/{domainName}/internal/bundles/{bundleName}:
+    get:
+      tags: [Widgets]
+      summary: Get internal widget files
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: bundleName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/{domainName}/internal/{childDomain}/bundles/{bundleName}:
+    get:
+      tags: [Widgets]
+      summary: Get internal widget files for child domain
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: childDomain
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: bundleName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /wiwi/domain/{domainName}:
+    delete:
+      tags: [Widgets]
+      summary: Delete widgets by domain
+      parameters:
+        - name: domainName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  # elasticsearch.js
+  /log/{index}:
+    post:
+      tags: [Logs]
+      summary: Set a log entry
+      parameters:
+        - name: index
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Created
+
+  # file.js
+  /files/category/{category}:
+    get:
+      tags: [Files]
+      summary: Read files by category
+      parameters:
+        - name: category
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /files/{fileId}/{downloadType}:
+    get:
+      tags: [Files]
+      summary: Read a specific file for download
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: downloadType
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /files/{fileId}:
+    get:
+      tags: [Files]
+      summary: Load a specific file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    put:
+      tags: [Files]
+      summary: Save a specific file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    delete:
+      tags: [Files]
+      summary: Delete a specific file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /files:
+    get:
+      tags: [Files]
+      summary: Read all files
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      tags: [Files]
+      summary: Store a new file
+      responses:
+        '201':
+          description: Created
+
+  /files/{fileId}/meta:
+    put:
+      tags: [Files]
+      summary: Update file metadata
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /files/domain/{domainId}:
+    delete:
+      tags: [Files]
+      summary: Delete files by domain
+      parameters:
+        - name: domainId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  # formatter.js
+  /scripts/widgets/allScriptUser:
+    get:
+      tags: [Formatter]
+      summary: List all scripts for a user
+      responses:
+        '200':
+          description: Successful operation
+
+  /scripts/widgets/{typeWidget}/{subtype}:
+    get:
+      tags: [Formatter]
+      summary: List formatters by type and subtype
+      parameters:
+        - name: typeWidget
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: subtype
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      tags: [Formatter]
+      summary: Create a user formatter
+      parameters:
+        - name: typeWidget
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: subtype
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Created
+
+  /scripts/widgets/{typeWidget}/{subtype}/scripts:
+    get:
+      tags: [Formatter]
+      summary: List user formatters by type and subtype
+      parameters:
+        - name: typeWidget
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: subtype
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /scripts/widgets/{formatterId}:
+    get:
+      tags: [Formatter]
+      summary: List dashboards using a formatter
+      parameters:
+        - name: formatterId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    put:
+      tags: [Formatter]
+      summary: Update a user formatter
+      parameters:
+        - name: formatterId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    delete:
+      tags: [Formatter]
+      summary: Delete a user formatter
+      parameters:
+        - name: formatterId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /scripts/widgets/{formatterId}/sharedScript:
+    put:
+      tags: [Formatter]
+      summary: Share a script
+      parameters:
+        - name: formatterId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  # intenal.js
+  /auth/signin/internal:
+    post:
+      tags: [Auth]
+      summary: Sign in internally
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh user session
+      responses:
+        '200':
+          description: Successful operation
+
+  # lang.js
+  /lang:
+    post:
+      tags: [Lang]
+      summary: Create a language
+      responses:
+        '201':
+          description: Created
+
+  /lang/{domain}/{langCode}:
+    get:
+      tags: [Lang]
+      summary: Read language by domain and code
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: langCode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /langs/{domain}:
+    get:
+      tags: [Lang]
+      summary: Read all languages by domain
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /lang/{domain}:
+    delete:
+      tags: [Lang]
+      summary: Delete languages by domain
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  # oidc.js
+  /oidcs:
+    get:
+      tags: [OIDC]
+      summary: Read OIDC configurations
+      responses:
+        '200':
+          description: Successful operation
+
+  /oidcs/validate:
+    post:
+      tags: [OIDC]
+      summary: Validate OIDC
+      responses:
+        '200':
+          description: Successful operation
+
+  # templates.js
+  /templates/{templateId}:
+    put:
+      tags: [Templates]
+      summary: Update a template
+      parameters:
+        - name: templateId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    get:
+      tags: [Templates]
+      summary: Get a template
+      parameters:
+        - name: templateId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    delete:
+      tags: [Templates]
+      summary: Delete a template
+      parameters:
+        - name: templateId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /templates:
+    put:
+      tags: [Templates]
+      summary: Save templates
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      tags: [Templates]
+      summary: Save a template
+      responses:
+        '201':
+          description: Created
+
+  /templates/workspaces/{workspacesId}:
+    get:
+      tags: [Templates]
+      summary: Get templates by workspace
+      parameters:
+        - name: workspacesId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      tags: [Templates]
+      summary: Get templates by workspace (POST)
+      parameters:
+        - name: workspacesId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /templates/resourceType/{resourceType}/{workspaces}/{specificType}/{templateName}:
+    get:
+      tags: [Templates]
+      summary: Get templates by resource type
+      parameters:
+        - name: resourceType
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: workspaces
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: specificType
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: templateName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /templates/{templateId}/workspaces/{workspaceId}:
+    delete:
+      tags: [Templates]
+      summary: Delete template from workspace
+      parameters:
+        - name: templateId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /templates/workspaces/{workspacesId}/datastreams:
+    post:
+      tags: [Templates]
+      summary: Get templates by datastreams
+      parameters:
+        - name: workspacesId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /templates/workspaces:
+    post:
+      tags: [Templates]
+      summary: Get templates by workspace
+      responses:
+        '200':
+          description: Successful operation
+
+  /templates/resourceType/{resourceType}/{templateName}:
+    post:
+      tags: [Templates]
+      summary: Get templates by resource type (POST)
+      parameters:
+        - name: resourceType
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: templateName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  # user.js
+  /users/{email}:
+    put:
+      tags: [Users]
+      summary: Update a user
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    get:
+      tags: [Users]
+      summary: Read a user
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    delete:
+      tags: [Users]
+      summary: Delete a user
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /users:
+    post:
+      tags: [Users]
+      summary: Create a user
+      responses:
+        '201':
+          description: Created
+
+  /users/find:
+    post:
+      tags: [Users]
+      summary: Find users by email
+      responses:
+        '200':
+          description: Successful operation
+
+  # user_friendly.js
+  /users/{email}/notifications:
+    put:
+      tags: [Users]
+      summary: Toggle user notifications
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /users/{email}/changeUX:
+    put:
+      tags: [Users]
+      summary: Change user UX settings
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /users/session:
+    get:
+      tags: [Users]
+      summary: Dummy session check
+      responses:
+        '200':
+          description: Successful operation
+
+  # widgetDefaults.js
+  /scripts/widgetDefaults:
+    get:
+      tags: [WidgetDefaults]
+      summary: Get all widget configurations for a domain
+      responses:
+        '200':
+          description: Successful operation
+
+  /scripts/widgetDefaults/{typeWidget}:
+    get:
+      tags: [WidgetDefaults]
+      summary: List domain configs by widget type
+      parameters:
+        - name: typeWidget
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      tags: [WidgetDefaults]
+      summary: Create domain widget defaults
+      parameters:
+        - name: typeWidget
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Created
+
+  /scripts/widgetDefaults/{widgetDefaultsId}:
+    put:
+      tags: [WidgetDefaults]
+      summary: Update user widget defaults
+      parameters:
+        - name: widgetDefaultsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    delete:
+      tags: [WidgetDefaults]
+      summary: Delete user widget defaults
+      parameters:
+        - name: widgetDefaultsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  # workspace.js
+  /workspaces/:
+    get:
+      tags: [Workspaces]
+      summary: List workspaces
+      parameters:
+        - name: full
+          in: query
+          description: If set to 1, returns the full workspace data including dashboards.
+          schema:
+            type: string
+            enum: ["0", "1"]
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Workspace'
+
+  /workspaces/export/{workspaceId}:
+    get:
+      tags: [Workspaces]
+      summary: Export a workspace
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /workspaces:
+    post:
+      tags: [Workspaces]
+      summary: Create a workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Workspace'
+      responses:
+        '201':
+          description: Created
+
+  /workspaces/{workspaceId}:
+    delete:
+      tags: [Workspaces]
+      summary: Delete a workspace
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+    put:
+      tags: [Workspaces]
+      summary: Update a workspace
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Workspace'
+      responses:
+        '200':
+          description: Successful operation
+    get:
+      tags: [Workspaces]
+      summary: Read a workspace
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: full
+          in: query
+          description: If set to 1, returns the full workspace data including dashboards.
+          schema:
+            type: string
+            enum: ["0", "1"]
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+
+  /workspaces/{workspaceId}/sort:
+    put:
+      tags: [Workspaces]
+      summary: Update workspace order
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /workspaces/{workspaceId}/share:
+    put:
+      tags: [Workspaces]
+      summary: Share a workspace
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /workspaces/{workspaceId}/actions:
+    get:
+      tags: [Workspaces]
+      summary: Read actions for a workspace
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /workspaces/actions/{actionId}:
+    delete:
+      tags: [Workspaces]
+      summary: Delete actions from a workspace
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /workspaces/{workspaceId}/widgets:
+    get:
+      tags: [Workspaces]
+      summary: Read widgets for a workspace
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  /workspaces/{workspaceId}/widgetByAction:
+    get:
+      tags: [Workspaces]
+      summary: Read widget by action in a workspace
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+
+  # wrapper.js
+  /routeWrapper:
+    post:
+      tags: [Wrapper]
+      summary: Google Directions API Wrapper
+      responses:
+        '200':
+          description: Successful operation
+
+  /proxy:
+    post:
+      tags: [Wrapper]
+      summary: Proxy request
+      responses:
+        '200':
+          description: Successful operation
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Dashboard:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "989293eb-56bc-4ff1-dab9-4e3d2941f193"
+        id:
+          type: string
+          example: "989293eb-56bc-4ff1-dab9-4e3d2941f193"
+        title:
+          type: string
+          example: "Listado entidades"
+        description:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          example: "fa-tachometer"
+        iconType:
+          type: string
+          example: "icon"
+        owner:
+          type: string
+          example: "root@amplia.es"
+        workspaces:
+          type: string
+          example: "_root@amplia.es_default"
+        users:
+          type: array
+          items:
+            type: string
+        workgroups:
+          type: array
+          items:
+            type: string
+        allowedProfiles:
+          type: array
+          items:
+            type: string
+          example: ["root", "super_admin_domain", "admin_domain", "admin", "advanced", "viewer"]
+        domains:
+          type: array
+          items:
+            type: string
+        lastAccess:
+          type: string
+          format: date-time
+          example: "2026-05-06T10:16:17.451Z"
+        editable:
+          type: boolean
+          example: true
+        backgroundImage:
+          type: string
+          nullable: true
+        bannerImage:
+          type: string
+          nullable: true
+        __v:
+          type: integer
+          example: 10
+        extraConfig:
+          $ref: '#/components/schemas/DashboardExtraConfig'
+        grid:
+          type: array
+          items:
+            $ref: '#/components/schemas/GridItem'
+        templateConfig:
+          type: object
+          nullable: true
+
+    DashboardExtraConfig:
+      type: object
+      properties:
+        cellsWidth:
+          type: string
+          example: ""
+        cellHeight:
+          type: integer
+          example: 145
+        dashboardRefreshInterval:
+          type: string
+          example: ""
+        showBanner:
+          type: boolean
+          example: false
+        favourite:
+          type: boolean
+          example: false
+
+    GridItem:
+      type: object
+      properties:
+        width:
+          type: integer
+        height:
+          type: integer
+        x:
+          type: integer
+        y:
+          type: integer
+        w:
+          type: integer
+        h:
+          type: integer
+        i:
+          type: string
+        moved:
+          type: boolean
+        definition:
+          $ref: '#/components/schemas/WidgetDefinition'
+
+    WidgetDefinition:
+      type: object
+      properties:
+        type:
+          type: string
+          example: "deviceInfoDetails"
+        wid:
+          type: string
+          example: "1756972661738-1"
+        config:
+          type: object
+          additionalProperties: true
+
+    Workspace:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "_root@amplia.es_default"
+        name:
+          type: string
+          example: "Default"
+        description:
+          type: string
+          nullable: true
+          example: "root@amplia.es workspace"
+        owner:
+          type: string
+          example: "root@amplia.es"
+        image:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          example: "fa-user"
+        users:
+          type: array
+          items:
+            type: string
+        domains:
+          type: array
+          items:
+            type: string
+          example: ["chemacorp_fr", "chemacorp_nofr"]
+        workgroups:
+          type: array
+          items:
+            type: string
+        actions:
+          type: array
+          items:
+            type: string
+          example: ["createDomain", "createBundle", "executeOperation"]
+        widgets:
+          type: array
+          items:
+            type: string
+        widget_action:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            editRuleConfiguration: "ruleConfigurations"
+            editDevice: "entities"
+        allowedProfiles:
+          type: array
+          items:
+            type: string
+          example: ["root", "super_admin_domain", "admin_domain"]
+        dashboards:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceDashboard'
+        priority:
+          type: integer
+          example: 1
+        color:
+          type: string
+          example: "#ff0000"
+        lastAccess:
+          type: string
+          format: date-time
+          example: "2025-04-22T06:14:18.679Z"
+        editable:
+          type: boolean
+          example: true
+        __v:
+          type: integer
+        _editMode:
+          type: boolean
+        others:
+          $ref: '#/components/schemas/WorkspaceOthers'
+        menu:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceMenuItem'
+        menu_tree:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/WorkspaceMenuCategory'
+
+    WorkspaceOthers:
+      type: object
+      properties:
+        showInHome:
+          type: boolean
+          example: true
+        mode:
+          type: string
+          example: "grid"
+        bannerImage:
+          type: string
+          nullable: true
+          example: "http://urltoimage"
+
+    WorkspaceDashboard:
+      type: object
+      properties:
+        x:
+          type: integer
+          example: 0
+        y:
+          type: integer
+          example: 0
+        width:
+          type: integer
+          example: 2
+        height:
+          type: integer
+          example: 1
+        w:
+          type: integer
+          example: 2
+        h:
+          type: integer
+          example: 1
+        i:
+          type: string
+          example: "989293eb-56bc-4ff1-dab9-4e3d2941f193"
+        moved:
+          type: boolean
+          example: false
+        id:
+          type: string
+          example: "989293eb-56bc-4ff1-dab9-4e3d2941f193"
+        dashboard:
+          $ref: '#/components/schemas/DashboardSimplified'
+
+    WorkspaceMenuItem:
+      type: object
+      properties:
+        title:
+          type: string
+        action:
+          type: string
+        permission:
+          type: string
+        icon:
+          type: string
+        menu:
+          type: string
+        menuCfg:
+          type: object
+          properties:
+            icon:
+              type: string
+            title:
+              type: string
+
+    WorkspaceMenuCategory:
+      type: object
+      properties:
+        config:
+          type: object
+          properties:
+            icon:
+              type: string
+            title:
+              type: string
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceMenuItem'
+
+    DashboardSimplified:
+      type: object
+      properties:
+        extraConfig:
+          $ref: '#/components/schemas/DashboardExtraConfig'
+        _id:
+          type: string
+          example: "989293eb-56bc-4ff1-dab9-4e3d2941f193"
+        id:
+          type: string
+          example: "989293eb-56bc-4ff1-dab9-4e3d2941f193"
+        title:
+          type: string
+          example: "Listado entidades"
+        description:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          example: "fa-tachometer"
+        iconType:
+          type: string
+          example: "icon"
+        owner:
+          type: string
+          example: "root@amplia.es"
+        workspaces:
+          type: string
+          example: "_root@amplia.es_default"
+        users:
+          type: array
+          items:
+            type: string
+        workgroups:
+          type: array
+          items:
+            type: string
+        allowedProfiles:
+          type: array
+          items:
+            type: string
+        domains:
+          type: array
+          items:
+            type: string
+        lastAccess:
+          type: string
+          format: date-time
+          example: "2026-05-06T10:16:17.451Z"
+        editable:
+          type: boolean
+          example: true
+        backgroundImage:
+          type: string
+          nullable: true
+        bannerImage:
+          type: string
+          nullable: true
+        __v:
+          type: integer
+          example: 10
+        templateConfig:
+          type: object
+          nullable: true

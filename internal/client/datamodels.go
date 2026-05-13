@@ -14,13 +14,13 @@ const (
 
 // Datamodel represents an OpenGate data model.
 type Datamodel struct {
-	Identifier           string       `json:"identifier"`
-	OrganizationName     string       `json:"organizationName,omitempty"`
-	Name                 string       `json:"name"`
-	Description          string       `json:"description,omitempty"`
-	Version              string       `json:"version"`
-	AllowedResourceTypes []string     `json:"allowedResourceTypes,omitempty"`
-	Categories           []Category   `json:"categories,omitempty"`
+	Identifier           string     `json:"identifier"`
+	OrganizationName     string     `json:"organizationName,omitempty"`
+	Name                 string     `json:"name"`
+	Description          string     `json:"description,omitempty"`
+	Version              string     `json:"version"`
+	AllowedResourceTypes []string   `json:"allowedResourceTypes,omitempty"`
+	Categories           []Category `json:"categories,omitempty"`
 }
 
 // Category groups datastream templates within a data model.

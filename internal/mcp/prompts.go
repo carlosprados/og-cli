@@ -40,6 +40,8 @@ When the user says...          → Use this tool
 "job", "operation", "operación", "ejecutar", "lanzar" → jobs_search, jobs_get, jobs_create, jobs_cancel, jobs_operations
 "task", "tarea", "scheduled", "programada" → tasks_search, tasks_get, tasks_create, tasks_cancel
 "send data", "enviar dato", "collect", "publicar" → iot_collect, iot_collect_payload
+"workspace", "espacio de trabajo" → workspaces_list, workspaces_get, workspaces_export, workspaces_import, workspaces_update, workspaces_delete
+"dashboard", "panel", "cuadro de mando" → dashboards_list, dashboards_get, dashboards_export, dashboards_import, dashboards_update, dashboards_delete
 
 ## Available resources
 
@@ -96,6 +98,23 @@ unless they ask for historical / time-windowed data.
 - tasks.state — ACTIVE, PAUSED, FINISHED
 - tasks.id — task UUID
 
+## Workspaces and Dashboards (Web API, /api/v1)
+
+Workspaces are the top-level UI container; each workspace owns one or more dashboards.
+A dashboard ALWAYS belongs to exactly one workspace (1-N relation).
+
+To discover dashboard IDs: call workspaces_list(full: true) — every workspace returned
+will include its dashboards. Or call dashboards_list (which iterates workspaces internally
+when no workspace_id is given).
+
+Common workflow — copying a dashboard between tenants:
+  1. dashboards_export(id: "<src-id>") → get JSON payload
+  2. dashboards_import(body: <payload>, workspace_id: "<dst-workspace-id>")
+The 'workspace_id' override rewrites the "workspaces" field in the payload so the
+dashboard lands under a different workspace on the destination tenant.
+
+For full workspace migration (workspace + all dashboards) use workspaces_export/import.
+
 ## Creating jobs (operations on devices)
 
 To execute an operation on one or more devices, use jobs_create with a JSON body:
@@ -146,6 +165,13 @@ User: "Lanza un REBOOT al dispositivo sense-001" → jobs_create(body: '{"job":{
 User: "Estado del job abc-123" → jobs_get(id: "abc-123")
 User: "Operaciones del job abc-123" → jobs_operations(id: "abc-123")
 User: "Cancela el job abc-123" → jobs_cancel(id: "abc-123")
+User: "Lista workspaces" → workspaces_list()
+User: "Workspaces con sus dashboards" → workspaces_list(full: true)
+User: "Exporta el workspace abc-123" → workspaces_export(id: "abc-123")
+User: "Dashboards del workspace abc-123" → dashboards_list(workspace_id: "abc-123")
+User: "Todos los dashboards" → dashboards_list()
+User: "Exporta el dashboard xyz" → dashboards_export(id: "xyz")
+User: "Importa el dashboard X bajo el workspace Y" → dashboards_import(body: <json>, workspace_id: "Y")
 `
 
 func registerPrompts(s *server.MCPServer) {

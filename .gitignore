@@ -25,3 +25,10 @@ Thumbs.db
 
 # Test
 coverage.out
+
+# Local test artifacts and captures (may contain tokens / sensitive data)
+tmp/
+wkf/
+.gemini/
+*.har
+test1.json

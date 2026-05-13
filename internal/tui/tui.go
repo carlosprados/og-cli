@@ -25,6 +25,9 @@ const (
 	viewJobs
 	viewJobDetail
 	viewTasks
+	viewWorkspaces
+	viewWorkspaceDetail
+	viewDashboardDetail
 )
 
 // model is the top-level Bubble Tea model.
@@ -58,6 +61,9 @@ type model struct {
 	jobDetail       jobDetailModel
 	tasks           tasksModel
 	opMenu          operationMenuModel
+	workspaces      workspacesModel
+	workspaceDetail workspaceDetailModel
+	dashboardDetail dashboardDetailModel
 
 	// status
 	err     error
@@ -66,7 +72,7 @@ type model struct {
 
 // Run starts the interactive TUI.
 func Run(cfg *config.Config, profile *config.Profile, cfgPath string) error {
-	c := client.New(profile.Host, profile.Token)
+	c := client.New(profile.Host, profile.Token).WithWebToken(profile.WebToken)
 
 	m := model{
 		view:    viewMenu,
@@ -137,6 +143,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateJobDetail(msg)
 	case viewTasks:
 		return m.updateTasks(msg)
+	case viewWorkspaces:
+		return m.updateWorkspaces(msg)
+	case viewWorkspaceDetail:
+		return m.updateWorkspaceDetail(msg)
+	case viewDashboardDetail:
+		return m.updateDashboardDetail(msg)
 	}
 
 	return m, nil
@@ -172,6 +184,12 @@ func (m model) View() string {
 		return m.viewJobDetailScreen()
 	case viewTasks:
 		return m.viewTasksScreen()
+	case viewWorkspaces:
+		return m.viewWorkspacesScreen()
+	case viewWorkspaceDetail:
+		return m.viewWorkspaceDetailScreen()
+	case viewDashboardDetail:
+		return m.viewDashboardDetailScreen()
 	}
 	return ""
 }
@@ -188,6 +206,10 @@ func (m model) goBack() model {
 		m.view = viewDatasets
 	case viewJobDetail:
 		m.view = viewJobs
+	case viewWorkspaceDetail:
+		m.view = viewWorkspaces
+	case viewDashboardDetail:
+		m.view = viewWorkspaceDetail
 	default:
 		m.view = viewMenu
 	}

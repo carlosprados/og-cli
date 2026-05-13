@@ -11,7 +11,7 @@ const (
 )
 
 // newServer creates a configured MCP server with all tools, prompts, and resources.
-func newServer(host, token, apiKey string) *server.MCPServer {
+func newServer(host, token, webToken, apiKey string) *server.MCPServer {
 	s := server.NewMCPServer(
 		serverName,
 		serverVersion,
@@ -20,13 +20,15 @@ func newServer(host, token, apiKey string) *server.MCPServer {
 		server.WithResourceCapabilities(true, false),
 	)
 
-	c := client.New(host, token)
+	c := client.New(host, token).WithWebToken(webToken)
 
 	registerTools(s, host, token)
 	registerAlarmTools(s, c)
 	registerTimeSeriesTools(s, c)
 	registerDatasetTools(s, c)
 	registerOperationTools(s, c)
+	registerWorkspaceTools(s, c)
+	registerDashboardTools(s, c)
 	registerIoTTools(s, host, apiKey)
 	registerPrompts(s)
 	registerResources(s, c)
@@ -35,14 +37,14 @@ func newServer(host, token, apiKey string) *server.MCPServer {
 }
 
 // ServeStdio starts the MCP server over stdio.
-func ServeStdio(host, token, apiKey string) error {
-	s := newServer(host, token, apiKey)
+func ServeStdio(host, token, webToken, apiKey string) error {
+	s := newServer(host, token, webToken, apiKey)
 	return server.ServeStdio(s)
 }
 
 // ServeHTTP starts the MCP server over HTTP (Streamable HTTP transport).
-func ServeHTTP(addr, host, token, apiKey string) error {
-	s := newServer(host, token, apiKey)
+func ServeHTTP(addr, host, token, webToken, apiKey string) error {
+	s := newServer(host, token, webToken, apiKey)
 	httpServer := server.NewStreamableHTTPServer(s)
 	return httpServer.Start(addr)
 }
