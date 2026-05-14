@@ -253,6 +253,78 @@ func runWorkspaceExportAll(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// --- deploy ---
+
+var workspaceDeployCmd = &cobra.Command{
+	Use:   "deploy <workspace-dir>",
+	Short: "Wrap + import in one step (skip the intermediate JSON file)",
+	Long: `Deploy an unwrapped workspace directory to OpenGate in a single step.
+
+Equivalent to:
+  og workspace wrap <dir> --out tmp.json
+  og workspace import -f tmp.json [--update]
+
+Without --update, performs a fresh create (POST workspace shell + POST each
+dashboard + PUT workspace with layout refs). With --update, replays the same
+multi-phase flow as PUTs against the existing IDs.`,
+	Args: cobra.ExactArgs(1),
+	RunE: runWorkspaceDeploy,
+}
+
+var workspaceDeployUpdate bool
+
+func runWorkspaceDeploy(cmd *cobra.Command, args []string) error {
+	dir := args[0]
+	if err := assertWorkspaceDir(dir); err != nil {
+		return err
+	}
+
+	p, err := activeProfile()
+	if err != nil {
+		return err
+	}
+
+	w, err := unwrap.Wrap(dir)
+	if err != nil {
+		return fmt.Errorf("wrapping %s: %w", dir, err)
+	}
+	if w.ID == "" {
+		return fmt.Errorf("workspace.json in %s has no _id", dir)
+	}
+
+	c := newWebClient(p)
+
+	if workspaceDeployUpdate {
+		if err := c.UpdateWorkspaceDeep(w); err != nil {
+			return err
+		}
+		fmt.Printf("Workspace %s deployed (updated workspace + %d dashboard(s)).\n", w.ID, countEmbeddedDashboards(w))
+		return nil
+	}
+
+	if err := c.ImportWorkspaceDeep(w); err != nil {
+		if isDuplicateKeyError(err) {
+			return fmt.Errorf("%w\n\nThe workspace _id already exists. Re-run with --update to overwrite it (and its dashboards) via PUT", err)
+		}
+		return err
+	}
+	fmt.Printf("Workspace %s deployed (created workspace + %d dashboard(s)).\n", w.ID, countEmbeddedDashboards(w))
+	return nil
+}
+
+// assertWorkspaceDir verifies dir looks like a workspace unwrap directory
+// (contains workspace.json). When the user accidentally passes a dashboard
+// directory, surface a clear hint pointing at og dashboard deploy.
+func assertWorkspaceDir(dir string) error {
+	if _, err := os.Stat(filepath.Join(dir, "workspace.json")); err == nil {
+		return nil
+	}
+	if _, err := os.Stat(filepath.Join(dir, "dashboard.json")); err == nil {
+		return fmt.Errorf("%s looks like a dashboard directory — use `og dashboard deploy` instead", dir)
+	}
+	return fmt.Errorf("%s does not contain workspace.json — not a workspace unwrap directory", dir)
+}
+
 // --- unwrap ---
 
 // prepareUnwrapTarget makes sure the destination workspace dir exists and is
@@ -774,6 +846,8 @@ func init() {
 
 	workspaceWrapCmd.Flags().StringVar(&workspaceWrapOut, "out", "", "write rebuilt JSON to this file (default: stdout)")
 
+	workspaceDeployCmd.Flags().BoolVar(&workspaceDeployUpdate, "update", false, "update an existing workspace (PUT) instead of creating (POST)")
+
 	workspaceCmd.AddCommand(workspaceListCmd)
 	workspaceCmd.AddCommand(workspaceGetCmd)
 	workspaceCmd.AddCommand(workspaceExportCmd)
@@ -782,6 +856,7 @@ func init() {
 	workspaceCmd.AddCommand(workspaceUnwrapAllCmd)
 	workspaceCmd.AddCommand(workspaceUnwrapFileCmd)
 	workspaceCmd.AddCommand(workspaceWrapCmd)
+	workspaceCmd.AddCommand(workspaceDeployCmd)
 	workspaceCmd.AddCommand(workspaceImportCmd)
 	workspaceCmd.AddCommand(workspaceUpdateCmd)
 	workspaceCmd.AddCommand(workspaceDeleteCmd)

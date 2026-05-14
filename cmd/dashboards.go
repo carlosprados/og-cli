@@ -8,6 +8,7 @@ import (
 
 	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/output"
+	"github.com/carlosprados/og-cli/internal/unwrap"
 	"github.com/spf13/cobra"
 )
 
@@ -281,6 +282,82 @@ func runDashboardExportAll(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// --- deploy ---
+
+var dashboardDeployCmd = &cobra.Command{
+	Use:   "deploy <dashboard-dir>",
+	Short: "Wrap + import a single dashboard in one step",
+	Long: `Deploy an unwrapped dashboard directory (one of the NN__<slug> folders
+inside a workspace unwrap) to OpenGate in a single step.
+
+Without --update: POST /api/dashboards (creates a new dashboard).
+With --update:    PUT  /api/dashboards/{id} (overwrites in place).
+
+Use --workspace <id> to override the target workspace ID in the payload
+(useful for migrating a dashboard between tenants). Ignored with --update.`,
+	Args: cobra.ExactArgs(1),
+	RunE: runDashboardDeploy,
+}
+
+var (
+	dashboardDeployUpdate    bool
+	dashboardDeployWorkspace string
+)
+
+func runDashboardDeploy(cmd *cobra.Command, args []string) error {
+	dir := args[0]
+	if err := assertDashboardDir(dir); err != nil {
+		return err
+	}
+
+	p, err := activeProfile()
+	if err != nil {
+		return err
+	}
+
+	full, _, err := unwrap.WrapDashboard(dir)
+	if err != nil {
+		return fmt.Errorf("wrapping %s: %w", dir, err)
+	}
+	if full.ID == "" {
+		return fmt.Errorf("dashboard.json in %s has no _id", dir)
+	}
+
+	body, err := json.Marshal(full)
+	if err != nil {
+		return fmt.Errorf("marshaling dashboard: %w", err)
+	}
+
+	c := newWebClient(p)
+
+	if dashboardDeployUpdate {
+		if err := c.UpdateDashboard(full.ID, body); err != nil {
+			return err
+		}
+		fmt.Printf("Dashboard %s deployed (%d widget(s) updated).\n", full.ID, len(full.Grid))
+		return nil
+	}
+
+	if _, err := c.CreateDashboard(body, dashboardDeployWorkspace); err != nil {
+		if isDuplicateKeyError(err) {
+			return fmt.Errorf("%w\n\nThe dashboard _id already exists. Re-run with --update to overwrite it via PUT", err)
+		}
+		return err
+	}
+	fmt.Printf("Dashboard %s deployed (%d widget(s) created).\n", full.ID, len(full.Grid))
+	return nil
+}
+
+func assertDashboardDir(dir string) error {
+	if _, err := os.Stat(filepath.Join(dir, "dashboard.json")); err == nil {
+		return nil
+	}
+	if _, err := os.Stat(filepath.Join(dir, "workspace.json")); err == nil {
+		return fmt.Errorf("%s looks like a workspace directory — use `og workspace deploy` instead", dir)
+	}
+	return fmt.Errorf("%s does not contain dashboard.json — not a dashboard unwrap directory", dir)
+}
+
 // --- import ---
 
 var dashboardImportCmd = &cobra.Command{
@@ -417,6 +494,9 @@ func init() {
 	dashboardUpdateCmd.Flags().StringVarP(&dashboardUpdateFile, "file", "f", "", "path to JSON file with dashboard definition")
 	_ = dashboardUpdateCmd.MarkFlagRequired("file")
 
+	dashboardDeployCmd.Flags().BoolVar(&dashboardDeployUpdate, "update", false, "update an existing dashboard (PUT) instead of creating (POST)")
+	dashboardDeployCmd.Flags().StringVar(&dashboardDeployWorkspace, "workspace", "", "override the target workspace ID in the payload (ignored with --update)")
+
 	dashboardExportAllCmd.Flags().StringVar(&dashboardExportAllDir, "dir", "", "destination directory (required)")
 	dashboardExportAllCmd.Flags().StringVar(&dashboardExportAllWorkspace, "workspace", "", "limit to dashboards of this workspace")
 	dashboardExportAllCmd.Flags().BoolVar(&dashboardExportAllFull, "full", false, "use GET /dashboards/{id} instead of /dashboards/export/{id}")
@@ -429,6 +509,7 @@ func init() {
 	dashboardCmd.AddCommand(dashboardImportCmd)
 	dashboardCmd.AddCommand(dashboardUpdateCmd)
 	dashboardCmd.AddCommand(dashboardDeleteCmd)
+	dashboardCmd.AddCommand(dashboardDeployCmd)
 
 	rootCmd.AddCommand(dashboardCmd)
 }

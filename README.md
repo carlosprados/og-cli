@@ -331,6 +331,10 @@ og workspace unwrap-file ws.json --dir wsroot/      # from a local JSON file
 # Wrap back into a single JSON ready for import
 og workspace wrap wsroot/<workspace-slug> --out ws.json
 
+# Or deploy in one step (wrap + import, no intermediate file)
+og workspace deploy wsroot/<workspace-slug>            # POST: create
+og workspace deploy wsroot/<workspace-slug> --update   # PUT: overwrite
+
 # Import / update / delete
 og workspace import -f ws.json              # POST: creates workspace + its dashboards (multi-phase)
 og workspace import -f ws.json --update     # PUT: overwrites workspace + all its dashboards
@@ -421,6 +425,11 @@ og dashboard import -f dash.json --workspace <id>     # POST, override target wo
 og dashboard import -f dash.json --update             # PUT: overwrites the dashboard whose _id is in the file
 og dashboard update <dashboard-id> -f dash.json
 og dashboard delete <dashboard-id>
+
+# Deploy a single dashboard directory in one step (wrap + import)
+og dashboard deploy wsroot/<ws>/<dashboard-dir>
+og dashboard deploy wsroot/<ws>/<dashboard-dir> --update
+og dashboard deploy wsroot/<ws>/<dashboard-dir> --workspace <other-ws-id>
 ```
 
 ### Web API authentication
