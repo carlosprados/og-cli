@@ -337,6 +337,154 @@ func runDashboardUnwrap(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// --- unwrap-all / pull-all ---
+
+var dashboardUnwrapAllCmd = &cobra.Command{
+	Use:     "unwrap-all --dir <dir>",
+	Aliases: []string{"pull-all"},
+	Short:   "Unwrap every dashboard into <dir>/<dashboard-slug>/... (alias: pull-all)",
+	Long: `Unwrap every dashboard accessible to the current user into a flat
+directory of dashboard subfolders. Iterates all workspaces (with embedded
+dashboards) and pulls each dashboard with its full grid.
+
+Use --workspace <id> to restrict to dashboards of a single workspace.`,
+	RunE: runDashboardUnwrapAll,
+}
+
+var (
+	dashboardUnwrapAllDir       string
+	dashboardUnwrapAllWorkspace string
+	dashboardUnwrapAllForce     bool
+)
+
+func runDashboardUnwrapAll(cmd *cobra.Command, args []string) error {
+	p, err := activeProfile()
+	if err != nil {
+		return err
+	}
+	c := newWebClient(p)
+
+	if err := os.MkdirAll(dashboardUnwrapAllDir, 0o755); err != nil {
+		return fmt.Errorf("creating directory %s: %w", dashboardUnwrapAllDir, err)
+	}
+
+	var rows []dashboardRow
+	if dashboardUnwrapAllWorkspace != "" {
+		w, err := c.GetWorkspace(dashboardUnwrapAllWorkspace, true)
+		if err != nil {
+			return err
+		}
+		rows = collectDashboardRows(w)
+	} else {
+		wss, err := c.ListWorkspaces(true)
+		if err != nil {
+			return err
+		}
+		for i := range wss {
+			rows = append(rows, collectDashboardRows(&wss[i])...)
+		}
+	}
+
+	taken := make(map[string]bool)
+	var ok, failed int
+	for _, r := range rows {
+		if r.DashboardID == "" {
+			continue
+		}
+		d, err := c.GetDashboard(r.DashboardID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", r.DashboardID, err)
+			failed++
+			continue
+		}
+		slug := unwrap.DedupedSlug(d.Title, d.ID, taken)
+		dashDir := filepath.Join(dashboardUnwrapAllDir, slug)
+		if err := prepareUnwrapTarget(dashDir, dashboardUnwrapAllForce); err != nil {
+			fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", d.ID, err)
+			failed++
+			continue
+		}
+		if err := unwrap.UnwrapDashboardFull(d, nil, dashDir); err != nil {
+			fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", d.ID, err)
+			failed++
+			continue
+		}
+		fmt.Printf("  ✓ dashboard %s (%d widgets) → %s\n", d.ID, len(d.Grid), dashDir)
+		ok++
+	}
+	fmt.Printf("\n%d dashboard(s) unwrapped, %d failed.\n", ok, failed)
+	if failed > 0 {
+		return fmt.Errorf("%d dashboard(s) failed", failed)
+	}
+	return nil
+}
+
+// --- unwrap-file / pull-file ---
+
+var dashboardUnwrapFileCmd = &cobra.Command{
+	Use:     "unwrap-file <dashboard.json>",
+	Aliases: []string{"pull-file"},
+	Short:   "Unwrap a dashboard from a local JSON file (no API call) (alias: pull-file)",
+	Long: `Unwrap a dashboard into a directory tree from a JSON file already on disk.
+
+Accepts either a raw Dashboard object, the {"dashboards":[...]} wrapper
+produced by /api/dashboards/export/{id}, or the inner object inside a
+workspace export.`,
+	Args: cobra.ExactArgs(1),
+	RunE: runDashboardUnwrapFile,
+}
+
+var (
+	dashboardUnwrapFileDir   string
+	dashboardUnwrapFileForce bool
+)
+
+func runDashboardUnwrapFile(cmd *cobra.Command, args []string) error {
+	raw, err := os.ReadFile(args[0])
+	if err != nil {
+		return fmt.Errorf("reading file: %w", err)
+	}
+
+	d, err := parseDashboardFromBytes(raw)
+	if err != nil {
+		return err
+	}
+
+	taken := make(map[string]bool)
+	slug := unwrap.DedupedSlug(d.Title, d.ID, taken)
+	dashDir := filepath.Join(dashboardUnwrapFileDir, slug)
+
+	if err := prepareUnwrapTarget(dashDir, dashboardUnwrapFileForce); err != nil {
+		return err
+	}
+
+	if err := unwrap.UnwrapDashboardFull(d, nil, dashDir); err != nil {
+		return err
+	}
+	fmt.Printf("  ✓ dashboard %s (%d widgets) → %s\n", d.ID, len(d.Grid), dashDir)
+	return nil
+}
+
+// parseDashboardFromBytes accepts either a raw Dashboard object or the
+// {"dashboards":[...]} wrapper.
+func parseDashboardFromBytes(raw []byte) (*client.Dashboard, error) {
+	var wrapper struct {
+		Dashboards []client.Dashboard `json:"dashboards"`
+	}
+	if err := json.Unmarshal(raw, &wrapper); err == nil && len(wrapper.Dashboards) > 0 {
+		return &wrapper.Dashboards[0], nil
+	}
+
+	var d client.Dashboard
+	if err := json.Unmarshal(raw, &d); err != nil {
+		return nil, fmt.Errorf("parsing dashboard JSON: %w", err)
+	}
+	if d.Title == "" && len(d.Grid) == 0 && d.ID == "" {
+		return nil, fmt.Errorf("file does not contain a recognisable dashboard")
+	}
+	return &d, nil
+}
+
 // --- wrap ---
 
 var dashboardWrapCmd = &cobra.Command{
@@ -596,6 +744,15 @@ func init() {
 	dashboardUnwrapCmd.Flags().BoolVar(&dashboardUnwrapForce, "force", false, "overwrite destination if it already exists")
 	_ = dashboardUnwrapCmd.MarkFlagRequired("dir")
 
+	dashboardUnwrapAllCmd.Flags().StringVar(&dashboardUnwrapAllDir, "dir", "", "destination directory (required)")
+	dashboardUnwrapAllCmd.Flags().StringVar(&dashboardUnwrapAllWorkspace, "workspace", "", "limit to dashboards of this workspace")
+	dashboardUnwrapAllCmd.Flags().BoolVar(&dashboardUnwrapAllForce, "force", false, "overwrite each destination if it already exists")
+	_ = dashboardUnwrapAllCmd.MarkFlagRequired("dir")
+
+	dashboardUnwrapFileCmd.Flags().StringVar(&dashboardUnwrapFileDir, "dir", "", "destination directory (required)")
+	dashboardUnwrapFileCmd.Flags().BoolVar(&dashboardUnwrapFileForce, "force", false, "overwrite destination if it already exists")
+	_ = dashboardUnwrapFileCmd.MarkFlagRequired("dir")
+
 	dashboardWrapCmd.Flags().StringVar(&dashboardWrapOut, "out", "", "write rebuilt JSON to this file (default: stdout)")
 
 	dashboardExportAllCmd.Flags().StringVar(&dashboardExportAllDir, "dir", "", "destination directory (required)")
@@ -612,6 +769,8 @@ func init() {
 	dashboardCmd.AddCommand(dashboardDeleteCmd)
 	dashboardCmd.AddCommand(dashboardDeployCmd)
 	dashboardCmd.AddCommand(dashboardUnwrapCmd)
+	dashboardCmd.AddCommand(dashboardUnwrapAllCmd)
+	dashboardCmd.AddCommand(dashboardUnwrapFileCmd)
 	dashboardCmd.AddCommand(dashboardWrapCmd)
 
 	rootCmd.AddCommand(dashboardCmd)

@@ -427,9 +427,12 @@ og dashboard import -f dash.json --update             # PUT: overwrites the dash
 og dashboard update <dashboard-id> -f dash.json
 og dashboard delete <dashboard-id>
 
-# Pull a single dashboard for editing (alias: unwrap)
-og dashboard pull <dashboard-id> --dir dashroot/
-og dashboard pull <dashboard-id> --dir dashroot/ --force
+# Pull dashboards for editing (aliases: unwrap, unwrap-all, unwrap-file)
+og dashboard pull <dashboard-id> --dir dashroot/             # one dashboard
+og dashboard pull-all --dir dashroot/                        # every dashboard
+og dashboard pull-all --dir dashroot/ --workspace <ws-id>    # only one workspace
+og dashboard pull-file dash.json --dir dashroot/             # from local JSON file
+og dashboard pull <dashboard-id> --dir dashroot/ --force     # overwrite existing
 
 # Wrap an edited dashboard directory back into JSON (no import)
 og dashboard wrap dashroot/<dashboard-dir>                 # stdout
