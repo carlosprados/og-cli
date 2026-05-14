@@ -322,11 +322,12 @@ og workspace export <workspace-id> --full --out ws.json
 og workspace export-all --dir backups/
 
 # Unwrap into editable directory tree (IDE / AI friendly)
-og workspace unwrap <workspace-id> --dir wsroot/
-og workspace unwrap-all --dir wsroot/
-og workspace unwrap-file ws.json --dir wsroot/      # from a local JSON file
+# Aliases: unwrap → pull, unwrap-all → pull-all, unwrap-file → pull-file
+og workspace pull <workspace-id> --dir wsroot/      # (alias of unwrap)
+og workspace pull-all --dir wsroot/
+og workspace pull-file ws.json --dir wsroot/
 
-# All unwrap commands accept --force to overwrite an existing destination
+# All unwrap/pull commands accept --force to overwrite an existing destination
 
 # Wrap back into a single JSON ready for import
 og workspace wrap wsroot/<workspace-slug> --out ws.json

@@ -352,8 +352,9 @@ func prepareUnwrapTarget(dir string, force bool) error {
 }
 
 var workspaceUnwrapCmd = &cobra.Command{
-	Use:   "unwrap <workspace-id>",
-	Short: "Unwrap a workspace into an editable directory tree",
+	Use:     "unwrap <workspace-id>",
+	Aliases: []string{"pull"},
+	Short:   "Unwrap a workspace into an editable directory tree (alias: pull)",
 	Long: `Unwrap a workspace into a directory tree designed for inspection
 and edition with an IDE (or by an AI agent).
 
@@ -456,9 +457,10 @@ func indexedDashSlug(index, width int, title, id string, taken map[string]bool) 
 // --- unwrap-all ---
 
 var workspaceUnwrapAllCmd = &cobra.Command{
-	Use:   "unwrap-all --dir <dir>",
-	Short: "Unwrap every workspace into <dir>/<workspace-slug>/...",
-	RunE:  runWorkspaceUnwrapAll,
+	Use:     "unwrap-all --dir <dir>",
+	Aliases: []string{"pull-all"},
+	Short:   "Unwrap every workspace into <dir>/<workspace-slug>/... (alias: pull-all)",
+	RunE:    runWorkspaceUnwrapAll,
 }
 
 var (
@@ -506,8 +508,9 @@ func runWorkspaceUnwrapAll(cmd *cobra.Command, args []string) error {
 // --- unwrap-file ---
 
 var workspaceUnwrapFileCmd = &cobra.Command{
-	Use:   "unwrap-file <workspace.json>",
-	Short: "Unwrap a workspace from a local JSON file (no API call)",
+	Use:     "unwrap-file <workspace.json>",
+	Aliases: []string{"pull-file"},
+	Short:   "Unwrap a workspace from a local JSON file (no API call) (alias: pull-file)",
 	Long: `Unwrap a workspace into a directory tree from a JSON file already on disk.
 
 Useful when you have an export produced by "og workspace export" or downloaded
