@@ -282,6 +282,101 @@ func runDashboardExportAll(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// --- unwrap / pull ---
+
+var dashboardUnwrapCmd = &cobra.Command{
+	Use:     "unwrap <dashboard-id>",
+	Aliases: []string{"pull"},
+	Short:   "Unwrap a single dashboard into an editable directory tree (alias: pull)",
+	Long: `Unwrap a single dashboard into a directory tree designed for inspection
+and edition with an IDE (or by an AI agent).
+
+Structure produced:
+
+  <dir>/<dashboard-slug>/
+    dashboard.json                   # dashboard metadata (grid stripped)
+    <NN>__<type>__<wid>/             # one folder per widget, NN preserves order
+      widget.json                    # grid item, JS fields removed from config
+      formatter.js                   # if the widget had a "formatter" field
+      columns__0__formatter.js       # nested fields keep the keypath in the name
+
+Use "og dashboard wrap" or "og dashboard deploy" to rebuild and re-upload.`,
+	Args: cobra.ExactArgs(1),
+	RunE: runDashboardUnwrap,
+}
+
+var (
+	dashboardUnwrapDir   string
+	dashboardUnwrapForce bool
+)
+
+func runDashboardUnwrap(cmd *cobra.Command, args []string) error {
+	p, err := activeProfile()
+	if err != nil {
+		return err
+	}
+	c := newWebClient(p)
+
+	d, err := c.GetDashboard(args[0])
+	if err != nil {
+		return err
+	}
+
+	taken := make(map[string]bool)
+	slug := unwrap.DedupedSlug(d.Title, d.ID, taken)
+	dashDir := filepath.Join(dashboardUnwrapDir, slug)
+
+	if err := prepareUnwrapTarget(dashDir, dashboardUnwrapForce); err != nil {
+		return err
+	}
+
+	if err := unwrap.UnwrapDashboardFull(d, nil, dashDir); err != nil {
+		return err
+	}
+	fmt.Printf("  ✓ dashboard %s (%d widgets) → %s\n", d.ID, len(d.Grid), dashDir)
+	return nil
+}
+
+// --- wrap ---
+
+var dashboardWrapCmd = &cobra.Command{
+	Use:   "wrap <dashboard-dir>",
+	Short: "Rebuild a dashboard JSON from an unwrapped directory tree",
+	Long: `Rebuild a dashboard JSON from a directory previously produced by
+"og dashboard unwrap" (or by "og workspace unwrap" — pass one of the
+NN__<slug> subfolders).
+
+By default, the rebuilt JSON is written to stdout. Use --out to write to a file.`,
+	Args: cobra.ExactArgs(1),
+	RunE: runDashboardWrap,
+}
+
+var dashboardWrapOut string
+
+func runDashboardWrap(cmd *cobra.Command, args []string) error {
+	if err := assertDashboardDir(args[0]); err != nil {
+		return err
+	}
+
+	full, _, err := unwrap.WrapDashboard(args[0])
+	if err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(full, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshaling dashboard: %w", err)
+	}
+	if dashboardWrapOut == "" {
+		fmt.Println(string(data))
+		return nil
+	}
+	if err := os.WriteFile(dashboardWrapOut, data, 0o644); err != nil {
+		return fmt.Errorf("writing file: %w", err)
+	}
+	fmt.Printf("Dashboard JSON written to %s\n", dashboardWrapOut)
+	return nil
+}
+
 // --- deploy ---
 
 var dashboardDeployCmd = &cobra.Command{
@@ -497,6 +592,12 @@ func init() {
 	dashboardDeployCmd.Flags().BoolVar(&dashboardDeployUpdate, "update", false, "update an existing dashboard (PUT) instead of creating (POST)")
 	dashboardDeployCmd.Flags().StringVar(&dashboardDeployWorkspace, "workspace", "", "override the target workspace ID in the payload (ignored with --update)")
 
+	dashboardUnwrapCmd.Flags().StringVar(&dashboardUnwrapDir, "dir", "", "destination directory (required)")
+	dashboardUnwrapCmd.Flags().BoolVar(&dashboardUnwrapForce, "force", false, "overwrite destination if it already exists")
+	_ = dashboardUnwrapCmd.MarkFlagRequired("dir")
+
+	dashboardWrapCmd.Flags().StringVar(&dashboardWrapOut, "out", "", "write rebuilt JSON to this file (default: stdout)")
+
 	dashboardExportAllCmd.Flags().StringVar(&dashboardExportAllDir, "dir", "", "destination directory (required)")
 	dashboardExportAllCmd.Flags().StringVar(&dashboardExportAllWorkspace, "workspace", "", "limit to dashboards of this workspace")
 	dashboardExportAllCmd.Flags().BoolVar(&dashboardExportAllFull, "full", false, "use GET /dashboards/{id} instead of /dashboards/export/{id}")
@@ -510,6 +611,8 @@ func init() {
 	dashboardCmd.AddCommand(dashboardUpdateCmd)
 	dashboardCmd.AddCommand(dashboardDeleteCmd)
 	dashboardCmd.AddCommand(dashboardDeployCmd)
+	dashboardCmd.AddCommand(dashboardUnwrapCmd)
+	dashboardCmd.AddCommand(dashboardWrapCmd)
 
 	rootCmd.AddCommand(dashboardCmd)
 }

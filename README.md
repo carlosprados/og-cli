@@ -427,10 +427,26 @@ og dashboard import -f dash.json --update             # PUT: overwrites the dash
 og dashboard update <dashboard-id> -f dash.json
 og dashboard delete <dashboard-id>
 
+# Pull a single dashboard for editing (alias: unwrap)
+og dashboard pull <dashboard-id> --dir dashroot/
+og dashboard pull <dashboard-id> --dir dashroot/ --force
+
+# Wrap an edited dashboard directory back into JSON (no import)
+og dashboard wrap dashroot/<dashboard-dir>                 # stdout
+og dashboard wrap dashroot/<dashboard-dir> --out d.json    # to file
+
 # Deploy a single dashboard directory in one step (wrap + import)
 og dashboard deploy wsroot/<ws>/<dashboard-dir>
 og dashboard deploy wsroot/<ws>/<dashboard-dir> --update
 og dashboard deploy wsroot/<ws>/<dashboard-dir> --workspace <other-ws-id>
+```
+
+Dashboard verb pair `pull ↔ deploy` (same as workspace):
+
+```bash
+og dashboard pull <id> --dir dashroot/   # GET dashboard, write tree with widget JS extracted
+# ... edit in IDE / IA ...
+og dashboard deploy dashroot/<slug> --update   # PUT dashboard
 ```
 
 ### Web API authentication
