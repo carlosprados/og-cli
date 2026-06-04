@@ -66,6 +66,7 @@ type model struct {
 	optypes         optypesModel
 	opMenu          operationMenuModel
 	viewPicker      viewPickerModel
+	sharePrompt     sharePromptModel
 	workspaces      workspacesModel
 	workspaceDetail workspaceDetailModel
 	dashboardDetail dashboardDetailModel
@@ -153,7 +154,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case viewOpTypes:
 		return m.updateOpTypes(msg)
 	case viewWorkspaces:
-		return m.updateWorkspaces(msg)
+		return m.updateWorkspacesWithShare(msg)
 	case viewWorkspaceDetail:
 		return m.updateWorkspaceDetail(msg)
 	case viewDashboardDetail:
@@ -198,7 +199,7 @@ func (m model) View() string {
 	case viewOpTypes:
 		return m.viewOpTypesScreen()
 	case viewWorkspaces:
-		return m.viewWorkspacesScreen()
+		return m.viewWorkspacesScreenWithShare()
 	case viewWorkspaceDetail:
 		return m.viewWorkspaceDetailScreen()
 	case viewDashboardDetail:

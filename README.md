@@ -81,6 +81,7 @@ Screens:
 | **Login** | Email/password form, stores JWT + API key + organization | tab, enter |
 | **Datamodels** | List → enter for detail with categories and datastreams | enter, r |
 | **Devices** | List → enter for tabbed detail view; `v` picks a named view (dynamic columns) | enter, o, v, r |
+| **Workspaces** | List → enter for detail; `s` shares the selected workspace with users | enter, s, r |
 | **Device detail** | Three tabs: Overview (cards), Datastreams (table), JSON (scrollable) | 1/2/3, tab |
 | **Alarms** | List with severity/status → attend or close | a, c, r |
 | **Rules** | Automation rules list; `t` toggles active on/off | t, r |
@@ -480,6 +481,13 @@ og workspace pull-file ws.json --dir wsroot/
 
 # All unwrap/pull commands accept --force to overwrite an existing destination
 
+# Share with other users/domains — OPTIONAL and separate from deploy/import:
+# publishing never shares by itself (the workspace stays owner-only until you
+# share it). The lists REPLACE current sharing on every call.
+og workspace share <workspace-id> --user claudia@amplia.es
+og workspace share <workspace-id> --user a@x.com --user b@x.com --domain partners
+og workspace share <workspace-id> --unshare
+
 # Wrap back into a single JSON ready for import
 og workspace wrap wsroot/<workspace-slug> --out ws.json
 
@@ -584,6 +592,10 @@ og dashboard pull-all --dir dashroot/                        # every dashboard
 og dashboard pull-all --dir dashroot/ --workspace <ws-id>    # only one workspace
 og dashboard pull-file dash.json --dir dashroot/             # from local JSON file
 og dashboard pull <dashboard-id> --dir dashroot/ --force     # overwrite existing
+
+# Share a single dashboard (same semantics as workspace share)
+og dashboard share <dashboard-id> --user claudia@amplia.es
+og dashboard share <dashboard-id> --unshare
 
 # Wrap an edited dashboard directory back into JSON (no import)
 og dashboard wrap dashroot/<dashboard-dir>                 # stdout
@@ -779,12 +791,14 @@ For a detailed guide on how prompts, resources, and tools work together, see [do
 | `workspaces_import` | Create a workspace from JSON payload |
 | `workspaces_update` | Update a workspace |
 | `workspaces_delete` | Delete a workspace |
+| `workspaces_share` | Share a workspace with users/domains (grants UI visibility) |
 | `dashboards_list` | List dashboards (all, or filtered by workspace) |
 | `dashboards_get` | Get a dashboard with grid layout and widgets |
 | `dashboards_export` | Export a dashboard via `/dashboards/export/{id}` |
 | `dashboards_import` | Create a dashboard from JSON payload, optionally overriding target workspace |
 | `dashboards_update` | Update a dashboard |
 | `dashboards_delete` | Delete a dashboard |
+| `dashboards_share` | Share a dashboard with users/domains |
 
 Search tools accept a `query` parameter with the same syntax as `-w` flags:
 
