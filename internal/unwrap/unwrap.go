@@ -164,4 +164,3 @@ func ListWorkspaceDirs(dir string) ([]string, error) {
 	sort.Strings(result)
 	return result, nil
 }
-

@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	loginPath        = "/north/v80/provision/users/login"
-	webSignInPath    = "/api/auth/signin/internal"
+	loginPath     = "/north/v80/provision/users/login"
+	webSignInPath = "/api/auth/signin/internal"
 )
 
 // LoginRequest holds credentials for JWT authentication.
