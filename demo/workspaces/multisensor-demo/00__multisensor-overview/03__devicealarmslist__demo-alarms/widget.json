@@ -1,0 +1,81 @@
+{
+  "width": 6,
+  "height": 4,
+  "x": 6,
+  "y": 6,
+  "w": 6,
+  "h": 4,
+  "i": "demo-alarms",
+  "definition": {
+    "type": "DeviceAlarmsList",
+    "Ftype": "alarms",
+    "wid": "demo-alarms",
+    "config": {
+      "about": "",
+      "boxed": true,
+      "columns": [
+        {
+          "alias": "Alarm",
+          "availableFields": [],
+          "config_title": "(name)",
+          "expand": false,
+          "firstPath": "name",
+          "path": "name",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        },
+        {
+          "alias": "Device",
+          "availableFields": [],
+          "config_title": "(entityIdentifier)",
+          "expand": false,
+          "firstPath": "entityIdentifier",
+          "path": "entityIdentifier",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        },
+        {
+          "alias": "Severity",
+          "availableFields": [],
+          "config_title": "(severity)",
+          "expand": false,
+          "firstPath": "severity",
+          "path": "severity",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        },
+        {
+          "alias": "Status",
+          "availableFields": [],
+          "config_title": "(status)",
+          "expand": false,
+          "firstPath": "status",
+          "path": "status",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        },
+        {
+          "alias": "Opened",
+          "availableFields": [],
+          "config_title": "(openingDate)",
+          "expand": false,
+          "firstPath": "openingDate",
+          "path": "openingDate",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        }
+      ],
+      "customActions": null,
+      "heights": {
+        "height": "45",
+        "maxHeight": "75",
+        "minHeight": "10",
+        "vAlign": "align-middle"
+      },
+      "hideWidgetTitle": "visible",
+      "noShareFilter": false,
+      "noShareHeaderFilter": false,
+      "noShareHeaderSorting": false,
+      "pagination": 10,
+      "privateFilter": "alarm.entityIdentifier ~ \"multisensor\"",
+      "reloadPeriod": "0",
+      "sharePrivateFilter": false,
+      "title": "Alarms (opened by our rules)"
+    }
+  }
+}

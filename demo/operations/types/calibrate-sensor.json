@@ -1,0 +1,38 @@
+{
+  "name": "CALIBRATE_SENSOR",
+  "title": "Calibrate Sensor",
+  "description": "Applies a calibration offset to one datastream of the device (custom operation created live in the demo)",
+  "applicableTo": [
+    "entity.device"
+  ],
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "datastream": {
+        "type": "string",
+        "title": "Datastream to calibrate",
+        "default": "sensor.temperature"
+      },
+      "offset": {
+        "type": "number",
+        "title": "Calibration offset",
+        "default": 0
+      }
+    },
+    "additionalProperties": false
+  },
+  "steps": [
+    {
+      "name": "CALIBRATE_SENSOR",
+      "title": "Calibrate Action",
+      "description": "Send the calibration offset to the device",
+      "response": null
+    }
+  ],
+  "profiles": [
+    "root",
+    "admin",
+    "advanced",
+    "admin_domain"
+  ]
+}

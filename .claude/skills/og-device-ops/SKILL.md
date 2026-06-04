@@ -1,6 +1,6 @@
 ---
 name: "og-device-ops"
-description: "Operate on OpenGate devices with the og CLI: launch operation jobs (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC), schedule recurring tasks, triage alarms (summary → search → attend/close), and inject IoT data via the South API (test data, simulations). Use when executing actions on devices, handling alarms, or sending telemetry into the platform."
+description: "Operate on OpenGate devices with the og CLI: launch operation jobs, DEFINE custom operation types (og optypes), manage automation rules (EASY/ADVANCED with locally-edited JavaScript — og rules pull/deploy), schedule recurring tasks, triage alarms (summary → search → attend/close), and inject IoT data via the South API. Use when executing actions on devices, automating with rules, handling alarms, or sending telemetry."
 ---
 
 # OpenGate device operations skill
@@ -29,6 +29,57 @@ og jobs search -w "jobs.request.name eq REBOOT_EQUIPMENT"
   [job-templates.md](job-templates.md).
 - DESTRUCTIVE: rebooting production devices needs explicit user confirmation. Never
   fabricate operation names — only use ones known to the platform.
+
+## Operation types — defining NEW operations (DDL)
+
+`og jobs` LAUNCHES operations; `og optypes` DEFINES them. Before launching an
+unfamiliar operation name, check it exists:
+
+```bash
+og optypes search                              # catalog + custom ones
+og optypes get REBOOT_EQUIPMENT --org <org>    # parameters schema + steps
+og optypes create --org <org> -f optype.json   # define a custom operation
+```
+
+CRITICAL shape detail (learned the hard way): `parameters` must be a **JSON
+Schema object** (`{"type":"object","properties":{...}}`), NOT an array of
+name/schema pairs — the create endpoint accepts the wrong shape silently but
+`jobs create` then fails with HTTP 500. Step `name` should match the operation
+name. Working template: `demo/operations/types/calibrate-sensor.json`.
+
+## Automation rules — EASY and ADVANCED
+
+Rules are channel-scoped (`--channel`, default `default_channel`) + `--org`.
+Search filters use the **rule.** prefix: `rule.name`, `rule.mode`, `rule.active`.
+
+```bash
+og rules search -w "rule.active eq true"
+og rules catalog                                # predefined templates
+og rules enable|disable <rule-id> --org <org>   # toggles 'active' via GET+PUT
+```
+
+**EASY** = declarative `condition.filter` + `actions` (open/close alarm, email,
+HTTP, operation) + optional `parameters` referenced as `"$parameter:<name>"`.
+**ADVANCED** = a `javascript` field decides; EASY rules ALSO carry server-generated
+javascript (read-only byproduct — don't edit it, edit condition/actions).
+
+**Local JS editing loop** (the og signature move):
+
+```bash
+og rules pull <rule-id> --dir rules/ --org <org>   # → rules/<slug>/rule.json + javascript.js
+# edit javascript.js in the IDE
+og rules deploy rules/<slug> --update --org <org>  # PUT (requires identifier in rule.json)
+og rules deploy rules/<slug> --org <org>           # POST: create new (no identifier needed)
+```
+
+ADVANCED JS context: `entity['<ds>']._value._current.value` and `._previous.value`
+(use _previous for rising-edge/hysteresis logic), `parameterObject` +
+`getVariableValue()`, `ruleName`, `openAlarm(null, name, ruleName, severity,
+priority, message)`. Working example with multi-datastream correlation:
+`demo/rules/default_channel/env-anomaly/javascript.js`.
+
+Verify a rule fires: inject a triggering value with `og iot collect`, wait ~5 s,
+then `og alarms search -w "alarm.entityIdentifier eq <device>"`.
 
 ## Tasks — scheduled / recurring operations
 

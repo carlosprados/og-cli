@@ -1,6 +1,7 @@
-# Binary
-og
-og-cli
+# Binary (anchored to repo root — plain "og-cli" would also ignore
+# .claude/skills/og-cli/, which silently dropped the skill from v0.6.1)
+/og
+/og-cli
 dist/
 
 # Environment

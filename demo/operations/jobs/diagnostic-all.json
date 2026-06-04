@@ -1,0 +1,27 @@
+{
+  "job": {
+    "request": {
+      "name": "EQUIPMENT_DIAGNOSTIC",
+      "parameters": {},
+      "active": true,
+      "schedule": {
+        "stop": {
+          "delayed": 120000
+        }
+      },
+      "operationParameters": {
+        "timeout": 110000,
+        "retries": 0
+      },
+      "target": {
+        "append": {
+          "entities": [
+            "multisensor-001",
+            "multisensor-002",
+            "multisensor-003"
+          ]
+        }
+      }
+    }
+  }
+}

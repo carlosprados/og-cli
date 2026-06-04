@@ -1,0 +1,80 @@
+{
+  "width": 7,
+  "height": 4,
+  "x": 0,
+  "y": 10,
+  "w": 7,
+  "h": 4,
+  "i": "demo-operations",
+  "definition": {
+    "type": "OperationsList",
+    "Ftype": "jobs",
+    "wid": "demo-operations",
+    "config": {
+      "about": "",
+      "boxed": true,
+      "columns": [
+        {
+          "alias": "Operation",
+          "availableFields": [],
+          "config_title": "(request.name)",
+          "expand": false,
+          "firstPath": "request.name",
+          "path": "request.name",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        },
+        {
+          "alias": "Status",
+          "availableFields": [],
+          "config_title": "(report.summary.status)",
+          "expand": false,
+          "firstPath": "report.summary.status",
+          "path": "report.summary.status",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        },
+        {
+          "alias": "Activated",
+          "availableFields": [],
+          "config_title": "(report.execution.activatedDate)",
+          "expand": false,
+          "firstPath": "report.execution.activatedDate",
+          "path": "report.execution.activatedDate",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        },
+        {
+          "alias": "OK",
+          "availableFields": [],
+          "config_title": "(report.summary.finished.successful)",
+          "expand": false,
+          "firstPath": "report.summary.finished.successful",
+          "path": "report.summary.finished.successful",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        },
+        {
+          "alias": "Errors",
+          "availableFields": [],
+          "config_title": "(report.summary.finished.error)",
+          "expand": false,
+          "firstPath": "report.summary.finished.error",
+          "path": "report.summary.finished.error",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        }
+      ],
+      "customActions": null,
+      "heights": {
+        "height": "45",
+        "maxHeight": "75",
+        "minHeight": "10",
+        "vAlign": "align-middle"
+      },
+      "hideWidgetTitle": "visible",
+      "noShareFilter": false,
+      "noShareHeaderFilter": false,
+      "noShareHeaderSorting": false,
+      "pagination": 10,
+      "reloadPeriod": "0",
+      "sharePrivateFilter": false,
+      "title": "Operation jobs"
+    }
+  }
+}

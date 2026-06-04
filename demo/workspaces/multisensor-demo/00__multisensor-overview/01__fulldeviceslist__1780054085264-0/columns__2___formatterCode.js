@@ -1,0 +1,1 @@
+if (value === null || value === undefined || value === '') { cellFormatter.customValue = '—'; } else { var n = Number(value); cellFormatter.customValue = isNaN(n) ? String(value) : n.toFixed(1) + ' ºC'; cellFormatter.style = 'text-align:right;'; }

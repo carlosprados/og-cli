@@ -1,0 +1,33 @@
+{
+  "name": "Environmental anomaly",
+  "description": "ADVANCED demo rule: JavaScript correlates temperature and humidity and opens an alarm only on the rising edge (hysteresis), something EASY mode cannot express",
+  "mode": "ADVANCED",
+  "active": true,
+  "parameters": [
+    {
+      "name": "tempThreshold",
+      "value": 28,
+      "schema": "number"
+    },
+    {
+      "name": "minHumidity",
+      "value": 35,
+      "schema": "number"
+    }
+  ],
+  "type": {
+    "name": "DATASTREAM",
+    "datastreams": [
+      {
+        "name": "sensor.temperature",
+        "fields": [
+          {
+            "field": "value",
+            "alias": "Temperature"
+          }
+        ],
+        "prefilter": true
+      }
+    ]
+  }
+}

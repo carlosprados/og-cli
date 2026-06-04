@@ -1,0 +1,133 @@
+{
+  "width": 12,
+  "height": 4,
+  "x": 0,
+  "y": 2,
+  "w": 12,
+  "h": 4,
+  "i": "1780054085264-0",
+  "definition": {
+    "type": "FullDevicesList",
+    "Ftype": "entities",
+    "wid": "1780054085264-0",
+    "config": {
+      "about": "Live list of the multi-sensor devices with the multisensor datamodel datastreams. Numeric values are formatted with units.",
+      "boxed": true,
+      "columns": [
+        {
+          "alias": "Identifier",
+          "availableFields": [],
+          "config_title": "(provision.device.identifier._current.value)",
+          "expand": false,
+          "firstPath": "provision.device.identifier._current.value",
+          "hiddenColumn": false,
+          "isOgIdentifier": true,
+          "path": "provision.device.identifier._current.value",
+          "title": "FORM.TITLE.CURRENT.VALUE",
+          "widths": {
+            "hAlign": "text-left",
+            "maxWidth": "300",
+            "minWidth": "1",
+            "textWrap": true,
+            "width": "180"
+          }
+        },
+        {
+          "alias": "Name",
+          "availableFields": [],
+          "config_title": "(provision.device.name._current.value)",
+          "expand": false,
+          "firstPath": "provision.device.name._current.value",
+          "hiddenColumn": false,
+          "isOgIdentifier": false,
+          "path": "provision.device.name._current.value",
+          "title": "FORM.TITLE.CURRENT.VALUE",
+          "widths": {
+            "hAlign": "text-left",
+            "maxWidth": "300",
+            "minWidth": "1",
+            "textWrap": true,
+            "width": "180"
+          }
+        },
+        {
+          "_formatterRef": null,
+          "alias": "Temperature",
+          "availableFields": [],
+          "config_title": "(sensor.temperature._current.value)",
+          "expand": false,
+          "firstPath": "sensor.temperature._current.value",
+          "hiddenColumn": false,
+          "isOgIdentifier": false,
+          "path": "sensor.temperature._current.value",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        },
+        {
+          "_formatterRef": null,
+          "alias": "Humidity",
+          "availableFields": [],
+          "config_title": "(sensor.humidity._current.value)",
+          "expand": false,
+          "firstPath": "sensor.humidity._current.value",
+          "hiddenColumn": false,
+          "isOgIdentifier": false,
+          "path": "sensor.humidity._current.value",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        },
+        {
+          "_formatterRef": null,
+          "alias": "Light",
+          "availableFields": [],
+          "config_title": "(sensor.luminosity._current.value)",
+          "expand": false,
+          "firstPath": "sensor.luminosity._current.value",
+          "hiddenColumn": false,
+          "isOgIdentifier": false,
+          "path": "sensor.luminosity._current.value",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        },
+        {
+          "_formatterRef": null,
+          "alias": "Energy",
+          "availableFields": [],
+          "config_title": "(energy.consumption._current.value)",
+          "expand": false,
+          "firstPath": "energy.consumption._current.value",
+          "hiddenColumn": false,
+          "isOgIdentifier": false,
+          "path": "energy.consumption._current.value",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        },
+        {
+          "_formatterRef": null,
+          "alias": "Battery",
+          "availableFields": [],
+          "config_title": "(power.battery._current.value)",
+          "expand": false,
+          "firstPath": "power.battery._current.value",
+          "hiddenColumn": false,
+          "isOgIdentifier": false,
+          "path": "power.battery._current.value",
+          "title": "FORM.TITLE.CURRENT.VALUE"
+        }
+      ],
+      "customActions": null,
+      "heights": {
+        "height": "45",
+        "maxHeight": "75",
+        "minHeight": "10",
+        "vAlign": "align-middle"
+      },
+      "hideSlowSearch": null,
+      "hideWidgetTitle": "visible",
+      "noShareFilter": false,
+      "noShareHeaderFilter": false,
+      "noShareHeaderSorting": false,
+      "pagination": 10,
+      "privateFilter": "provision.device.identifier ~ \"multisensor\"",
+      "reloadPeriod": "0",
+      "sharePrivateFilter": false,
+      "title": "Multi-Sensor Devices"
+    }
+  }
+}
