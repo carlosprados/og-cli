@@ -74,6 +74,45 @@ Widget JS runs sandboxed with globals `$api`, `$user`, `$moment`, `http` — see
 [reference/utils.md](reference/utils.md). Window filters:
 [reference/windowFilterVariants.md](reference/windowFilterVariants.md).
 
+> **Widget JS survival rules** — abridged from **el Grimorio**
+> ([reference/widget-js-api.md](reference/widget-js-api.md)): execution
+> contexts, the full $api builder catalog (51), field-name tables per domain,
+> lint constraints, return contracts, debug runbook. READ IT before writing
+> any widget JS. The essentials (ALL verified live — break any and the widget
+> shows "Data not found" or empty values):
+>
+> 1. **Fetch with `$api` + EXPLICIT `.filter()`** — never the `with*` shortcuts
+>    (they emit outdated field names → 400 "Field in filter unknown") and never
+>    the `http` wrapper (Nuxt AsyncData; 403 on `/north/v80/*` from widgets):
+>
+>    ```js
+>    var res = await $api.datapointsSearchBuilder()
+>      .filter({ and: [
+>        { eq: { 'datapoints.entityIdentifier': deviceId } },
+>        { eq: { 'datapoints.datastreamId': datastreamId } }
+>      ]})
+>      .build().execute();
+>    var dps = (res && res.data && res.data.datapoints) ? res.data.datapoints : [];
+>    // each dp._current = { value, at, date, source }
+>    ```
+>
+>    Filter field names come from the platform OpenAPI specs (datapoints search:
+>    `datapoints.entityIdentifier`, `datapoints.datastreamId`). Other builders:
+>    devicesSearchBuilder, entitiesSearchBuilder (https://amplia-iiot.github.io/opengate-js/).
+>
+> 2. **ES5 only** — the platform lints widget code with JSHint at render time:
+>    `const`/`let`/arrow functions/`for...of` FAIL; use `var`, `function`
+>    declarations and `.forEach(function () {})`. A single top-level `await`
+>    is accepted (the code runs inside an async wrapper).
+>
+> 3. **Working reference**: `demo/workspaces/multisensor-demo/00__multisensor-overview/`
+>    `02__customchart__demo-temp-chart/_widgetConfigCode.js` in the og-cli repo.
+>
+> 4. **Debug loop**: drive Chrome (devtools MCP) → console (`JshintError` =
+>    lint failure with line number; `OGAPI ERROR` = request failure) → network
+>    panel for the failing POST body and the platform's error JSON. Each
+>    `og dashboard deploy --update` steals the browser web session (re-login).
+
 ## CLI lifecycle — complete surface
 
 ```bash

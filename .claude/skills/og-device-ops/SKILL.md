@@ -78,6 +78,15 @@ ADVANCED JS context: `entity['<ds>']._value._current.value` and `._previous.valu
 priority, message)`. Working example with multi-datastream correlation:
 `demo/rules/default_channel/env-anomaly/javascript.js`.
 
+**Authoritative JS references (harvested from the platform's live docs):**
+- [rules-js-reference.md](rules-js-reference.md) — every function available in
+  ADVANCED rule JS (open/close alarms, datastream getters, counters, emails...)
+- [connector-functions-js-reference.md](connector-functions-js-reference.md) —
+  the connector functions JS API (south-side payload processing)
+
+For widget JS (dashboards), the grimoire lives in
+`og-workspaces/reference/widget-js-api.md`.
+
 Verify a rule fires: inject a triggering value with `og iot collect`, wait ~5 s,
 then `og alarms search -w "alarm.entityIdentifier eq <device>"`.
 
