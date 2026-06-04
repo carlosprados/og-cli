@@ -10,7 +10,9 @@ Three modes of operation:
 | **CLI** | `og <command>` | Direct commands for scripts and one-liners |
 | **MCP** | `og mcp` | Model Context Protocol server for LLM integration |
 
-All three interfaces expose the same functionality through the same client library.
+All three interfaces expose the same functionality through the same client library —
+including [named views](#views--project-fields-by-intent) (`--view summary,power`), which
+project common field sets with their value timestamps without memorizing datastream paths.
 
 ## Build
 
@@ -345,6 +347,8 @@ Manage OpenGate operation jobs — execute operations on devices.
 # Search
 og jobs search
 og jobs search --limit 10
+og jobs search -w "jobs.report.summary.status eq IN_PROGRESS"
+og jobs search -w "jobs.request.name eq REBOOT_EQUIPMENT"
 
 # Get report / create / cancel
 og jobs get <job-id>
@@ -378,10 +382,11 @@ Manage OpenGate operation tasks — scheduled/recurring operations.
 
 ```bash
 og tasks search
+og tasks search -w "tasks.state eq ACTIVE"
 og tasks get <task-id>
 og tasks create -f task.json
 og tasks cancel <task-id>
-og tasks jobs <task-id>
+og tasks jobs <task-id>     # list jobs spawned by a task
 ```
 
 ### workspace (alias: ws)
@@ -411,12 +416,6 @@ og workspace pull-all --dir wsroot/
 og workspace pull-file ws.json --dir wsroot/
 
 # All unwrap/pull commands accept --force to overwrite an existing destination
-
-# Ownership filter: only workspaces/dashboards whose `owner` matches the
-# active profile's email are unwrapped (the rest are not editable for you).
-# - `pull-all` skips foreign items silently with a one-line note + summary.
-# - `pull` and `pull-file` abort with a clear error when the item is foreign.
-#   Pass `--force-owner` to override the ownership check on these two.
 
 # Wrap back into a single JSON ready for import
 og workspace wrap wsroot/<workspace-slug> --out ws.json
@@ -523,10 +522,6 @@ og dashboard pull-all --dir dashroot/ --workspace <ws-id>    # only one workspac
 og dashboard pull-file dash.json --dir dashroot/             # from local JSON file
 og dashboard pull <dashboard-id> --dir dashroot/ --force     # overwrite existing
 
-# Same ownership filter as workspaces: only dashboards whose `owner` matches
-# the active profile email are unwrapped. `pull-all` skips foreign ones with
-# a note; `pull` / `pull-file` abort unless `--force-owner` is passed.
-
 # Wrap an edited dashboard directory back into JSON (no import)
 og dashboard wrap dashroot/<dashboard-dir>                 # stdout
 og dashboard wrap dashroot/<dashboard-dir> --out d.json    # to file
@@ -568,8 +563,8 @@ og login --no-web                                     # skip web signin entirely
 ```bash
 # 1. Log in to source tenant and export
 og login --profile source
-og workspace export ws-id -o ws.json
-og dashboard export dash-id -o dash.json
+og workspace export ws-id --out ws.json
+og dashboard export dash-id --out dash.json
 
 # 2. Log in to destination tenant and import
 og login --profile destination
@@ -752,6 +747,15 @@ devices_search(query: "device.powersupply.battery.charge lt 20", view: "summary,
 
 ```bash
 og version
+```
+
+### completion
+
+Generate shell autocompletion (bash, zsh, fish, powershell):
+
+```bash
+og completion zsh > "${fpath[1]}/_og"            # zsh
+og completion bash > /etc/bash_completion.d/og   # bash
 ```
 
 ## Documentation
