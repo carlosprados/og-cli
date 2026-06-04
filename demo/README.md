@@ -146,6 +146,7 @@ Open the OpenGate web UI → workspace **Multisensor Demo** → dashboard
 | DeviceAlarmsList | The alarms your rules opened |
 | OperationsList | The CALIBRATE_SENSOR job |
 | rulesBrowser | The rules you deployed |
+| customTable | Fleet history — a per-cell ECharts sparkline for every device × datastream (JS in `_widgetConfigCode.js`, written to the widget-JS grimoire rules) |
 
 ## Repeatable demo — setup & teardown
 

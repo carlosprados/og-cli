@@ -1,0 +1,77 @@
+{
+  "width": 12,
+  "height": 4,
+  "x": 0,
+  "y": 14,
+  "w": 12,
+  "h": 4,
+  "i": "demo-sparklines",
+  "definition": {
+    "type": "customTable",
+    "wid": "demo-sparklines",
+    "config": {
+      "about": "Real-time read of the 3 multi-sensor devices. Each numeric datastream is rendered as a sparkline chart. No auto-refresh.",
+      "allowGrouping": false,
+      "allowPagination": 0,
+      "allowWidgetFilter": false,
+      "boxed": true,
+      "columns": [
+        {
+          "divider": true,
+          "isOgIdentifier": true,
+          "sortable": true,
+          "text": "Identifier",
+          "value": "id",
+          "width": 160
+        },
+        {
+          "divider": true,
+          "sortable": true,
+          "text": "Name",
+          "value": "name",
+          "width": 160
+        },
+        {
+          "divider": true,
+          "sortable": false,
+          "text": "Temperature",
+          "value": "temperature"
+        },
+        {
+          "divider": true,
+          "sortable": false,
+          "text": "Humidity",
+          "value": "humidity"
+        },
+        {
+          "divider": true,
+          "sortable": false,
+          "text": "Light",
+          "value": "luminosity"
+        },
+        {
+          "divider": true,
+          "sortable": false,
+          "text": "Energy",
+          "value": "energy"
+        },
+        {
+          "divider": false,
+          "sortable": false,
+          "text": "Battery",
+          "value": "battery"
+        }
+      ],
+      "compactTable": false,
+      "customActions": null,
+      "expandable": false,
+      "groupBy": [],
+      "hideWidgetTitle": "visible",
+      "model": "icon",
+      "reloadPeriod": "0",
+      "showFilter": false,
+      "tableId": "id",
+      "title": "Fleet history — sparklines"
+    }
+  }
+}
