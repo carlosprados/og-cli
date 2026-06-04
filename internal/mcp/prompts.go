@@ -48,8 +48,28 @@ When the user says...          → Use this tool
 You can read these resources for additional context:
 - opengate://query-syntax — complete reference of query operators, fields per entity, and job operation types
 - opengate://organizations/{org}/datamodel-fields — discover custom datastream fields available in an organization (e.g. wt, wp, batteryPercentage)
+- opengate://views — dictionary of named field views for devices_search (what each view expands to)
 
 Read opengate://organizations/{org}/datamodel-fields when the user asks about specific datastreams or you need to know which fields to use in select/query for devices.
+
+## Views — project fields by intent (devices_search)
+
+ALWAYS project fields in devices_search with 'view' and/or 'select'; otherwise every result is the
+full device document (thousands of tokens each).
+
+The 'view' parameter expands a named view into the right field set, so you do NOT need to know
+datastream paths. Built-in views:
+
+- summary — identifier, type, name, organization, operational status (+timestamp). DEFAULT for listings.
+- power — power supply and battery (charge and outage include their timestamp)
+- resources — CPU, RAM, disk metrics
+- temperature, location, status, hardware, software, identifier, name, type, topology, organization, relations
+
+Views and explicit select combine; explicit select fields win on collision. In 'select', append @at
+to a field to also get the timestamp of its current value (e.g. "wt@at").
+
+Users can define their own views in ~/.og/views/*.yaml and ./.og/views/*.yaml — read opengate://views
+to see the merged dictionary including custom ones.
 
 ## Common fields per entity
 
@@ -145,7 +165,11 @@ User: "Give me active devices" → devices_search(query: "provision.device.admin
 User: "Dispositivos con identificador que contenga sense" → devices_search(query: "provision.device.identifier like sense")
 User: "Devices in sensehat org with state TESTING" → devices_search(query: "provision.administration.organization eq sensehat AND provision.device.administrativeState eq TESTING")
 User: "Muéstrame el dispositivo sense-001 de sensehat" → devices_get(organization: "sensehat", id: "sense-001")
-User: "Show me temperature and pressure for sense devices" → devices_search(query: "provision.device.identifier like sense", select: "provision.device.identifier,wt,wp")
+User: "Show me temperature and pressure for sense devices" → devices_search(query: "provision.device.identifier like sense", select: "provision.device.identifier,wt@at,wp@at")
+User: "Lista los dispositivos de sensehat" → devices_search(query: "provision.administration.organization eq sensehat", view: "summary")
+User: "How are the batteries doing?" → devices_search(query: "provision.administration.organization eq sensehat", view: "summary,power")
+User: "¿Dónde están mis dispositivos?" → devices_search(view: "summary,location")
+User: "Devices with high CPU" → devices_search(query: "device.cpu.usage gt 80", view: "summary,resources")
 User: "Dispositivos con temperatura mayor que 20" → devices_search(query: "wt gt 20")
 User: "Devices where wt is between 10 and 30 in sensehat" → devices_search(query: "wt gte 10 AND wt lte 30 AND provision.administration.organization eq sensehat")
 User: "Dispositivos con device.temperature.value mayor que 50 y estado NORMAL" → devices_search(query: "device.temperature.value gt 50 AND provision.device.operationalStatus eq NORMAL")

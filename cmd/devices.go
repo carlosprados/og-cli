@@ -8,6 +8,7 @@ import (
 	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/output"
 	"github.com/carlosprados/og-cli/internal/query"
+	"github.com/carlosprados/og-cli/internal/views"
 	"github.com/spf13/cobra"
 )
 
@@ -27,12 +28,17 @@ var devicesSearchCmd = &cobra.Command{
 Filters apply to BOTH provisioned metadata (provision.*) and the latest
 collected value of any datastream (default or organization-specific).
 
+Project fields with -s (append @at for the value timestamp) or with named
+views (--view); see 'og views list'. Explicit -s fields win over view fields.
+
 Examples:
   og dev search -w "provision.device.administrativeState eq ACTIVE"
   og dev search -w "provision.device.identifier like sense" --limit 10
   og dev search -w "provision.device.administrativeState eq ACTIVE" -w "provision.device.identifier like sense"
-  og dev search -w "wt gt 20"
+  og dev search -w "wt gt 20" -s wt@at -s provision.device.identifier
   og dev search -w "device.temperature.value gte 50" -w "provision.device.operationalStatus eq NORMAL"
+  og dev search --view summary
+  og dev search --view summary,power -s wt
   og dev search --filter '{"filter":{"or":[...]}}'`,
 	RunE: runDevicesSearch,
 }
@@ -42,6 +48,8 @@ var (
 	devSearchWhere  []string
 	devSearchLimit  int
 	devSearchSelect []string
+	devSearchView   []string
+	devSearchAt     bool
 )
 
 func runDevicesSearch(cmd *cobra.Command, args []string) error {
@@ -51,7 +59,19 @@ func runDevicesSearch(cmd *cobra.Command, args []string) error {
 	}
 	c := client.New(p.Host, p.Token)
 
-	filter, err := buildSearchFilter(devSearchWhere, devSearchLimit, devSearchSelect, devSearchFilter)
+	selectClauses := query.SelectFromFields(devSearchSelect, devSearchAt)
+	if len(devSearchView) > 0 {
+		reg, err := views.Load()
+		if err != nil {
+			return err
+		}
+		selectClauses, err = reg.ResolveSelect(devSearchView, selectClauses)
+		if err != nil {
+			return err
+		}
+	}
+
+	filter, err := buildSearchFilter(devSearchWhere, devSearchLimit, selectClauses, devSearchFilter)
 	if err != nil {
 		return err
 	}
@@ -61,8 +81,8 @@ func runDevicesSearch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if len(devSearchSelect) > 0 {
-		return printSelectedDevices(resp.Devices, devSearchSelect)
+	if len(selectClauses) > 0 {
+		return printSelectedDevices(resp.Devices, selectClauses)
 	}
 
 	return output.Print(outFmt, resp.Devices,
@@ -80,7 +100,7 @@ func runDevicesSearch(cmd *cobra.Command, args []string) error {
 }
 
 // buildSearchFilter is shared by all search commands.
-func buildSearchFilter(where []string, limit int, selectFields []string, rawFilter string) (json.RawMessage, error) {
+func buildSearchFilter(where []string, limit int, sel []query.SelectClause, rawFilter string) (json.RawMessage, error) {
 	var conditions []query.Condition
 	for _, w := range where {
 		c, err := query.ParseCondition(w)
@@ -92,15 +112,32 @@ func buildSearchFilter(where []string, limit int, selectFields []string, rawFilt
 	return query.MergeWithRaw(query.SearchParams{
 		Conditions: conditions,
 		Limit:      limit,
-		Select:     selectFields,
+		Select:     sel,
 	}, rawFilter)
 }
 
-// printSelectedDevices renders devices with dynamic columns from -s fields.
-func printSelectedDevices(devices []json.RawMessage, fields []string) error {
-	headers := make([]string, len(fields))
-	for i, f := range fields {
-		headers[i] = query.FieldAlias(f)
+// printSelectedDevices renders devices with one dynamic column per selected
+// sub-field (value, at) of each clause.
+func printSelectedDevices(devices []json.RawMessage, clauses []query.SelectClause) error {
+	type column struct {
+		header string
+		name   string // datastream name
+		sub    string // "value" or "at"
+	}
+	var columns []column
+	for _, c := range clauses {
+		for _, f := range c.Fields {
+			header := f.Alias
+			if header == "" {
+				header = query.FieldAlias(c.Name)
+			}
+			columns = append(columns, column{header: header, name: c.Name, sub: f.Field})
+		}
+	}
+
+	headers := make([]string, len(columns))
+	for i, col := range columns {
+		headers[i] = col.header
 	}
 
 	return output.Print(outFmt, devices, headers,
@@ -108,9 +145,13 @@ func printSelectedDevices(devices []json.RawMessage, fields []string) error {
 			devs := data.([]json.RawMessage)
 			rows := make([][]string, len(devs))
 			for i, raw := range devs {
-				row := make([]string, len(fields))
-				for j, field := range fields {
-					row[j] = client.ExtractFlatValue(raw, field)
+				row := make([]string, len(columns))
+				for j, col := range columns {
+					if col.sub == "at" {
+						row[j] = client.ExtractFlatAt(raw, col.name)
+					} else {
+						row[j] = client.ExtractFlatValue(raw, col.name)
+					}
 				}
 				rows[i] = row
 			}
@@ -265,7 +306,9 @@ func runDevicesDelete(cmd *cobra.Command, args []string) error {
 
 func init() {
 	devicesSearchCmd.Flags().StringArrayVarP(&devSearchWhere, "where", "w", nil, `filter condition: "field op value" (repeatable)`)
-	devicesSearchCmd.Flags().StringArrayVarP(&devSearchSelect, "select", "s", nil, "fields to return (repeatable, e.g. -s provision.device.identifier -s wt)")
+	devicesSearchCmd.Flags().StringArrayVarP(&devSearchSelect, "select", "s", nil, "fields to return (repeatable; append @at for the timestamp, e.g. -s wt@at)")
+	devicesSearchCmd.Flags().BoolVar(&devSearchAt, "at", false, "include the at timestamp for every selected field")
+	devicesSearchCmd.Flags().StringSliceVar(&devSearchView, "view", nil, "named views to project (comma-separated or repeatable, e.g. --view summary,power); see 'og views list'")
 	devicesSearchCmd.Flags().IntVar(&devSearchLimit, "limit", 0, "max number of results")
 	devicesSearchCmd.Flags().StringVar(&devSearchFilter, "filter", "", "raw search filter as JSON (overrides -w)")
 

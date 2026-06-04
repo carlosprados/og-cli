@@ -61,6 +61,7 @@ type model struct {
 	jobDetail       jobDetailModel
 	tasks           tasksModel
 	opMenu          operationMenuModel
+	viewPicker      viewPickerModel
 	workspaces      workspacesModel
 	workspaceDetail workspaceDetailModel
 	dashboardDetail dashboardDetailModel
@@ -124,7 +125,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case viewDatamodelDetail:
 		return m.updateDatamodelDetail(msg)
 	case viewDevices:
-		return m.updateDevicesWithOps(msg)
+		return m.updateDevicesWithViews(msg)
 	case viewDeviceDetail:
 		return m.updateDeviceDetail(msg)
 	case viewAlarms:
@@ -165,7 +166,7 @@ func (m model) View() string {
 	case viewDatamodelDetail:
 		return m.viewDatamodelDetailScreen()
 	case viewDevices:
-		return m.viewDevicesScreenWithOps()
+		return m.viewDevicesScreenWithViews()
 	case viewDeviceDetail:
 		return m.viewDeviceDetailScreen()
 	case viewAlarms:

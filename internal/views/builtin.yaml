@@ -1,0 +1,151 @@
+# Built-in views: named field sets that expand into OpenGate select clauses.
+# Curated dictionary originally from danvifer/mcp-opengate-trident (concepts.json v1.0.0).
+#
+# Field shorthand: "name" selects the value; "name@at" also selects the
+# at timestamp. Long form: {name: ..., at: true, alias: ...}.
+#
+# Aliases are set explicitly where the auto-generated one (last path segment)
+# would collide within the view or be meaningless (e.g. *.value paths).
+# Convention: asset_* for asset variants, admin_* for administration,
+# reported_* for the collected layer when it shadows a provisioned field.
+views:
+  identifier:
+    description: Entity identifiers across provisioned and collected layers
+    fields:
+      - provision.device.identifier
+      - name: provision.asset.identifier
+        alias: asset_identifier
+      - name: provision.administration.identifier
+        alias: admin_identifier
+      - name: device.identifier
+        at: true
+        alias: reported_identifier
+      - name: asset.identifier
+        alias: reported_asset_identifier
+  name:
+    description: Entity names (provisioned and collected)
+    fields:
+      - provision.device.name
+      - name: provision.asset.name
+        alias: asset_name
+      - name: device.name
+        alias: reported_name
+      - name: asset.name
+        alias: reported_asset_name
+  type:
+    description: Entity type and specific type classification
+    fields:
+      - resourceType
+      - provision.device.specificType
+      - name: provision.asset.specificType
+        alias: asset_specificType
+      - name: device.specificType
+        alias: reported_specificType
+      - name: asset.specificType
+        alias: reported_asset_specificType
+  location:
+    description: Geographic position from provisioning. Only present when the entity has location data provisioned.
+    fields:
+      - provision.device.location
+      - name: provision.asset.location
+        alias: asset_location
+  organization:
+    description: Administrative organization the entity belongs to
+    fields:
+      - provision.administration.organization
+  topology:
+    description: Topology path — hierarchical position in the entity tree
+    fields:
+      - name: provision.device.topology.path
+        alias: topology
+      - name: device.topology.path
+        alias: reported_topology
+  status:
+    description: Operational and administrative state of the entity
+    fields:
+      - provision.device.administrativeState
+      - name: provision.asset.administrativeState
+        alias: asset_administrativeState
+      - device.operationalStatus@at
+  hardware:
+    description: Hardware details — model, serial number, description
+    fields:
+      - provision.device.model
+      - provision.device.serialNumber
+      - provision.device.description
+      - name: device.model
+        alias: reported_model
+      - name: device.serialNumber
+        alias: reported_serialNumber
+  software:
+    description: Software and firmware versions
+    fields:
+      - provision.device.software
+      - name: device.software
+        alias: reported_software
+  relations:
+    description: Relationships between entities (device-asset links)
+    fields:
+      - provision.device.related
+      - name: provision.asset.related
+        alias: asset_related
+  temperature:
+    description: Device temperature readings
+    fields:
+      - name: device.temperature.value
+        at: true
+        alias: temperature
+      - name: device.temperature.status
+        alias: temperature_status
+  power:
+    description: Power supply and battery information. Only present when the device reports power runtime metrics.
+    fields:
+      - name: device.powersupply.status
+        alias: power_status
+      - name: device.powersupply.source
+        alias: power_source
+      - device.powersupply.outage@at
+      - name: device.powersupply.battery.charge
+        at: true
+        alias: battery_charge
+      - name: device.powersupply.battery.voltage
+        alias: battery_voltage
+      - name: device.powersupply.battery.current
+        alias: battery_current
+      - name: device.powersupply.battery.status
+        alias: battery_status
+  resources:
+    description: CPU, RAM and disk runtime metrics. Only present when the device reports collected runtime metrics.
+    fields:
+      - name: device.cpu.status
+        alias: cpu_status
+      - name: device.cpu.usage
+        at: true
+        alias: cpu_usage
+      - name: device.cpu.total
+        alias: cpu_total
+      - name: device.ram.usage
+        alias: ram_usage
+      - name: device.ram.total
+        alias: ram_total
+      - name: device.storage.disk.usage
+        alias: disk_usage
+      - name: device.storage.disk.total
+        alias: disk_total
+      - name: device.storage.ramDisk.usage
+        alias: ramdisk_usage
+      - name: device.storage.ramDisk.total
+        alias: ramdisk_total
+  summary:
+    description: Quick overview of an entity — identifier, type, name, organization and status. Use this when the user asks for a general summary or listing without specifying fields.
+    fields:
+      - provision.device.identifier
+      - name: provision.asset.identifier
+        alias: asset_identifier
+      - resourceType
+      - provision.device.name
+      - name: provision.asset.name
+        alias: asset_name
+      - provision.device.specificType
+      - provision.administration.organization
+      - device.operationalStatus@at
