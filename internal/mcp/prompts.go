@@ -38,6 +38,8 @@ When the user says...          → Use this tool
 "time series", "serie temporal" → timeseries_list, timeseries_get, timeseries_data, timeseries_create, timeseries_update, timeseries_delete, timeseries_export
 "dataset", "conjunto de datos"  → datasets_list, datasets_get, datasets_data, datasets_create, datasets_update, datasets_delete
 "job", "operation", "operación", "ejecutar", "lanzar" → jobs_search, jobs_get, jobs_create, jobs_cancel, jobs_operations
+"rule", "regla", "automation", "automatización" → rules_search, rules_get, rules_create, rules_update, rules_delete, rules_set_active
+"operation type", "tipo de operación", "define operation", "custom operation" → optypes_catalog, optypes_search, optypes_get, optypes_create, optypes_update, optypes_delete
 "task", "tarea", "scheduled", "programada" → tasks_search, tasks_get, tasks_create, tasks_cancel
 "send data", "enviar dato", "collect", "publicar" → iot_collect, iot_collect_payload
 "workspace", "espacio de trabajo" → workspaces_list, workspaces_get, workspaces_export, workspaces_import, workspaces_update, workspaces_delete
@@ -118,6 +120,22 @@ unless they ask for historical / time-windowed data.
 - tasks.state — ACTIVE, PAUSED, FINISHED
 - tasks.id — task UUID
 
+### Rules (used in rules_search query — note the rule. prefix)
+- rule.name — rule name (unique per channel)
+- rule.mode — EASY (declarative condition+actions) or ADVANCED (JavaScript)
+- rule.active — true | false (enable/disable with rules_set_active, NOT delete)
+
+Rules are channel-scoped: get/create/update/delete take organization + channel
+(default channel is "default_channel"). ADVANCED rules carry their code in the
+'javascript' field; helpers available in that JS: entity['<datastream>']._value._current.value
+(and ._previous.value), parameterObject, getVariableValue(), openAlarm(), closeAlarm(), ruleName.
+
+## Operation types vs jobs
+
+- optypes_* manage operation DEFINITIONS (the catalog: name, parameters schema, steps)
+- jobs_* LAUNCH operations on devices and track execution
+- Before jobs_create with an unfamiliar operation name, check optypes_search/optypes_catalog
+
 ## Workspaces and Dashboards (Web API, /api/v1)
 
 Workspaces are the top-level UI container; each workspace owns one or more dashboards.
@@ -189,6 +207,12 @@ User: "Lanza un REBOOT al dispositivo sense-001" → jobs_create(body: '{"job":{
 User: "Estado del job abc-123" → jobs_get(id: "abc-123")
 User: "Operaciones del job abc-123" → jobs_operations(id: "abc-123")
 User: "Cancela el job abc-123" → jobs_cancel(id: "abc-123")
+User: "Qué reglas de automatización tengo" → rules_search()
+User: "Reglas avanzadas activas" → rules_search(query: "rule.mode eq ADVANCED AND rule.active eq true")
+User: "Desactiva la regla X" → rules_set_active(organization: "sensehat", id: "X", active: false)
+User: "Crea una regla que abra alarma si la batería baja de 20" → rules_create(organization: "sensehat", body: <EASY rule JSON, see rules_create description>)
+User: "Qué operaciones puedo lanzar" → optypes_search()
+User: "Define una operación de calibración" → optypes_create(organization: "sensehat", body: <ExtendedOperation JSON>)
 User: "Lista workspaces" → workspaces_list()
 User: "Workspaces con sus dashboards" → workspaces_list(full: true)
 User: "Exporta el workspace abc-123" → workspaces_export(id: "abc-123")
