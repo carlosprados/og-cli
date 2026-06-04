@@ -6,6 +6,9 @@ dist/
 # Environment
 .env
 
+# Claude Code local (per-user) settings — skills ARE versioned
+.claude/settings.local.json
+
 # IDE
 .idea/
 .vscode/

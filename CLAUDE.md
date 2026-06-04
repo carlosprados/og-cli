@@ -57,6 +57,7 @@ When adding a new endpoint:
 3. Add the MCP tool in `internal/mcp/`
 4. Add the TUI view in `internal/tui/`
 5. All four must be in the same PR — never ship one without the others
+6. Update the relevant skill under `.claude/skills/` (og-cli / og-workspaces / og-device-ops) so AI agents learn the new surface
 
 ### OpenGate API conventions
 
@@ -92,3 +93,4 @@ All data commands support `--output json|table` (default: `table`). Use the `int
 - No premature abstraction — add complexity only when a second endpoint needs it
 - **Always update README.md** when adding new functionality (commands, MCP tools, TUI views)
 - **Always update MCP prompts** (`internal/mcp/prompts.go`) when adding new tools so LLMs know how to use them
+- **Always update the skills** (`.claude/skills/og-cli`, `og-workspaces`, `og-device-ops`) when commands, flags, or workflows change — they are the operational knowledge for AI agents using og

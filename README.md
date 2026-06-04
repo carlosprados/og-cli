@@ -758,6 +758,28 @@ og completion zsh > "${fpath[1]}/_og"            # zsh
 og completion bash > /etc/bash_completion.d/og   # bash
 ```
 
+## Claude Code skills
+
+The repo ships three [Claude Code skills](https://code.claude.com/docs/en/skills)
+under `.claude/skills/` (the canonical, versioned location for project skills).
+They teach Claude — and any AI agent reading them — how to use `og` to its full
+potential. Skills load on demand: their one-line description is always visible to
+the agent, and the full content is pulled in only when the task matches.
+
+| Skill | Teaches | Supporting files |
+|-------|---------|------------------|
+| [og-cli](.claude/skills/og-cli/SKILL.md) | Driving the tool: auth/profiles/multi-tenant, query syntax, field projection with views and `@at` timestamps, output formats, API quirks | [query-cookbook.md](.claude/skills/og-cli/query-cookbook.md) (copy/paste recipes by intent), [views-guide.md](.claude/skills/og-cli/views-guide.md), [mcp-setup.md](.claude/skills/og-cli/mcp-setup.md) |
+| [og-workspaces](.claude/skills/og-workspaces/SKILL.md) | Dashboards & widgets: verified widget catalog, local directory structure, pull/edit/wrap/deploy lifecycle, JS extraction, multi-phase import, cross-tenant migration | `reference/` — 23 per-widget JSON deep-dives (customTable, customChart, browsers, ...) |
+| [og-device-ops](.claude/skills/og-device-ops/SKILL.md) | Acting on devices: operation jobs, scheduled tasks, alarm triage workflow, IoT data injection via South API | [job-templates.md](.claude/skills/og-device-ops/job-templates.md) (ready job JSONs with realistic timeouts) |
+
+Division of labor: *querying* OpenGate → og-cli; *building UI* → og-workspaces;
+*acting on devices* → og-device-ops. The skills complement (never duplicate) this
+README: they encode workflows, decision criteria, and platform quirks; the README
+remains the exhaustive command reference.
+
+**Convention:** any PR that adds or changes commands must update the relevant
+skill, the same way it must update this README (see [CLAUDE.md](CLAUDE.md)).
+
 ## Documentation
 
 | Document | Description |

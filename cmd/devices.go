@@ -103,11 +103,13 @@ func runDevicesSearch(cmd *cobra.Command, args []string) error {
 func buildSearchFilter(where []string, limit int, sel []query.SelectClause, rawFilter string) (json.RawMessage, error) {
 	var conditions []query.Condition
 	for _, w := range where {
-		c, err := query.ParseCondition(w)
+		// ParseQuery supports "cond AND cond" inside one -w, matching the
+		// MCP query parameter semantics.
+		cs, err := query.ParseQuery(w)
 		if err != nil {
 			return nil, err
 		}
-		conditions = append(conditions, c)
+		conditions = append(conditions, cs...)
 	}
 	return query.MergeWithRaw(query.SearchParams{
 		Conditions: conditions,
