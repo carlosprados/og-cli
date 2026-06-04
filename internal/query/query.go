@@ -75,11 +75,58 @@ func ParseQuery(q string) ([]Condition, error) {
 	return conditions, nil
 }
 
+// SelectField is one projected sub-field of a datastream ("value", "at").
+type SelectField struct {
+	Field string `json:"field"`
+	Alias string `json:"alias,omitempty"`
+}
+
+// SelectClause projects one datastream with its sub-fields, matching the
+// OpenGate search select JSON shape.
+type SelectClause struct {
+	Name   string        `json:"name"`
+	Fields []SelectField `json:"fields"`
+}
+
+// SelectFromFields converts -s style field names into select clauses.
+// A "@at" suffix on a field adds the timestamp sub-field alongside the
+// value: "wt@at" → value + at. withAt forces the at sub-field on every field.
+func SelectFromFields(fields []string, withAt bool) []SelectClause {
+	if len(fields) == 0 {
+		return nil
+	}
+	clauses := make([]SelectClause, len(fields))
+	for i, f := range fields {
+		name, at := parseAtSuffix(f)
+		clauses[i] = NewSelectClause(name, at || withAt)
+	}
+	return clauses
+}
+
+// NewSelectClause builds a clause for one datastream with auto-generated
+// aliases: value → FieldAlias(name), at → FieldAlias(name) + "_at".
+func NewSelectClause(name string, withAt bool) SelectClause {
+	alias := FieldAlias(name)
+	fields := []SelectField{{Field: "value", Alias: alias}}
+	if withAt {
+		fields = append(fields, SelectField{Field: "at", Alias: alias + "_at"})
+	}
+	return SelectClause{Name: name, Fields: fields}
+}
+
+// parseAtSuffix splits the "@at" marker from a field name.
+func parseAtSuffix(field string) (name string, at bool) {
+	if n, found := strings.CutSuffix(field, "@at"); found {
+		return n, true
+	}
+	return field, false
+}
+
 // SearchParams groups all parameters for building a search request.
 type SearchParams struct {
 	Conditions []Condition
 	Limit      int
-	Select     []string // field names to select
+	Select     []SelectClause
 }
 
 // BuildFilter converts SearchParams into the OpenGate search JSON body.
@@ -105,16 +152,7 @@ func BuildFilter(p SearchParams) (json.RawMessage, error) {
 	}
 
 	if len(p.Select) > 0 {
-		sel := make([]map[string]any, len(p.Select))
-		for i, field := range p.Select {
-			sel[i] = map[string]any{
-				"name": field,
-				"fields": []map[string]string{
-					{"field": "value", "alias": FieldAlias(field)},
-				},
-			}
-		}
-		body["select"] = sel
+		body["select"] = p.Select
 	}
 
 	data, err := json.Marshal(body)

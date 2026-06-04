@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/internal/query"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -17,6 +18,10 @@ type devicesModel struct {
 	items   []json.RawMessage
 	loaded  bool
 	loading bool
+
+	// Active named view ("" = default columns) and its select clauses.
+	activeView  string
+	viewClauses []query.SelectClause
 }
 
 // deviceField is a parsed key-value from the flattened device JSON.
@@ -59,8 +64,17 @@ type deviceDetailFetchedMsg struct {
 }
 
 func (m model) fetchDevices() tea.Cmd {
+	clauses := m.devices.viewClauses
 	return func() tea.Msg {
-		resp, err := m.client.SearchDevices(nil)
+		var filter json.RawMessage
+		if len(clauses) > 0 {
+			f, err := query.BuildFilter(query.SearchParams{Select: clauses})
+			if err != nil {
+				return devicesFetchedMsg{err: err}
+			}
+			filter = f
+		}
+		resp, err := m.client.SearchDevices(filter)
 		if err != nil {
 			return devicesFetchedMsg{err: err}
 		}
@@ -101,7 +115,11 @@ func (m model) updateDevices(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.devices.items = msg.items
 		m.devices.loaded = true
-		m.devices.table = buildDevicesTable(msg.items, m.width)
+		if len(m.devices.viewClauses) > 0 {
+			m.devices.table = buildDevicesViewTable(msg.items, m.devices.viewClauses, m.width)
+		} else {
+			m.devices.table = buildDevicesTable(msg.items, m.width)
+		}
 		return m, nil
 
 	case tea.KeyMsg:

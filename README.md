@@ -78,14 +78,15 @@ Screens:
 | **Menu** | Main menu with all sections | enter |
 | **Login** | Email/password form, stores JWT + API key + organization | tab, enter |
 | **Datamodels** | List → enter for detail with categories and datastreams | enter, r |
-| **Devices** | List → enter for tabbed detail view | enter, o, r |
+| **Devices** | List → enter for tabbed detail view; `v` picks a named view (dynamic columns) | enter, o, v, r |
 | **Device detail** | Three tabs: Overview (cards), Datastreams (table), JSON (scrollable) | 1/2/3, tab |
 | **Alarms** | List with severity/status → attend or close | a, c, r |
 | **Time Series** | List → enter to browse collected data | enter, r |
 | **Datasets** | List → enter to browse data | enter, r |
 | **Jobs** | List → enter for job detail with per-device operations | enter, r |
 
-From the **Devices** screen, press `o` on a device to launch an operation (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC).
+From the **Devices** screen, press `o` on a device to launch an operation (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC),
+or `v` to switch the table to a named view (summary, power, resources, ... — including your custom ones).
 
 ## Query syntax
 
@@ -105,6 +106,73 @@ og dev search -w "provision.device.identifier like sense" --limit 10
 **Operators:** `eq`, `neq`, `like`, `gt`, `lt`, `gte`, `lte`, `in`, `exists`
 
 Multiple `-w` flags are combined with AND. For OR or nested queries, use `--filter` with raw JSON.
+
+## Views — project fields by intent
+
+Views are named field sets that expand into select clauses, so you (or an LLM) can ask
+for *intent* instead of memorizing datastream paths. They work in the CLI (`--view`),
+the TUI (`v` key on the Devices screen), and MCP (`view` parameter of `devices_search`).
+
+```bash
+# "What devices do I have and how are they?" — instead of six -s flags
+og dev search --view summary
+
+# "How are the batteries doing?"
+og dev search --view power
+
+# Views combine, and mix with explicit selects (explicit -s wins on collision)
+og dev search --view summary,power -s wt@at
+```
+
+Built-in views: `summary`, `identifier`, `name`, `type`, `location`, `organization`,
+`topology`, `status`, `hardware`, `software`, `relations`, `temperature`, `power`,
+`resources`. Discover them with:
+
+```bash
+og views list           # all views with their source and description
+og views show power     # exact fields a view expands to
+```
+
+### Value timestamps (`at`)
+
+Collected values are only meaningful with their timestamp — a battery at 87% reported
+three weeks ago is a dead data point. Views mark key collected fields with `at`, which
+adds a `<field>_at` column. The same works in explicit selects:
+
+```bash
+og dev search -s wt@at -s provision.device.identifier   # wt + wt_at columns
+og dev search -s wt -s wp --at                          # at for every selected field
+```
+
+### Custom views
+
+Add your own views as YAML files (any name, as many files as you need) in:
+
+| Layer | Location | Wins over |
+|-------|----------|-----------|
+| Project | `./.og/views/*.yaml` | user and built-in |
+| User | `~/.og/views/*.yaml` | built-in |
+| Built-in | embedded in the binary | — |
+
+Same view name in a higher layer replaces the lower one entirely. Two files in the
+*same* directory defining the same view is an error.
+
+```yaml
+# ~/.og/views/sensehat.yaml
+views:
+  water:
+    description: Water sensor readings (sensehat custom datamodel)
+    fields:
+      - wt@at                          # shorthand: value + at timestamp
+      - wp                             # shorthand: value only
+      - name: device.temperature.value
+        at: true
+        alias: temp                    # long form, custom column name
+```
+
+The new view is immediately available everywhere: `og dev search --view water`, the
+TUI picker, and `devices_search(view: "water")` in MCP. Unknown view names fail loudly
+with a suggestion (`unknown view "sumary" (did you mean "summary"?)`).
 
 ## CLI commands
 
@@ -172,9 +240,13 @@ og dev search -w "wt gt 20"
 og dev search -w "wt gte 10 AND wt lte 30 AND provision.administration.organization eq sensehat"
 og dev search -w "device.temperature.value gt 50 AND provision.device.operationalStatus eq NORMAL"
 
-# Select specific fields (dynamic columns)
-og dev search -s provision.device.identifier -s wt -s wp \
+# Select specific fields (dynamic columns); @at adds the value timestamp
+og dev search -s provision.device.identifier -s wt@at -s wp \
               -w "provision.device.identifier like sense"
+
+# Named views — common field sets without memorizing paths (see "Views" above)
+og dev search --view summary
+og dev search --view summary,power -s wt
 
 # Get
 og dev get sense-001
@@ -186,7 +258,18 @@ og dev update sense-001 --org sensehat -f device.json
 og dev delete sense-001 --org sensehat
 ```
 
-**Select** (`-s`): choose which datastreams/fields to return. Without `-s`, default columns are Identifier, Name, Organization, and State.
+**Select** (`-s`): choose which datastreams/fields to return. Append `@at` to a field
+(or pass `--at` for all of them) to also get the timestamp of the current value.
+Without `-s`/`--view`, default columns are Identifier, Name, Organization, and State.
+
+### views
+
+Inspect the named views available for `--view` (see [Views](#views--project-fields-by-intent)).
+
+```bash
+og views list           # NAME, SOURCE (builtin / file path), DESCRIPTION
+og views show summary   # expansion: datastream, projected fields, alias
+```
 
 ### alarms (alias: al)
 
@@ -329,6 +412,12 @@ og workspace pull-file ws.json --dir wsroot/
 
 # All unwrap/pull commands accept --force to overwrite an existing destination
 
+# Ownership filter: only workspaces/dashboards whose `owner` matches the
+# active profile's email are unwrapped (the rest are not editable for you).
+# - `pull-all` skips foreign items silently with a one-line note + summary.
+# - `pull` and `pull-file` abort with a clear error when the item is foreign.
+#   Pass `--force-owner` to override the ownership check on these two.
+
 # Wrap back into a single JSON ready for import
 og workspace wrap wsroot/<workspace-slug> --out ws.json
 
@@ -433,6 +522,10 @@ og dashboard pull-all --dir dashroot/                        # every dashboard
 og dashboard pull-all --dir dashroot/ --workspace <ws-id>    # only one workspace
 og dashboard pull-file dash.json --dir dashroot/             # from local JSON file
 og dashboard pull <dashboard-id> --dir dashroot/ --force     # overwrite existing
+
+# Same ownership filter as workspaces: only dashboards whose `owner` matches
+# the active profile email are unwrapped. `pull-all` skips foreign ones with
+# a note; `pull` / `pull-file` abort unless `--force-owner` is passed.
 
 # Wrap an edited dashboard directory back into JSON (no import)
 og dashboard wrap dashroot/<dashboard-dir>                 # stdout
@@ -572,7 +665,7 @@ For a detailed guide on how prompts, resources, and tools work together, see [do
 | Tool | Description |
 |------|-------------|
 | `login` | Authenticate with email/password |
-| `devices_search` | Search devices with query/filter/select |
+| `devices_search` | Search devices with query/filter/select/view |
 | `devices_get` | Get device detail |
 | `devices_create` | Create device from JSON |
 | `devices_update` | Update device from JSON |
@@ -628,13 +721,17 @@ Search tools accept a `query` parameter with the same syntax as `-w` flags:
 ```
 devices_search(
   query: "provision.device.administrativeState eq ACTIVE AND provision.device.identifier like sense",
-  select: "provision.device.identifier,wt",
+  select: "provision.device.identifier,wt@at",
   limit: 10
 )
 
 # Filtering by the latest collected datastream value is also supported
 devices_search(query: "wt gt 20")
 devices_search(query: "device.temperature.value gt 50 AND provision.device.operationalStatus eq NORMAL")
+
+# Named views project common field sets without knowing datastream paths
+devices_search(query: "provision.administration.organization eq sensehat", view: "summary")
+devices_search(query: "device.powersupply.battery.charge lt 20", view: "summary,power")
 ```
 
 #### Prompts
@@ -649,6 +746,7 @@ devices_search(query: "device.temperature.value gt 50 AND provision.device.opera
 |----------|-------------|
 | `opengate://query-syntax` | Static reference of query operators, fields per entity, and job operation types |
 | `opengate://organizations/{org}/datamodel-fields` | Dynamic: lists all datastream fields available in an organization's datamodels, fetched live from the API |
+| `opengate://views` | Merged dictionary of named field views (built-in + user + project layers) with what each one expands to |
 
 ### version
 

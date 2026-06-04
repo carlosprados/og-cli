@@ -22,6 +22,7 @@ tasks:
       - go build -ldflags '{{.LDFLAGS}}' -o {{.APP_NAME}} .
     sources:
       - "**/*.go"
+      - "internal/**/*.yaml" # go:embed assets (e.g. views/builtin.yaml)
       - go.mod
       - go.sum
     generates:

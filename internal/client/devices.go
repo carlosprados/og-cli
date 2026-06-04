@@ -26,10 +26,19 @@ type DeviceSummary struct {
 	Status     string
 }
 
-// extractFlatValue extracts the value from the flattened OpenGate format.
+// ExtractFlatValue extracts the value from the flattened OpenGate format.
 // In flattened format, each field is a root-level dotted key with structure:
-// { "_value": { "_current": { "value": <val> } } }
+// { "_value": { "_current": { "value": <val>, "at": <ts> } } }
 func ExtractFlatValue(raw json.RawMessage, field string) string {
+	return extractFlatCurrent(raw, field, "value")
+}
+
+// ExtractFlatAt extracts the "at" timestamp of a field's current value.
+func ExtractFlatAt(raw json.RawMessage, field string) string {
+	return extractFlatCurrent(raw, field, "at")
+}
+
+func extractFlatCurrent(raw json.RawMessage, field, sub string) string {
 	var root map[string]json.RawMessage
 	if json.Unmarshal(raw, &root) != nil {
 		return ""
@@ -42,20 +51,21 @@ func ExtractFlatValue(raw json.RawMessage, field string) string {
 
 	var wrapper struct {
 		Value struct {
-			Current struct {
-				Value json.RawMessage `json:"value"`
-			} `json:"_current"`
+			Current map[string]json.RawMessage `json:"_current"`
 		} `json:"_value"`
 	}
-	if json.Unmarshal(fieldData, &wrapper) == nil && len(wrapper.Value.Current.Value) > 0 {
-		var s string
-		if json.Unmarshal(wrapper.Value.Current.Value, &s) == nil {
-			return s
-		}
-		return strings.Trim(string(wrapper.Value.Current.Value), `"`)
+	if json.Unmarshal(fieldData, &wrapper) != nil {
+		return ""
 	}
-
-	return ""
+	data, ok := wrapper.Value.Current[sub]
+	if !ok || len(data) == 0 {
+		return ""
+	}
+	var s string
+	if json.Unmarshal(data, &s) == nil {
+		return s
+	}
+	return strings.Trim(string(data), `"`)
 }
 
 // ParseDeviceSummary extracts key display fields from a raw flattened device.

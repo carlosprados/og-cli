@@ -8,6 +8,7 @@ import (
 
 	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/query"
+	"github.com/carlosprados/og-cli/internal/views"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -25,6 +26,11 @@ func registerDeviceTools(s *server.MCPServer, c *client.Client) {
 func devicesSearchTool() mcp.Tool {
 	return mcp.NewTool("devices_search",
 		mcp.WithDescription(`Search OpenGate devices. ALWAYS use the 'query' parameter for filtering — do NOT build JSON manually.
+
+EFFICIENCY: always project fields with 'view' and/or 'select' — without them every result
+is the full device document (thousands of tokens each). For common field sets use 'view'
+(e.g. view: "summary" for listings, "summary,power" for battery questions) instead of
+guessing datastream paths.
 
 IMPORTANT: devices_search filters on BOTH provisioned metadata AND the latest collected datastream values
 (the server stores the _current value of every datastream on the device document, so filters like
@@ -57,7 +63,10 @@ Examples:
 			mcp.Description("Filter using: \"field op value\". Multiple conditions joined with AND. Operators: eq, neq, like, gt, lt, gte, lte, in, exists. Example: \"provision.device.administrativeState eq ACTIVE\". Omit to list all devices."),
 		),
 		mcp.WithString("select",
-			mcp.Description("Comma-separated fields to return. Example: \"provision.device.identifier,provision.device.administrativeState,wt\""),
+			mcp.Description("Comma-separated fields to return. Append @at to a field to also get the timestamp of its current value. Example: \"provision.device.identifier,provision.device.administrativeState,wt@at\""),
+		),
+		mcp.WithString("view",
+			mcp.Description("Comma-separated named views that expand into field sets — USE THIS instead of guessing field paths. Built-in views: summary (id, type, name, org, status), identifier, name, type, location, organization, topology, status, hardware, software, relations, temperature, power, resources. Collected fields include their at timestamp automatically. Combinable with 'select' (explicit fields win). Read the opengate://views resource for the full dictionary. Example: \"summary,power\""),
 		),
 		mcp.WithNumber("limit",
 			mcp.Description("Max number of results"),
@@ -119,11 +128,29 @@ func mcpBuildFilter(args map[string]any) (json.RawMessage, error) {
 			}
 		}
 	}
+	selectClauses := query.SelectFromFields(selectFields, false)
+
+	if v, _ := args["view"].(string); v != "" {
+		var viewNames []string
+		for _, name := range strings.Split(v, ",") {
+			if name = strings.TrimSpace(name); name != "" {
+				viewNames = append(viewNames, name)
+			}
+		}
+		reg, err := views.Load()
+		if err != nil {
+			return nil, err
+		}
+		selectClauses, err = reg.ResolveSelect(viewNames, selectClauses)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	p := query.SearchParams{
 		Conditions: conditions,
 		Limit:      limit,
-		Select:     selectFields,
+		Select:     selectClauses,
 	}
 
 	if len(p.Conditions) == 0 && p.Limit == 0 && len(p.Select) == 0 {

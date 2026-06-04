@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/internal/views"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -29,6 +30,49 @@ func registerResources(s *server.MCPServer, c *client.Client) {
 		),
 		datamodelFieldsHandler(c),
 	)
+
+	// Static resource: views dictionary (builtin + user + project layers)
+	s.AddResource(
+		mcp.NewResource(
+			"opengate://views",
+			"Named field views usable in devices_search 'view' parameter",
+			mcp.WithMIMEType("text/plain"),
+		),
+		handleViewsResource,
+	)
+}
+
+func handleViewsResource(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+	reg, err := views.Load()
+	if err != nil {
+		return nil, fmt.Errorf("loading views: %w", err)
+	}
+
+	var b strings.Builder
+	b.WriteString("Named field views (use in devices_search 'view' parameter)\n")
+	b.WriteString("===========================================================\n\n")
+	b.WriteString("A view expands into a set of datastream select clauses. Fields marked\n")
+	b.WriteString("[+at] also return the timestamp of the current value.\n\n")
+
+	for _, v := range reg.All() {
+		b.WriteString(fmt.Sprintf("%s [%s] — %s\n", v.Name, v.Source, v.Description))
+		for _, f := range v.Fields {
+			at := ""
+			if f.At {
+				at = "  [+at]"
+			}
+			b.WriteString(fmt.Sprintf("  %s%s\n", f.Name, at))
+		}
+		b.WriteString("\n")
+	}
+
+	return []mcp.ResourceContents{
+		mcp.TextResourceContents{
+			URI:      "opengate://views",
+			MIMEType: "text/plain",
+			Text:     b.String(),
+		},
+	}, nil
 }
 
 func handleQuerySyntaxResource(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {

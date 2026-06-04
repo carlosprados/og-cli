@@ -122,7 +122,7 @@ func TestBuildFilterMultiple(t *testing.T) {
 
 func TestBuildFilterWithSelect(t *testing.T) {
 	p := SearchParams{
-		Select: []string{"provision.device.identifier", "wt"},
+		Select: SelectFromFields([]string{"provision.device.identifier", "wt"}, false),
 	}
 	data, err := BuildFilter(p)
 	if err != nil {
@@ -143,6 +143,85 @@ func TestBuildFilterWithSelect(t *testing.T) {
 	first := sel[0].(map[string]any)
 	if first["name"] != "provision.device.identifier" {
 		t.Errorf("expected provision.device.identifier, got %v", first["name"])
+	}
+}
+
+func TestSelectFromFields(t *testing.T) {
+	tests := []struct {
+		name   string
+		fields []string
+		withAt bool
+		want   []SelectClause
+	}{
+		{
+			name:   "plain field",
+			fields: []string{"wt"},
+			want: []SelectClause{
+				{Name: "wt", Fields: []SelectField{{Field: "value", Alias: "wt"}}},
+			},
+		},
+		{
+			name:   "dotted path alias",
+			fields: []string{"provision.device.identifier"},
+			want: []SelectClause{
+				{Name: "provision.device.identifier", Fields: []SelectField{{Field: "value", Alias: "identifier"}}},
+			},
+		},
+		{
+			name:   "at suffix",
+			fields: []string{"wt@at"},
+			want: []SelectClause{
+				{Name: "wt", Fields: []SelectField{
+					{Field: "value", Alias: "wt"},
+					{Field: "at", Alias: "wt_at"},
+				}},
+			},
+		},
+		{
+			name:   "withAt forces at on all fields",
+			fields: []string{"wt", "device.temperature.value"},
+			withAt: true,
+			want: []SelectClause{
+				{Name: "wt", Fields: []SelectField{
+					{Field: "value", Alias: "wt"},
+					{Field: "at", Alias: "wt_at"},
+				}},
+				{Name: "device.temperature.value", Fields: []SelectField{
+					{Field: "value", Alias: "value"},
+					{Field: "at", Alias: "value_at"},
+				}},
+			},
+		},
+		{
+			name:   "empty",
+			fields: nil,
+			want:   nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SelectFromFields(tt.fields, tt.withAt)
+			gotJSON, _ := json.Marshal(got)
+			wantJSON, _ := json.Marshal(tt.want)
+			if string(gotJSON) != string(wantJSON) {
+				t.Errorf("SelectFromFields(%v, %v) = %s, want %s", tt.fields, tt.withAt, gotJSON, wantJSON)
+			}
+		})
+	}
+}
+
+func TestBuildFilterSelectShapeUnchanged(t *testing.T) {
+	// Plain -s fields must produce the exact same select JSON as before
+	// the rich-select refactor.
+	p := SearchParams{Select: SelectFromFields([]string{"wt"}, false)}
+	data, err := BuildFilter(p)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := `{"select":[{"name":"wt","fields":[{"field":"value","alias":"wt"}]}]}`
+	if string(data) != want {
+		t.Errorf("BuildFilter select = %s, want %s", data, want)
 	}
 }
 
