@@ -27,6 +27,8 @@ func newServer(host, token, webToken, apiKey string) *server.MCPServer {
 	registerTimeSeriesTools(s, c)
 	registerDatasetTools(s, c)
 	registerOperationTools(s, c)
+	registerRuleTools(s, c)
+	registerOpTypeTools(s, c)
 	registerWorkspaceTools(s, c)
 	registerDashboardTools(s, c)
 	registerIoTTools(s, host, apiKey)

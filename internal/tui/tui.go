@@ -25,6 +25,8 @@ const (
 	viewJobs
 	viewJobDetail
 	viewTasks
+	viewRules
+	viewOpTypes
 	viewWorkspaces
 	viewWorkspaceDetail
 	viewDashboardDetail
@@ -60,6 +62,8 @@ type model struct {
 	jobs            jobsModel
 	jobDetail       jobDetailModel
 	tasks           tasksModel
+	rules           rulesModel
+	optypes         optypesModel
 	opMenu          operationMenuModel
 	viewPicker      viewPickerModel
 	workspaces      workspacesModel
@@ -144,6 +148,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateJobDetail(msg)
 	case viewTasks:
 		return m.updateTasks(msg)
+	case viewRules:
+		return m.updateRules(msg)
+	case viewOpTypes:
+		return m.updateOpTypes(msg)
 	case viewWorkspaces:
 		return m.updateWorkspaces(msg)
 	case viewWorkspaceDetail:
@@ -185,6 +193,10 @@ func (m model) View() string {
 		return m.viewJobDetailScreen()
 	case viewTasks:
 		return m.viewTasksScreen()
+	case viewRules:
+		return m.viewRulesScreen()
+	case viewOpTypes:
+		return m.viewOpTypesScreen()
 	case viewWorkspaces:
 		return m.viewWorkspacesScreen()
 	case viewWorkspaceDetail:

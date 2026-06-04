@@ -1,0 +1,26 @@
+{
+  "provision.administration.channel": {
+    "_value": { "_current": { "value": "default_channel" } }
+  },
+  "provision.administration.serviceGroup": {
+    "_value": { "_current": { "value": "emptyServiceGroup" } }
+  },
+  "provision.administration.plan": {
+    "_value": { "_current": { "value": "dev__100_per_day" } }
+  },
+  "provision.device.identifier": {
+    "_value": { "_current": { "value": "multisensor-002" } }
+  },
+  "provision.device.name": {
+    "_value": { "_current": { "value": "Multi-Sensor 002" } }
+  },
+  "provision.device.description": {
+    "_value": { "_current": { "value": "Environmental and power multi-sensor unit 002." } }
+  },
+  "provision.device.administrativeState": {
+    "_value": { "_current": { "value": "ACTIVE" } }
+  },
+  "provision.device.specificType": {
+    "_value": { "_current": { "value": "SENSOR" } }
+  }
+}

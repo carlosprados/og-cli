@@ -1,0 +1,22 @@
+{
+  "width": 12,
+  "height": 2,
+  "x": 0,
+  "y": 0,
+  "w": 12,
+  "h": 2,
+  "i": "demo-intro",
+  "definition": {
+    "type": "markdown",
+    "wid": "demo-intro",
+    "config": {
+      "about": "",
+      "boxed": true,
+      "content": "# og — OpenGate CLI · Live demo\n\nEverything on this dashboard was created from the command line:\n\n- **Datamodel** `multisensor` → `og dm create`\n- **3 devices** → `og dev create`\n- **Telemetry** → `og iot collect-file`\n- **Automation rules** (EASY + ADVANCED JavaScript edited locally) → `og rules deploy`\n- **Custom operation** `CALIBRATE_SENSOR` → `og optypes create` + `og jobs create`\n- **This workspace** → `og workspace deploy`\n\nOne CLI · three interfaces: terminal, TUI and MCP for AI agents.\n",
+      "customActions": null,
+      "hideWidgetTitle": "visible",
+      "reloadPeriod": "0",
+      "title": "About this demo"
+    }
+  }
+}

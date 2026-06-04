@@ -83,6 +83,8 @@ Screens:
 | **Devices** | List → enter for tabbed detail view; `v` picks a named view (dynamic columns) | enter, o, v, r |
 | **Device detail** | Three tabs: Overview (cards), Datastreams (table), JSON (scrollable) | 1/2/3, tab |
 | **Alarms** | List with severity/status → attend or close | a, c, r |
+| **Rules** | Automation rules list; `t` toggles active on/off | t, r |
+| **Operation Types** | Operation definitions catalog (yours + predefined) | r |
 | **Time Series** | List → enter to browse collected data | enter, r |
 | **Datasets** | List → enter to browse data | enter, r |
 | **Jobs** | List → enter for job detail with per-device operations | enter, r |
@@ -294,6 +296,67 @@ og alarms close <alarm-uuid> --notes "Resolved"
 ```
 
 **Alarm fields:** `alarm.severity` (INFORMATIVE, URGENT, CRITICAL), `alarm.status` (OPEN, ATTEND, CLOSED), `alarm.name`, `alarm.rule`, `alarm.entityIdentifier`, `alarm.organization`, `alarm.channel`, `alarm.priority` (LOW, MEDIUM, HIGH), `alarm.openingDate`.
+
+### rules
+
+Manage automation rules. Two modes: **EASY** (declarative condition + actions) and
+**ADVANCED** (a JavaScript function decides). Rules are channel-scoped — all
+commands take `--channel` (default: `default_channel`) plus the global `--org`.
+
+```bash
+# Search (note the rule. prefix in filters)
+og rules search
+og rules search -w "rule.active eq true"
+og rules search -w "rule.mode eq ADVANCED"
+
+# Inspect
+og rules get <rule-id> --org sensehat
+og rules catalog                        # predefined rule templates
+
+# CRUD from a JSON file
+og rules create --org sensehat -f rule.json
+og rules update <rule-id> --org sensehat -f rule.json
+og rules delete <rule-id> --org sensehat
+
+# Enable / disable without editing JSON
+og rules enable <rule-id> --org sensehat
+og rules disable <rule-id> --org sensehat
+
+# Local editing cycle — ADVANCED rules' JavaScript becomes a real .js file
+og rules pull <rule-id> --dir rules/ --org sensehat
+#   → rules/<rule-slug>/rule.json + javascript.js
+$EDITOR rules/<rule-slug>/javascript.js
+og rules deploy rules/<rule-slug> --update --org sensehat
+
+# pull-all / wrap mirror the workspace verbs
+og rules pull-all --dir rules/ --org sensehat
+og rules wrap rules/<rule-slug> --out rule.json
+```
+
+ADVANCED rule JavaScript context: `entity['<datastream>']._value._current.value`
+(and `._previous.value`), `parameterObject` + `getVariableValue()`, `ruleName`,
+`openAlarm(null, name, ruleName, severity, priority, message)`. See
+[demo/rules/](demo/rules/default_channel/env-anomaly/javascript.js) for a working
+multi-datastream rule with hysteresis.
+
+### optypes (alias: operation-types)
+
+Manage operation **type definitions** — the DDL side of operations. Define a
+custom operation here, then launch it on devices with `og jobs create`.
+
+```bash
+og optypes catalog                      # predefined operation types
+og optypes search                       # catalog + your custom ones
+og optypes get REBOOT_EQUIPMENT --org sensehat
+
+og optypes create --org sensehat -f optype.json
+og optypes update CALIBRATE_SENSOR --org sensehat -f optype.json
+og optypes delete CALIBRATE_SENSOR --org sensehat
+```
+
+The definition's `parameters` field is a **JSON Schema object** (not an array) —
+see [demo/operations/types/calibrate-sensor.json](demo/operations/types/calibrate-sensor.json)
+for a complete working example.
 
 ### timeseries (alias: ts)
 
@@ -692,6 +755,18 @@ For a detailed guide on how prompts, resources, and tools work together, see [do
 | `jobs_create` | Create and launch operation job |
 | `jobs_cancel` | Cancel a running job |
 | `jobs_operations` | List per-device operations within a job |
+| `rules_search` | Search automation rules (rule.name, rule.mode, rule.active) |
+| `rules_get` | Get a rule (ADVANCED rules include their JavaScript) |
+| `rules_create` | Create an EASY or ADVANCED rule |
+| `rules_update` | Update a rule (full body) |
+| `rules_delete` | Delete a rule |
+| `rules_set_active` | Enable/disable a rule |
+| `optypes_catalog` | Catalog of predefined operation types |
+| `optypes_search` | Search operation type definitions |
+| `optypes_get` | Get an operation type (parameters schema, steps) |
+| `optypes_create` | Define a new custom operation type |
+| `optypes_update` | Update an operation type definition |
+| `optypes_delete` | Delete an operation type definition |
 | `tasks_search` | Search operation tasks |
 | `tasks_get` | Get task detail |
 | `tasks_create` | Create operation task |
@@ -757,6 +832,17 @@ Generate shell autocompletion (bash, zsh, fish, powershell):
 og completion zsh > "${fpath[1]}/_og"            # zsh
 og completion bash > /etc/bash_completion.d/og   # bash
 ```
+
+## Demo — end-to-end IoT scenario
+
+[demo/](demo/README.md) is a complete, copy/paste runbook that exercises the whole
+platform from `og`: datamodel → device fleet → telemetry injection → automation
+rules (EASY + ADVANCED with locally-edited JavaScript) → rule-triggered alarms →
+custom operation definition + launch → published dashboard with 6 widgets.
+
+It doubles as the **reference layout for local OpenGate projects**: every
+artifact (provisioning, payloads, rules with their `.js`, operation types, jobs,
+unwrapped workspaces) lives in versionable files.
 
 ## Claude Code skills
 

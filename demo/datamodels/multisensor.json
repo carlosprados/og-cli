@@ -1,0 +1,96 @@
+{
+    "identifier": "multisensor",
+    "name": "Multi-Sensor Monitoring",
+    "version": "1.0",
+    "description": "Environmental and power monitoring datamodel: temperature, humidity, light intensity, energy consumption and battery level.",
+    "allowedResourceTypes": ["entity.device"],
+    "categories": [
+        {
+            "identifier": "environment",
+            "name": "Environment",
+            "datastreams": [
+                {
+                    "identifier": "sensor.temperature",
+                    "name": "Temperature",
+                    "description": "Ambient temperature in Celsius.",
+                    "period": "INSTANT",
+                    "access": "READ",
+                    "schema": { "type": "number" },
+                    "storage": { "period": "DAYS", "total": 30 },
+                    "unit": { "label": "Celsius", "symbol": "ºC", "type": "temperature" },
+                    "icon": { "class": "fa-thermometer-half" },
+                    "modifiable": false,
+                    "calculated": false,
+                    "required": false,
+                    "indexed": false
+                },
+                {
+                    "identifier": "sensor.humidity",
+                    "name": "Humidity",
+                    "description": "Relative humidity percentage.",
+                    "period": "INSTANT",
+                    "access": "READ",
+                    "schema": { "type": "number" },
+                    "storage": { "period": "DAYS", "total": 30 },
+                    "unit": { "label": "Percent", "symbol": "%", "type": "percentage" },
+                    "icon": { "class": "fa-tint" },
+                    "modifiable": false,
+                    "calculated": false,
+                    "required": false,
+                    "indexed": false
+                },
+                {
+                    "identifier": "sensor.luminosity",
+                    "name": "Light Intensity",
+                    "description": "Ambient light intensity in lux.",
+                    "period": "INSTANT",
+                    "access": "READ",
+                    "schema": { "type": "number" },
+                    "storage": { "period": "DAYS", "total": 30 },
+                    "unit": { "label": "Lux", "symbol": "lx", "type": "illuminance" },
+                    "icon": { "class": "fa-sun-o" },
+                    "modifiable": false,
+                    "calculated": false,
+                    "required": false,
+                    "indexed": false
+                }
+            ]
+        },
+        {
+            "identifier": "power",
+            "name": "Power & Energy",
+            "datastreams": [
+                {
+                    "identifier": "energy.consumption",
+                    "name": "Energy Consumption",
+                    "description": "Accumulated energy consumption in kilowatt-hours.",
+                    "period": "CUMULATIVE",
+                    "access": "READ",
+                    "schema": { "type": "number" },
+                    "storage": { "period": "DAYS", "total": 30 },
+                    "unit": { "label": "Kilowatt-hour", "symbol": "kWh", "type": "energy" },
+                    "icon": { "class": "fa-bolt" },
+                    "modifiable": false,
+                    "calculated": false,
+                    "required": false,
+                    "indexed": false
+                },
+                {
+                    "identifier": "power.battery",
+                    "name": "Battery Level",
+                    "description": "Remaining battery charge percentage.",
+                    "period": "INSTANT",
+                    "access": "READ",
+                    "schema": { "type": "number" },
+                    "storage": { "period": "DAYS", "total": 30 },
+                    "unit": { "label": "Percent", "symbol": "%", "type": "percentage" },
+                    "icon": { "class": "fa-battery-three-quarters" },
+                    "modifiable": false,
+                    "calculated": false,
+                    "required": false,
+                    "indexed": false
+                }
+            ]
+        }
+    ]
+}

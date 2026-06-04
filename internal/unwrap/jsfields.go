@@ -21,6 +21,7 @@ var knownJSFieldNames = map[string]bool{
 	"fn":                true,
 	"expression":        true,
 	"_widgetconfigcode": true,
+	"javascript":        true, // ADVANCED automation rules
 }
 
 // jsKeywordPattern matches strings that look like JavaScript code by content

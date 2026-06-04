@@ -1,0 +1,28 @@
+{
+  "job": {
+    "request": {
+      "name": "CALIBRATE_SENSOR",
+      "parameters": {
+        "datastream": "sensor.temperature",
+        "offset": 0.5
+      },
+      "active": true,
+      "schedule": {
+        "stop": {
+          "delayed": 120000
+        }
+      },
+      "operationParameters": {
+        "timeout": 110000,
+        "retries": 0
+      },
+      "target": {
+        "append": {
+          "entities": [
+            "multisensor-001"
+          ]
+        }
+      }
+    }
+  }
+}

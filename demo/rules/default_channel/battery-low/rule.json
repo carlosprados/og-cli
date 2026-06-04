@@ -1,0 +1,46 @@
+{
+  "name": "Battery low",
+  "description": "Opens a CRITICAL alarm when a device battery drops below the threshold parameter (EASY mode demo rule)",
+  "mode": "EASY",
+  "active": true,
+  "condition": {
+    "filter": {
+      "lt": {
+        "power.battery._current.value": "$parameter:threshold"
+      }
+    }
+  },
+  "actions": {
+    "open": [
+      {
+        "name": "Battery low",
+        "enabled": true,
+        "severity": "CRITICAL",
+        "priority": "HIGH",
+        "description": "Device battery below threshold"
+      }
+    ]
+  },
+  "parameters": [
+    {
+      "name": "threshold",
+      "value": 20,
+      "schema": "integer"
+    }
+  ],
+  "type": {
+    "name": "DATASTREAM",
+    "datastreams": [
+      {
+        "name": "power.battery",
+        "fields": [
+          {
+            "field": "value",
+            "alias": "Battery level"
+          }
+        ],
+        "prefilter": true
+      }
+    ]
+  }
+}

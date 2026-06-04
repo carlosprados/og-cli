@@ -1,0 +1,61 @@
+{
+  "_id": "_multisensor_demo_ws",
+  "name": "Multisensor Demo",
+  "description": "End-to-end og-cli demo: provisioning, collection, automation rules, operations and dashboards for the multisensor fleet.",
+  "owner": "sensehat@amplia.es",
+  "icon": "ogicon-dashboard",
+  "actions": [
+    "createArea",
+    "createAsset",
+    "createChannel",
+    "createDevice",
+    "executeOperation",
+    "createDataset",
+    "createTimeseries",
+    "createDatamodelCard",
+    "deviceCollection",
+    "wizardViews",
+    "editRuleConfiguration",
+    "createTicket",
+    "createSubscriber",
+    "createSubscription",
+    "manageDevicePlans"
+  ],
+  "widget_action": {
+    "createArea": "areas",
+    "createAsset": "assets",
+    "createChannel": "channels",
+    "createDatamodelCard": "datamodel",
+    "createDataset": "datasets",
+    "createDevice": "entities",
+    "createSubscriber": "subscribers",
+    "createSubscription": "subscriptions",
+    "createTicket": "tickets",
+    "createTimeseries": "timeseries",
+    "deviceCollection": "deviceCollection",
+    "editAsset": "assets",
+    "editDatamodelCard": "datamodel",
+    "editDevice": "entities",
+    "editRuleConfiguration": "ruleConfigurations",
+    "editTicket": "tickets",
+    "executeOperation": "operations",
+    "manageDevicePlans": "devicePlans",
+    "updateArea": "areas",
+    "wizardViews": "wizardViews"
+  },
+  "allowedProfiles": [
+    "root",
+    "super_admin_domain",
+    "admin_domain",
+    "admin",
+    "advanced",
+    "viewer",
+    "widget_action"
+  ],
+  "priority": 1,
+  "others": {
+    "showInHome": true,
+    "mode": "list",
+    "bannerImage": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1600\u0026h=400\u0026fit=crop\u0026q=80"
+  }
+}

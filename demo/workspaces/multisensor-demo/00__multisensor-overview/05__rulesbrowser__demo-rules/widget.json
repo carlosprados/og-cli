@@ -1,0 +1,14 @@
+{
+  "width": 5,
+  "height": 4,
+  "x": 7,
+  "y": 10,
+  "w": 5,
+  "h": 4,
+  "i": "demo-rules",
+  "definition": {
+    "type": "rulesBrowser",
+    "wid": "demo-rules",
+    "config": null
+  }
+}
