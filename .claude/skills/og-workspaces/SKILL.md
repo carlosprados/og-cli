@@ -149,6 +149,14 @@ og dashboard export-all --dir backups/ [--workspace <ws-id>]
 og workspace import -f ws.json [--update]
 og dashboard import -f dash.json [--update] [--workspace <id>]
 
+# Share — OPTIONAL, separate from deploy (publishing never shares by itself).
+# The ONLY way to grant other users visibility: setting users[] in the JSON
+# and PUTting the workspace does NOT work; only PUT .../share does.
+# Lists REPLACE current sharing on every call; --unshare clears.
+og workspace share <ws-id> --user someone@org.com [--domain d]
+og dashboard share <dash-id> --user someone@org.com
+og workspace share <ws-id> --unshare
+
 # Direct update / delete
 og workspace update <ws-id> -f ws.json
 og workspace delete <ws-id>

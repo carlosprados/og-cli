@@ -49,6 +49,12 @@ $OG jobs create -f demo/operations/jobs/calibrate-001.json | head -4
 step "7. Workspace + dashboard"
 $OG workspace deploy demo/workspaces/multisensor-demo
 
+if [ -n "${OG_DEMO_SHARE_WITH:-}" ]; then
+  step "8. Share with $OG_DEMO_SHARE_WITH"
+  $OG workspace share _multisensor_demo_ws --user "$OG_DEMO_SHARE_WITH"
+fi
+
 step "Demo ready"
 echo "Open the OpenGate web UI → workspace 'Multisensor Demo' → 'Multisensor Overview'."
+echo "Share it:           og workspace share _multisensor_demo_ws --user <email>"
 echo "Undo everything with demo/teardown.sh"

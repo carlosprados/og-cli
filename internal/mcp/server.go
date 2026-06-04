@@ -31,6 +31,7 @@ func newServer(host, token, webToken, apiKey string) *server.MCPServer {
 	registerOpTypeTools(s, c)
 	registerWorkspaceTools(s, c)
 	registerDashboardTools(s, c)
+	registerShareTools(s, c)
 	registerIoTTools(s, host, apiKey)
 	registerPrompts(s)
 	registerResources(s, c)

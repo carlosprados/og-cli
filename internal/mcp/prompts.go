@@ -220,6 +220,8 @@ User: "Dashboards del workspace abc-123" → dashboards_list(workspace_id: "abc-
 User: "Todos los dashboards" → dashboards_list()
 User: "Exporta el dashboard xyz" → dashboards_export(id: "xyz")
 User: "Importa el dashboard X bajo el workspace Y" → dashboards_import(body: <json>, workspace_id: "Y")
+User: "Comparte el workspace X con maria@acme.com" → workspaces_share(id: "X", users: "maria@acme.com")
+User: "Deja de compartir el workspace X" → workspaces_share(id: "X", users: "", domains: "")
 `
 
 func registerPrompts(s *server.MCPServer) {

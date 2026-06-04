@@ -148,6 +148,15 @@ Open the OpenGate web UI → workspace **Multisensor Demo** → dashboard
 | rulesBrowser | The rules you deployed |
 | customTable | Fleet history — a per-cell ECharts sparkline for every device × datastream (JS in `_widgetConfigCode.js`, written to the widget-JS grimoire rules) |
 
+### Optional: share with another user
+
+Publishing does NOT share — the workspace is owner-only until you decide:
+
+```bash
+og workspace share _multisensor_demo_ws --user <colleague@org.com>
+# they now see "Multisensor Demo" in their own web UI; undo with --unshare
+```
+
 ## Repeatable demo — setup & teardown
 
 The demo is fully reversible, run it as many times as you need:
