@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerDatasetTools(s *server.MCPServer, c *client.Client) {
+func registerDatasetTools(s *server.MCPServer, c *opengate.Client) {
 	s.AddTool(dsListTool(), dsListHandler(c))
 	s.AddTool(dsGetTool(), dsGetHandler(c))
 	s.AddTool(dsCreateTool(), dsCreateHandler(c))
@@ -26,7 +26,7 @@ func dsListTool() mcp.Tool {
 	)
 }
 
-func dsListHandler(c *client.Client) server.ToolHandlerFunc {
+func dsListHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -50,7 +50,7 @@ func dsGetTool() mcp.Tool {
 	)
 }
 
-func dsGetHandler(c *client.Client) server.ToolHandlerFunc {
+func dsGetHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -75,7 +75,7 @@ func dsCreateTool() mcp.Tool {
 	)
 }
 
-func dsCreateHandler(c *client.Client) server.ToolHandlerFunc {
+func dsCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -99,7 +99,7 @@ func dsUpdateTool() mcp.Tool {
 	)
 }
 
-func dsUpdateHandler(c *client.Client) server.ToolHandlerFunc {
+func dsUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -123,7 +123,7 @@ func dsDeleteTool() mcp.Tool {
 	)
 }
 
-func dsDeleteHandler(c *client.Client) server.ToolHandlerFunc {
+func dsDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -152,7 +152,7 @@ Use 'query' to filter by column names defined in the dataset.`),
 	)
 }
 
-func dsDataHandler(c *client.Client) server.ToolHandlerFunc {
+func dsDataHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)

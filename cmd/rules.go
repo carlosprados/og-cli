@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/output"
 	"github.com/carlosprados/og-cli/internal/unwrap"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -59,7 +59,7 @@ var rulesSearchCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := client.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token)
 
 		filter, err := buildSearchFilter(rulesSearchWhere, rulesSearchLimit, nil, rulesSearchFilter)
 		if err != nil {
@@ -77,7 +77,7 @@ var rulesSearchCmd = &cobra.Command{
 				rules := data.([]json.RawMessage)
 				rows := make([][]string, len(rules))
 				for i, raw := range rules {
-					s := client.ParseRuleSummary(raw)
+					s := opengate.ParseRuleSummary(raw)
 					rows[i] = []string{s.Identifier, s.Name, s.Mode, fmt.Sprintf("%v", s.Active), s.RuleTriggerName()}
 				}
 				return rows
@@ -207,7 +207,7 @@ var rulesCatalogCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := client.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token)
 		data, err := c.RulesCatalog()
 		if err != nil {
 			return err
@@ -250,7 +250,7 @@ var rulesPullAllCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := client.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token)
 
 		resp, err := c.SearchRules(nil)
 		if err != nil {
@@ -333,7 +333,7 @@ var rulesDeployCmd = &cobra.Command{
 
 // --- helpers ---
 
-func rulesClient() (*client.Client, string, error) {
+func rulesClient() (*opengate.Client, string, error) {
 	p, err := activeProfile()
 	if err != nil {
 		return nil, "", err
@@ -342,11 +342,11 @@ func rulesClient() (*client.Client, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	return client.New(p.Host, p.Token), orgName, nil
+	return opengate.New(p.Host, p.Token), orgName, nil
 }
 
 func unwrapRuleTo(raw json.RawMessage, dir string) (string, error) {
-	s := client.ParseRuleSummary(raw)
+	s := opengate.ParseRuleSummary(raw)
 
 	slug := unwrap.DedupedSlug(s.Name, s.Identifier, map[string]bool{})
 	target := filepath.Join(dir, slug)

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -271,7 +271,7 @@ func (m model) updateDevicesWithOps(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(m.devices.items) > 0 {
 			sel := m.devices.table.Cursor()
 			if sel < len(m.devices.items) {
-				s := client.ParseDeviceSummary(m.devices.items[sel])
+				s := opengate.ParseDeviceSummary(m.devices.items[sel])
 				m.opMenu = operationMenuModel{
 					active:   true,
 					cursor:   0,

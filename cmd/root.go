@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/config"
 	"github.com/carlosprados/og-cli/internal/output"
 	"github.com/carlosprados/og-cli/internal/tui"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -115,8 +115,8 @@ func resolveOrg(p *config.Profile) (string, error) {
 // newWebClient builds a Client configured for Web API access with transparent
 // auto-refresh: if a 401 is received, the client re-signs in and retries once.
 // The refreshed token is persisted back to the active profile.
-func newWebClient(p *config.Profile) *client.Client {
-	c := client.New(p.Host, p.Token).WithWebToken(p.WebToken)
+func newWebClient(p *config.Profile) *opengate.Client {
+	c := opengate.New(p.Host, p.Token).WithWebToken(p.WebToken)
 
 	if p.Email == "" || p.Domain == "" || p.UserProfile == "" || p.Workgroup == "" {
 		return c
@@ -127,7 +127,7 @@ func newWebClient(p *config.Profile) *client.Client {
 		profileName = cfg.DefaultProfile
 	}
 
-	req := client.WebSignInRequest{
+	req := opengate.WebSignInRequest{
 		Email:     p.Email,
 		Domain:    p.Domain,
 		Profile:   p.UserProfile,

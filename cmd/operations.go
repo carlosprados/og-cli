@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/output"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +35,7 @@ func runJobsSearch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	filter, err := buildSearchFilter(jobSearchWhere, jobSearchLimit, nil, jobSearchFilter)
 	if err != nil {
@@ -89,7 +89,7 @@ var jobsGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := client.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token)
 
 		data, err := c.GetJob(args[0])
 		if err != nil {
@@ -119,7 +119,7 @@ func runJobsCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	resp, err := c.CreateJob(body)
 	if err != nil {
 		return err
@@ -137,7 +137,7 @@ var jobsCancelCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := client.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token)
 		if err := c.CancelJob(args[0]); err != nil {
 			return err
 		}
@@ -155,7 +155,7 @@ var jobsOpsCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := client.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token)
 
 		resp, err := c.GetJobOperations(args[0])
 		if err != nil {
@@ -191,7 +191,7 @@ func runTasksSearch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	filter, err := buildSearchFilter(taskSearchWhere, taskSearchLimit, nil, taskSearchFilter)
 	if err != nil {
@@ -230,7 +230,7 @@ var tasksGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := client.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token)
 
 		data, err := c.GetTask(args[0])
 		if err != nil {
@@ -260,7 +260,7 @@ func runTasksCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	resp, err := c.CreateTask(body)
 	if err != nil {
 		return err
@@ -278,7 +278,7 @@ var tasksCancelCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := client.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token)
 		if err := c.CancelTask(args[0]); err != nil {
 			return err
 		}
@@ -296,7 +296,7 @@ var tasksJobsCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := client.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token)
 
 		resp, err := c.GetTaskJobs(args[0])
 		if err != nil {

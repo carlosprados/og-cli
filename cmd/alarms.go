@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/output"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -41,7 +41,7 @@ func runAlarmsSearch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	filter, err := buildSearchFilter(alSearchWhere, alSearchLimit, nil, alSearchFilter)
 	if err != nil {
@@ -56,7 +56,7 @@ func runAlarmsSearch(cmd *cobra.Command, args []string) error {
 	return output.Print(outFmt, resp.Alarms,
 		[]string{"Severity", "Status", "Name", "Entity", "Rule", "Opening Date"},
 		func(data any) [][]string {
-			alarms := data.([]client.Alarm)
+			alarms := data.([]opengate.Alarm)
 			rows := make([][]string, len(alarms))
 			for i, a := range alarms {
 				rows[i] = []string{a.Severity, a.Status, a.Name, a.EntityIdentifier, a.Rule, a.OpeningDate}
@@ -89,7 +89,7 @@ func runAlarmsSummary(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	filter, err := buildSearchFilter(alSummaryWhere, 0, nil, alSummaryFilter)
 	if err != nil {
@@ -134,7 +134,7 @@ func runAlarmsAttend(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	resp, err := c.AttendAlarms(args, attendNotes)
 	if err != nil {
@@ -161,7 +161,7 @@ func runAlarmsClose(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	resp, err := c.CloseAlarms(args, closeNotes)
 	if err != nil {

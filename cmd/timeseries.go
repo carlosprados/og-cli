@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/output"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -33,7 +33,7 @@ func runTSList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	resp, err := c.ListTimeSeries(orgName)
 	if err != nil {
@@ -43,7 +43,7 @@ func runTSList(cmd *cobra.Command, args []string) error {
 	return output.Print(outFmt, resp.Timeseries,
 		[]string{"Identifier", "Name", "Bucket(s)", "Retention(s)", "Columns"},
 		func(data any) [][]string {
-			tsList := data.([]client.TimeSeries)
+			tsList := data.([]opengate.TimeSeries)
 			rows := make([][]string, len(tsList))
 			for i, ts := range tsList {
 				rows[i] = []string{
@@ -77,7 +77,7 @@ func runTSGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	ts, err := c.GetTimeSeries(orgName, args[0])
 	if err != nil {
@@ -97,7 +97,7 @@ func runTSGet(cmd *cobra.Command, args []string) error {
 		return output.Print(outFmt, ts.Context,
 			[]string{"Name", "Path", "Filter"},
 			func(data any) [][]string {
-				cols := data.([]client.TSColumn)
+				cols := data.([]opengate.TSColumn)
 				rows := make([][]string, len(cols))
 				for i, c := range cols {
 					rows[i] = []string{c.Name, c.Path, c.Filter}
@@ -112,7 +112,7 @@ func runTSGet(cmd *cobra.Command, args []string) error {
 		return output.Print(outFmt, ts.Columns,
 			[]string{"Name", "Path", "Aggregation", "Filter"},
 			func(data any) [][]string {
-				cols := data.([]client.TSColumn)
+				cols := data.([]opengate.TSColumn)
 				rows := make([][]string, len(cols))
 				for i, c := range cols {
 					rows[i] = []string{c.Name, c.Path, c.AggregationFunction, c.Filter}
@@ -150,7 +150,7 @@ func runTSCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	if err := c.CreateTimeSeries(orgName, body); err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func runTSUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	if err := c.UpdateTimeSeries(orgName, args[0], body); err != nil {
 		return err
 	}
@@ -213,7 +213,7 @@ func runTSDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	if err := c.DeleteTimeSeries(orgName, args[0]); err != nil {
 		return err
 	}
@@ -254,7 +254,7 @@ func runTSData(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	filter, err := buildSearchFilter(tsDataWhere, tsDataLimit, nil, tsDataFilter)
 	if err != nil {
@@ -318,7 +318,7 @@ func runTSExport(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	if err := c.ExportTimeSeries(orgName, args[0], nil); err != nil {
 		return err
 	}

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/output"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +32,7 @@ func runDSList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	resp, err := c.ListDatasets(orgName)
 	if err != nil {
@@ -42,7 +42,7 @@ func runDSList(cmd *cobra.Command, args []string) error {
 	return output.Print(outFmt, resp.Datasets,
 		[]string{"Identifier", "Name", "Description", "Columns"},
 		func(data any) [][]string {
-			dsList := data.([]client.Dataset)
+			dsList := data.([]opengate.Dataset)
 			rows := make([][]string, len(dsList))
 			for i, ds := range dsList {
 				rows[i] = []string{ds.Identifier, ds.Name, ds.Description, fmt.Sprintf("%d", len(ds.Columns))}
@@ -70,7 +70,7 @@ func runDSGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	ds, err := c.GetDataset(orgName, args[0])
 	if err != nil {
@@ -86,7 +86,7 @@ func runDSGet(cmd *cobra.Command, args []string) error {
 	return output.Print(outFmt, ds.Columns,
 		[]string{"Name", "Path", "Filter", "Sort"},
 		func(data any) [][]string {
-			cols := data.([]client.DSColumn)
+			cols := data.([]opengate.DSColumn)
 			rows := make([][]string, len(cols))
 			for i, c := range cols {
 				rows[i] = []string{c.Name, c.Path, c.Filter, fmt.Sprintf("%v", c.Sort)}
@@ -121,7 +121,7 @@ func runDSCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	if err := c.CreateDataset(orgName, body); err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func runDSUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	if err := c.UpdateDataset(orgName, args[0], body); err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func runDSDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	if err := c.DeleteDataset(orgName, args[0]); err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func runDSData(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	filter, err := buildSearchFilter(dsDataWhere, dsDataLimit, nil, dsDataFilter)
 	if err != nil {

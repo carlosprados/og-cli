@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/output"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -41,7 +41,7 @@ var optypesCatalogCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := client.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token)
 		data, err := c.OpTypesCatalog()
 		if err != nil {
 			return err
@@ -58,7 +58,7 @@ var optypesSearchCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := client.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token)
 		data, err := c.SearchOpTypes(nil)
 		if err != nil {
 			return err
@@ -171,7 +171,7 @@ func printOpTypeList(data json.RawMessage) error {
 			items := d.([]json.RawMessage)
 			rows := make([][]string, len(items))
 			for i, raw := range items {
-				s := client.ParseOpTypeSummary(raw)
+				s := opengate.ParseOpTypeSummary(raw)
 				rows[i] = []string{s.Name, s.Title, strings.Join(s.ApplicableTo, ","), s.Description}
 			}
 			return rows

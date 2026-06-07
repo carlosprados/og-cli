@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerTimeSeriesTools(s *server.MCPServer, c *client.Client) {
+func registerTimeSeriesTools(s *server.MCPServer, c *opengate.Client) {
 	s.AddTool(tsListTool(), tsListHandler(c))
 	s.AddTool(tsGetTool(), tsGetHandler(c))
 	s.AddTool(tsCreateTool(), tsCreateHandler(c))
@@ -32,7 +32,7 @@ func tsListTool() mcp.Tool {
 	)
 }
 
-func tsListHandler(c *client.Client) server.ToolHandlerFunc {
+func tsListHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -58,7 +58,7 @@ func tsGetTool() mcp.Tool {
 	)
 }
 
-func tsGetHandler(c *client.Client) server.ToolHandlerFunc {
+func tsGetHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -85,7 +85,7 @@ func tsCreateTool() mcp.Tool {
 	)
 }
 
-func tsCreateHandler(c *client.Client) server.ToolHandlerFunc {
+func tsCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -111,7 +111,7 @@ func tsUpdateTool() mcp.Tool {
 	)
 }
 
-func tsUpdateHandler(c *client.Client) server.ToolHandlerFunc {
+func tsUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -137,7 +137,7 @@ func tsDeleteTool() mcp.Tool {
 	)
 }
 
-func tsDeleteHandler(c *client.Client) server.ToolHandlerFunc {
+func tsDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -169,7 +169,7 @@ Use 'query' to filter by column names defined in the time series.`),
 	)
 }
 
-func tsDataHandler(c *client.Client) server.ToolHandlerFunc {
+func tsDataHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -211,7 +211,7 @@ func tsExportTool() mcp.Tool {
 	)
 }
 
-func tsExportHandler(c *client.Client) server.ToolHandlerFunc {
+func tsExportHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)

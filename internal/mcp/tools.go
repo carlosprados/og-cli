@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -15,7 +15,7 @@ import (
 func registerTools(s *server.MCPServer, host, token string) {
 	s.AddTool(loginTool(), loginHandler(host))
 
-	c := client.New(host, token)
+	c := opengate.New(host, token)
 
 	// Datamodels — full CRUD + search
 	s.AddTool(datamodelsSearchTool(), datamodelsSearchHandler(c))
@@ -63,7 +63,7 @@ func loginHandler(defaultHost string) server.ToolHandlerFunc {
 			host = h
 		}
 
-		c := client.New(host, "")
+		c := opengate.New(host, "")
 		result, err := c.Login(email, password)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("login failed: %v", err)), nil
@@ -104,7 +104,7 @@ Examples:
 	)
 }
 
-func datamodelsSearchHandler(c *client.Client) server.ToolHandlerFunc {
+func datamodelsSearchHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 
@@ -142,7 +142,7 @@ func datamodelsGetTool() mcp.Tool {
 	)
 }
 
-func datamodelsGetHandler(c *client.Client) server.ToolHandlerFunc {
+func datamodelsGetHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		orgName, _ := args["organization"].(string)
@@ -181,7 +181,7 @@ func datamodelsCreateTool() mcp.Tool {
 	)
 }
 
-func datamodelsCreateHandler(c *client.Client) server.ToolHandlerFunc {
+func datamodelsCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		orgName, _ := args["organization"].(string)
@@ -219,7 +219,7 @@ func datamodelsUpdateTool() mcp.Tool {
 	)
 }
 
-func datamodelsUpdateHandler(c *client.Client) server.ToolHandlerFunc {
+func datamodelsUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		orgName, _ := args["organization"].(string)
@@ -254,7 +254,7 @@ func datamodelsDeleteTool() mcp.Tool {
 	)
 }
 
-func datamodelsDeleteHandler(c *client.Client) server.ToolHandlerFunc {
+func datamodelsDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		orgName, _ := args["organization"].(string)

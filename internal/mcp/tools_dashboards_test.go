@@ -3,17 +3,17 @@ package mcp
 import (
 	"testing"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 )
 
 func TestCollectDashEntries_FullDashboards(t *testing.T) {
-	w := &client.Workspace{
+	w := &opengate.Workspace{
 		ID:   "ws1",
 		Name: "WS One",
-		Dashboards: []client.WorkspaceDashboard{
+		Dashboards: []opengate.WorkspaceDashboard{
 			{
 				ID: "d1",
-				Dashboard: &client.DashboardSimplified{
+				Dashboard: &opengate.DashboardSimplified{
 					ID:    "d1",
 					Title: "Dash 1",
 					Owner: "alice@example.com",
@@ -37,10 +37,10 @@ func TestCollectDashEntries_FullDashboards(t *testing.T) {
 }
 
 func TestCollectDashEntries_NilDashboard(t *testing.T) {
-	w := &client.Workspace{
+	w := &opengate.Workspace{
 		ID:   "ws1",
 		Name: "WS One",
-		Dashboards: []client.WorkspaceDashboard{
+		Dashboards: []opengate.WorkspaceDashboard{
 			{ID: "orphan-id", Dashboard: nil},
 		},
 	}
@@ -58,7 +58,7 @@ func TestCollectDashEntries_NilDashboard(t *testing.T) {
 }
 
 func TestCollectDashEntries_EmptyWorkspace(t *testing.T) {
-	w := &client.Workspace{ID: "ws-empty"}
+	w := &opengate.Workspace{ID: "ws-empty"}
 	entries := collectDashEntries(w)
 	if len(entries) != 0 {
 		t.Errorf("expected 0 entries, got %d", len(entries))
@@ -66,13 +66,13 @@ func TestCollectDashEntries_EmptyWorkspace(t *testing.T) {
 }
 
 func TestCollectDashEntries_MultipleDashboards(t *testing.T) {
-	w := &client.Workspace{
+	w := &opengate.Workspace{
 		ID:   "ws1",
 		Name: "WS",
-		Dashboards: []client.WorkspaceDashboard{
-			{ID: "d1", Dashboard: &client.DashboardSimplified{ID: "d1", Title: "A"}},
-			{ID: "d2", Dashboard: &client.DashboardSimplified{ID: "d2", Title: "B"}},
-			{ID: "d3", Dashboard: &client.DashboardSimplified{ID: "d3", Title: "C"}},
+		Dashboards: []opengate.WorkspaceDashboard{
+			{ID: "d1", Dashboard: &opengate.DashboardSimplified{ID: "d1", Title: "A"}},
+			{ID: "d2", Dashboard: &opengate.DashboardSimplified{ID: "d2", Title: "B"}},
+			{ID: "d3", Dashboard: &opengate.DashboardSimplified{ID: "d3", Title: "C"}},
 		},
 	}
 

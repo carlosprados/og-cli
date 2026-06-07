@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/views"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerResources(s *server.MCPServer, c *client.Client) {
+func registerResources(s *server.MCPServer, c *opengate.Client) {
 	// Static resource: query syntax reference
 	s.AddResource(
 		mcp.NewResource(
@@ -159,7 +159,7 @@ Use opengate://organizations/{org}/datamodel-fields to discover them.
 	}, nil
 }
 
-func datamodelFieldsHandler(c *client.Client) server.ResourceTemplateHandlerFunc {
+func datamodelFieldsHandler(c *opengate.Client) server.ResourceTemplateHandlerFunc {
 	return func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
 		// Extract org from URI: opengate://organizations/{org}/datamodel-fields
 		uri := request.Params.URI

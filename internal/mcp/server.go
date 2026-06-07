@@ -1,7 +1,7 @@
 package mcp
 
 import (
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -20,7 +20,7 @@ func newServer(host, token, webToken, apiKey string) *server.MCPServer {
 		server.WithResourceCapabilities(true, false),
 	)
 
-	c := client.New(host, token).WithWebToken(webToken)
+	c := opengate.New(host, token).WithWebToken(webToken)
 
 	registerTools(s, host, token)
 	registerAlarmTools(s, c)

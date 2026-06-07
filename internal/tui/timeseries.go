@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -12,26 +12,26 @@ import (
 
 type timeseriesModel struct {
 	table   table.Model
-	items   []client.TimeSeries
+	items   []opengate.TimeSeries
 	loaded  bool
 	loading bool
 }
 
 type timeseriesDataModel struct {
-	ts      *client.TimeSeries
-	data    *client.TimeSeriesDataResponse
+	ts      *opengate.TimeSeries
+	data    *opengate.TimeSeriesDataResponse
 	table   table.Model
 	loading bool
 }
 
 type timeseriesFetchedMsg struct {
-	items []client.TimeSeries
+	items []opengate.TimeSeries
 	err   error
 }
 
 type timeseriesDataFetchedMsg struct {
-	ts   *client.TimeSeries
-	data *client.TimeSeriesDataResponse
+	ts   *opengate.TimeSeries
+	data *opengate.TimeSeriesDataResponse
 	err  error
 }
 
@@ -52,7 +52,7 @@ func (m model) fetchTimeSeries() tea.Cmd {
 	}
 }
 
-func (m model) fetchTimeSeriesData(ts *client.TimeSeries) tea.Cmd {
+func (m model) fetchTimeSeriesData(ts *opengate.TimeSeries) tea.Cmd {
 	return func() tea.Msg {
 		orgName := ""
 		if m.profile != nil {
@@ -136,7 +136,7 @@ func (m model) updateTimeSeriesData(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // --- table builders ---
 
-func buildTimeSeriesTable(items []client.TimeSeries, width int) table.Model {
+func buildTimeSeriesTable(items []opengate.TimeSeries, width int) table.Model {
 	columns := []table.Column{
 		{Title: "Identifier", Width: 28},
 		{Title: "Name", Width: 30},
@@ -177,7 +177,7 @@ func buildTimeSeriesTable(items []client.TimeSeries, width int) table.Model {
 	return t
 }
 
-func buildTimeSeriesDataTable(data *client.TimeSeriesDataResponse, width int) table.Model {
+func buildTimeSeriesDataTable(data *opengate.TimeSeriesDataResponse, width int) table.Model {
 	if data == nil || len(data.Columns) == 0 {
 		return table.New()
 	}

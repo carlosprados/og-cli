@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -44,7 +44,7 @@ func (m model) fetchRules() tea.Cmd {
 }
 
 func (m model) toggleRule(raw json.RawMessage) tea.Cmd {
-	s := client.ParseRuleSummary(raw)
+	s := opengate.ParseRuleSummary(raw)
 	org := ""
 	if m.profile != nil {
 		org = m.profile.Organization
@@ -124,7 +124,7 @@ func buildRulesTable(items []json.RawMessage, width int) table.Model {
 
 	rows := make([]table.Row, len(items))
 	for i, raw := range items {
-		s := client.ParseRuleSummary(raw)
+		s := opengate.ParseRuleSummary(raw)
 		rows[i] = table.Row{s.Name, s.Mode, fmt.Sprintf("%v", s.Active), s.RuleTriggerName(), s.Identifier}
 	}
 
@@ -240,7 +240,7 @@ func buildOpTypesTable(items []json.RawMessage, width int) table.Model {
 
 	rows := make([]table.Row, len(items))
 	for i, raw := range items {
-		s := client.ParseOpTypeSummary(raw)
+		s := opengate.ParseOpTypeSummary(raw)
 		rows[i] = table.Row{s.Name, s.Title, strings.Join(s.ApplicableTo, ","), s.Description}
 	}
 

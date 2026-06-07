@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/query"
 	"github.com/carlosprados/og-cli/internal/views"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerDeviceTools(s *server.MCPServer, c *client.Client) {
+func registerDeviceTools(s *server.MCPServer, c *opengate.Client) {
 	s.AddTool(devicesSearchTool(), devicesSearchHandler(c))
 	s.AddTool(devicesGetTool(), devicesGetHandler(c))
 	s.AddTool(devicesCreateTool(), devicesCreateHandler(c))
@@ -77,7 +77,7 @@ Examples:
 	)
 }
 
-func devicesSearchHandler(c *client.Client) server.ToolHandlerFunc {
+func devicesSearchHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 
@@ -176,7 +176,7 @@ func devicesGetTool() mcp.Tool {
 	)
 }
 
-func devicesGetHandler(c *client.Client) server.ToolHandlerFunc {
+func devicesGetHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		orgName, _ := args["organization"].(string)
@@ -211,7 +211,7 @@ func devicesCreateTool() mcp.Tool {
 	)
 }
 
-func devicesCreateHandler(c *client.Client) server.ToolHandlerFunc {
+func devicesCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		orgName, _ := args["organization"].(string)
@@ -249,7 +249,7 @@ func devicesUpdateTool() mcp.Tool {
 	)
 }
 
-func devicesUpdateHandler(c *client.Client) server.ToolHandlerFunc {
+func devicesUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		orgName, _ := args["organization"].(string)
@@ -284,7 +284,7 @@ func devicesDeleteTool() mcp.Tool {
 	)
 }
 
-func devicesDeleteHandler(c *client.Client) server.ToolHandlerFunc {
+func devicesDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		orgName, _ := args["organization"].(string)

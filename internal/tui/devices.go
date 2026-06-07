@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/query"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -34,7 +34,7 @@ type deviceField struct {
 // deviceDetailModel holds parsed device data for the tabbed detail view.
 type deviceDetailModel struct {
 	data    json.RawMessage
-	summary client.DeviceSummary
+	summary opengate.DeviceSummary
 	tab     int // 0=overview, 1=datastreams, 2=json
 
 	// Parsed sections for overview tab
@@ -90,7 +90,7 @@ func (m model) fetchDeviceDetail(id string) tea.Cmd {
 		}
 		if orgName == "" {
 			for _, raw := range m.devices.items {
-				s := client.ParseDeviceSummary(raw)
+				s := opengate.ParseDeviceSummary(raw)
 				if s.Identifier == id {
 					orgName = s.Org
 					break
@@ -128,7 +128,7 @@ func (m model) updateDevices(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.devices.items) > 0 {
 				sel := m.devices.table.Cursor()
 				if sel < len(m.devices.items) {
-					s := client.ParseDeviceSummary(m.devices.items[sel])
+					s := opengate.ParseDeviceSummary(m.devices.items[sel])
 					m.navigate(viewDeviceDetail)
 					m.devices.loading = true
 					return m, m.fetchDeviceDetail(s.Identifier)
@@ -203,7 +203,7 @@ func (m model) updateDeviceDetail(msg tea.Msg) (tea.Model, tea.Cmd) {
 func parseDeviceDetail(data json.RawMessage, width int) deviceDetailModel {
 	d := deviceDetailModel{
 		data:    data,
-		summary: client.ParseDeviceSummary(data),
+		summary: opengate.ParseDeviceSummary(data),
 	}
 
 	// Pretty JSON
@@ -376,7 +376,7 @@ func buildDevicesTable(items []json.RawMessage, width int) table.Model {
 
 	rows := make([]table.Row, len(items))
 	for i, raw := range items {
-		s := client.ParseDeviceSummary(raw)
+		s := opengate.ParseDeviceSummary(raw)
 		rows[i] = table.Row{s.Identifier, s.Name, s.Org, s.Status}
 	}
 

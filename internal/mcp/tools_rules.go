@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
 const defaultRulesChannel = "default_channel"
 
-func registerRuleTools(s *server.MCPServer, c *client.Client) {
+func registerRuleTools(s *server.MCPServer, c *opengate.Client) {
 	s.AddTool(rulesSearchTool(), rulesSearchHandler(c))
 	s.AddTool(rulesGetTool(), rulesGetHandler(c))
 	s.AddTool(rulesCreateTool(), rulesCreateHandler(c))
@@ -48,7 +48,7 @@ Examples:
 	)
 }
 
-func rulesSearchHandler(c *client.Client) server.ToolHandlerFunc {
+func rulesSearchHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		filter, err := mcpBuildFilter(request.GetArguments())
 		if err != nil {
@@ -77,7 +77,7 @@ func rulesGetTool() mcp.Tool {
 	)
 }
 
-func rulesGetHandler(c *client.Client) server.ToolHandlerFunc {
+func rulesGetHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -115,7 +115,7 @@ ADVANCED rule body shape (JavaScript decides; use openAlarm()/closeAlarm() helpe
 	)
 }
 
-func rulesCreateHandler(c *client.Client) server.ToolHandlerFunc {
+func rulesCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -142,7 +142,7 @@ func rulesUpdateTool() mcp.Tool {
 	)
 }
 
-func rulesUpdateHandler(c *client.Client) server.ToolHandlerFunc {
+func rulesUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -169,7 +169,7 @@ func rulesDeleteTool() mcp.Tool {
 	)
 }
 
-func rulesDeleteHandler(c *client.Client) server.ToolHandlerFunc {
+func rulesDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -196,7 +196,7 @@ func rulesSetActiveTool() mcp.Tool {
 	)
 }
 
-func rulesSetActiveHandler(c *client.Client) server.ToolHandlerFunc {
+func rulesSetActiveHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)

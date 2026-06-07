@@ -7,20 +7,20 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 )
 
 // TestRoundtrip_DashboardFull verifies that UnwrapDashboardFull → WrapDashboard
 // produces a JSON-equivalent dashboard, using a real /api/dashboards/{id}
 // response as fixture.
 func TestRoundtrip_DashboardFull(t *testing.T) {
-	fixture := filepath.Join("..", "client", "testdata", "dashboard_get.json")
+	fixture := filepath.Join("..", "..", "pkg", "opengate", "testdata", "dashboard_get.json")
 	raw, err := os.ReadFile(fixture)
 	if err != nil {
 		t.Fatalf("reading fixture: %v", err)
 	}
 
-	var d client.Dashboard
+	var d opengate.Dashboard
 	if err := json.Unmarshal(raw, &d); err != nil {
 		t.Fatalf("unmarshal fixture: %v", err)
 	}
@@ -98,13 +98,13 @@ func TestRoundtrip_WithJSExtraction(t *testing.T) {
 		]
 	}`
 
-	d := &client.Dashboard{
+	d := &opengate.Dashboard{
 		ID:    "synthetic",
 		Title: "Synthetic",
-		Grid: []client.GridItem{
+		Grid: []opengate.GridItem{
 			{
 				X: 0, Y: 0, W: 4, H: 2, I: "w1",
-				Definition: &client.WidgetDefinition{
+				Definition: &opengate.WidgetDefinition{
 					Type:   "TestWidget",
 					Wid:    "1234-1",
 					Config: json.RawMessage(configJSON),

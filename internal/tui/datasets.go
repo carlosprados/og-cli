@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -12,26 +12,26 @@ import (
 
 type datasetsModel struct {
 	table   table.Model
-	items   []client.Dataset
+	items   []opengate.Dataset
 	loaded  bool
 	loading bool
 }
 
 type datasetsDataModel struct {
-	ds      *client.Dataset
-	data    *client.DatasetDataResponse
+	ds      *opengate.Dataset
+	data    *opengate.DatasetDataResponse
 	table   table.Model
 	loading bool
 }
 
 type datasetsFetchedMsg struct {
-	items []client.Dataset
+	items []opengate.Dataset
 	err   error
 }
 
 type datasetsDataFetchedMsg struct {
-	ds   *client.Dataset
-	data *client.DatasetDataResponse
+	ds   *opengate.Dataset
+	data *opengate.DatasetDataResponse
 	err  error
 }
 
@@ -52,7 +52,7 @@ func (m model) fetchDatasets() tea.Cmd {
 	}
 }
 
-func (m model) fetchDatasetData(ds *client.Dataset) tea.Cmd {
+func (m model) fetchDatasetData(ds *opengate.Dataset) tea.Cmd {
 	return func() tea.Msg {
 		orgName := ""
 		if m.profile != nil {
@@ -136,7 +136,7 @@ func (m model) updateDatasetData(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // --- table builders ---
 
-func buildDatasetsTable(items []client.Dataset, width int) table.Model {
+func buildDatasetsTable(items []opengate.Dataset, width int) table.Model {
 	columns := []table.Column{
 		{Title: "Identifier", Width: 28},
 		{Title: "Name", Width: 30},
@@ -169,7 +169,7 @@ func buildDatasetsTable(items []client.Dataset, width int) table.Model {
 	return t
 }
 
-func buildDatasetDataTable(data *client.DatasetDataResponse, width int) table.Model {
+func buildDatasetDataTable(data *opengate.DatasetDataResponse, width int) table.Model {
 	if data == nil || len(data.Columns) == 0 {
 		return table.New()
 	}

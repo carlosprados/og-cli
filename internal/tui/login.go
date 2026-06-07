@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/config"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -17,7 +17,7 @@ type loginModel struct {
 }
 
 type loginResultMsg struct {
-	result *client.LoginResult
+	result *opengate.LoginResult
 	err    error
 }
 
@@ -53,7 +53,7 @@ func (m model) updateLogin(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.profile.Organization == "" {
 			m.profile.Organization = msg.result.Domain
 		}
-		m.client = client.New(m.profile.Host, msg.result.JWT)
+		m.client = opengate.New(m.profile.Host, msg.result.JWT)
 
 		profileName := m.cfg.DefaultProfile
 		_ = config.SaveCredentials(profileName, config.Credentials{
@@ -112,7 +112,7 @@ func (m model) updateLogin(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) doLogin(email, password string) tea.Cmd {
 	return func() tea.Msg {
-		c := client.New(m.profile.Host, "")
+		c := opengate.New(m.profile.Host, "")
 		result, err := c.Login(email, password)
 		return loginResultMsg{result: result, err: err}
 	}

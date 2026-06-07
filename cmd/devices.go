@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/output"
 	"github.com/carlosprados/og-cli/internal/query"
 	"github.com/carlosprados/og-cli/internal/views"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -57,7 +57,7 @@ func runDevicesSearch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	selectClauses := query.SelectFromFields(devSearchSelect, devSearchAt)
 	if len(devSearchView) > 0 {
@@ -91,7 +91,7 @@ func runDevicesSearch(cmd *cobra.Command, args []string) error {
 			devices := data.([]json.RawMessage)
 			rows := make([][]string, len(devices))
 			for i, raw := range devices {
-				s := client.ParseDeviceSummary(raw)
+				s := opengate.ParseDeviceSummary(raw)
 				rows[i] = []string{s.Identifier, s.Name, s.Org, s.Status}
 			}
 			return rows
@@ -150,9 +150,9 @@ func printSelectedDevices(devices []json.RawMessage, clauses []query.SelectClaus
 				row := make([]string, len(columns))
 				for j, col := range columns {
 					if col.sub == "at" {
-						row[j] = client.ExtractFlatAt(raw, col.name)
+						row[j] = opengate.ExtractFlatAt(raw, col.name)
 					} else {
-						row[j] = client.ExtractFlatValue(raw, col.name)
+						row[j] = opengate.ExtractFlatValue(raw, col.name)
 					}
 				}
 				rows[i] = row
@@ -180,7 +180,7 @@ func runDevicesGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	data, err := c.GetDevice(orgName, args[0])
 	if err != nil {
@@ -189,11 +189,11 @@ func runDevicesGet(cmd *cobra.Command, args []string) error {
 
 	// Device JSON is complex (flattened format), always output as JSON for get
 	if outFmt == output.FormatTable {
-		s := client.ParseDeviceSummary(data)
+		s := opengate.ParseDeviceSummary(data)
 		return output.Print(outFmt, s,
 			[]string{"Identifier", "Name", "Organization", "State"},
 			func(d any) [][]string {
-				ds := d.(client.DeviceSummary)
+				ds := d.(opengate.DeviceSummary)
 				return [][]string{{ds.Identifier, ds.Name, ds.Org, ds.Status}}
 			},
 		)
@@ -232,7 +232,7 @@ func runDevicesCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	if err := c.CreateDevice(orgName, body); err != nil {
 		return err
 	}
@@ -267,7 +267,7 @@ func runDevicesUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	if err := c.UpdateDevice(orgName, args[0], body); err != nil {
 		return err
 	}
@@ -295,7 +295,7 @@ func runDevicesDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	if err := c.DeleteDevice(orgName, args[0]); err != nil {
 		return err
 	}

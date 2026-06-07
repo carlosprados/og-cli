@@ -1,4 +1,4 @@
-package client
+package opengate
 
 import (
 	"bytes"

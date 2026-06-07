@@ -3,17 +3,17 @@ package cmd
 import (
 	"testing"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 )
 
 func TestCollectDashboardRows_FullDashboards(t *testing.T) {
-	w := &client.Workspace{
+	w := &opengate.Workspace{
 		ID:   "ws1",
 		Name: "WS One",
-		Dashboards: []client.WorkspaceDashboard{
+		Dashboards: []opengate.WorkspaceDashboard{
 			{
 				ID: "d1",
-				Dashboard: &client.DashboardSimplified{
+				Dashboard: &opengate.DashboardSimplified{
 					ID:    "d1",
 					Title: "Dash 1",
 					Owner: "alice@example.com",
@@ -21,7 +21,7 @@ func TestCollectDashboardRows_FullDashboards(t *testing.T) {
 			},
 			{
 				ID: "d2",
-				Dashboard: &client.DashboardSimplified{
+				Dashboard: &opengate.DashboardSimplified{
 					ID:    "d2",
 					Title: "Dash 2",
 					Owner: "bob@example.com",
@@ -47,10 +47,10 @@ func TestCollectDashboardRows_FullDashboards(t *testing.T) {
 }
 
 func TestCollectDashboardRows_NilDashboard(t *testing.T) {
-	w := &client.Workspace{
+	w := &opengate.Workspace{
 		ID:   "ws1",
 		Name: "WS One",
-		Dashboards: []client.WorkspaceDashboard{
+		Dashboards: []opengate.WorkspaceDashboard{
 			{ID: "orphan-id", Dashboard: nil},
 		},
 	}
@@ -69,7 +69,7 @@ func TestCollectDashboardRows_NilDashboard(t *testing.T) {
 }
 
 func TestCollectDashboardRows_EmptyWorkspace(t *testing.T) {
-	w := &client.Workspace{ID: "ws-empty", Name: "Empty"}
+	w := &opengate.Workspace{ID: "ws-empty", Name: "Empty"}
 	rows := collectDashboardRows(w)
 	if len(rows) != 0 {
 		t.Errorf("expected 0 rows for empty workspace, got %d", len(rows))
@@ -77,12 +77,12 @@ func TestCollectDashboardRows_EmptyWorkspace(t *testing.T) {
 }
 
 func TestCollectDashboardRows_PrefersDashboardIDOverOuterID(t *testing.T) {
-	w := &client.Workspace{
+	w := &opengate.Workspace{
 		ID: "ws1",
-		Dashboards: []client.WorkspaceDashboard{
+		Dashboards: []opengate.WorkspaceDashboard{
 			{
 				ID: "outer-id",
-				Dashboard: &client.DashboardSimplified{
+				Dashboard: &opengate.DashboardSimplified{
 					ID:    "inner-id",
 					Title: "T",
 				},

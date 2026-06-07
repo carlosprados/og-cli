@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/config"
 	"github.com/carlosprados/og-cli/internal/output"
 	"github.com/carlosprados/og-cli/internal/unwrap"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -49,7 +49,7 @@ func runWorkspaceList(cmd *cobra.Command, args []string) error {
 	return output.Print(outFmt, wss,
 		[]string{"ID", "Name", "Owner", "Dashboards", "Domains"},
 		func(data any) [][]string {
-			items := data.([]client.Workspace)
+			items := data.([]opengate.Workspace)
 			rows := make([][]string, len(items))
 			for i, w := range items {
 				rows[i] = []string{
@@ -91,7 +91,7 @@ func runWorkspaceGet(cmd *cobra.Command, args []string) error {
 	return output.Print(outFmt, w,
 		[]string{"Field", "Value"},
 		func(data any) [][]string {
-			w := data.(*client.Workspace)
+			w := data.(*opengate.Workspace)
 			return [][]string{
 				{"ID", w.ID},
 				{"Name", w.Name},
@@ -159,7 +159,7 @@ func runWorkspaceExport(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func fetchWorkspaceExportData(c *client.Client, id string, full bool) ([]byte, error) {
+func fetchWorkspaceExportData(c *opengate.Client, id string, full bool) ([]byte, error) {
 	if full {
 		w, err := c.GetWorkspace(id, true)
 		if err != nil {
@@ -419,7 +419,7 @@ func runWorkspaceUnwrap(cmd *cobra.Command, args []string) error {
 // skipped with a warning — see the ownership filter for the rationale. When
 // forceOwner is true the ownership check is bypassed, matching the top-level
 // workspace override.
-func unwrapOneWorkspace(c *client.Client, w *client.Workspace, wsDir string, p *config.Profile, forceOwner bool) error {
+func unwrapOneWorkspace(c *opengate.Client, w *opengate.Workspace, wsDir string, p *config.Profile, forceOwner bool) error {
 	if _, err := unwrap.Unwrap(w, wsDir); err != nil {
 		return err
 	}
@@ -606,17 +606,17 @@ func runWorkspaceUnwrapFile(cmd *cobra.Command, args []string) error {
 
 // parseWorkspaceFromBytes accepts either a raw Workspace JSON or the
 // {"workspaces":[...]} wrapper produced by /api/workspaces/export/{id}.
-func parseWorkspaceFromBytes(raw []byte) (*client.Workspace, error) {
+func parseWorkspaceFromBytes(raw []byte) (*opengate.Workspace, error) {
 	// Try wrapper first.
 	var wrapper struct {
-		Workspaces []client.Workspace `json:"workspaces"`
+		Workspaces []opengate.Workspace `json:"workspaces"`
 	}
 	if err := json.Unmarshal(raw, &wrapper); err == nil && len(wrapper.Workspaces) > 0 {
 		return &wrapper.Workspaces[0], nil
 	}
 
 	// Fall back to raw Workspace object.
-	var w client.Workspace
+	var w opengate.Workspace
 	if err := json.Unmarshal(raw, &w); err != nil {
 		return nil, fmt.Errorf("parsing workspace JSON: %w", err)
 	}
@@ -629,8 +629,8 @@ func parseWorkspaceFromBytes(raw []byte) (*client.Workspace, error) {
 // simplifiedToFullStruct lifts a DashboardSimplified into a full Dashboard,
 // preserving the Grid which (post the Grid field addition) lives directly on
 // the simplified struct after unmarshalling an export payload.
-func simplifiedToFullStruct(s *client.DashboardSimplified) *client.Dashboard {
-	return &client.Dashboard{
+func simplifiedToFullStruct(s *opengate.DashboardSimplified) *opengate.Dashboard {
+	return &opengate.Dashboard{
 		ID:              s.ID,
 		AltID:           s.AltID,
 		Title:           s.Title,
@@ -723,7 +723,7 @@ func runWorkspaceImport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	var w client.Workspace
+	var w opengate.Workspace
 	if err := json.Unmarshal(body, &w); err != nil {
 		return fmt.Errorf("parsing workspace JSON: %w", err)
 	}
@@ -751,7 +751,7 @@ func runWorkspaceImport(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func countEmbeddedDashboards(w *client.Workspace) int {
+func countEmbeddedDashboards(w *opengate.Workspace) int {
 	n := 0
 	for _, wd := range w.Dashboards {
 		if wd.Dashboard != nil {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -58,7 +58,7 @@ func iotCollectHandler(host, apiKey string) server.ToolHandlerFunc {
 
 		value := mcpParseValue(rawValue)
 
-		if err := client.CollectSimple(host, apiKey, deviceID, datastreamID, value); err != nil {
+		if err := opengate.CollectSimple(host, apiKey, deviceID, datastreamID, value); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("collect failed: %v", err)), nil
 		}
 
@@ -97,12 +97,12 @@ func iotCollectPayloadHandler(host, apiKey string) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("device_id and payload are required"), nil
 		}
 
-		var payload client.IoTPayload
+		var payload opengate.IoTPayload
 		if err := json.Unmarshal([]byte(payloadStr), &payload); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid payload: %v", err)), nil
 		}
 
-		if err := client.CollectIoT(host, apiKey, deviceID, payload); err != nil {
+		if err := opengate.CollectIoT(host, apiKey, deviceID, payload); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("collect failed: %v", err)), nil
 		}
 

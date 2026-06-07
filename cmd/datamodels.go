@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/output"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -41,7 +41,7 @@ func runDatamodelsSearch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	filter, err := buildSearchFilter(dmSearchWhere, dmSearchLimit, nil, dmSearchFilter)
 	if err != nil {
@@ -56,7 +56,7 @@ func runDatamodelsSearch(cmd *cobra.Command, args []string) error {
 	return output.Print(outFmt, resp.Datamodels,
 		[]string{"Identifier", "Organization", "Name", "Version"},
 		func(data any) [][]string {
-			dms := data.([]client.Datamodel)
+			dms := data.([]opengate.Datamodel)
 			rows := make([][]string, len(dms))
 			for i, dm := range dms {
 				rows[i] = []string{dm.Identifier, dm.OrganizationName, dm.Name, dm.Version}
@@ -84,7 +84,7 @@ func runDatamodelsGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 
 	dm, err := c.GetDatamodel(orgName, args[0])
 	if err != nil {
@@ -94,7 +94,7 @@ func runDatamodelsGet(cmd *cobra.Command, args []string) error {
 	return output.Print(outFmt, dm,
 		[]string{"Category", "Datastream", "Name", "Period", "Schema", "Access"},
 		func(data any) [][]string {
-			d := data.(*client.Datamodel)
+			d := data.(*opengate.Datamodel)
 			var rows [][]string
 			for _, cat := range d.Categories {
 				if len(cat.Datastreams) == 0 {
@@ -156,7 +156,7 @@ func runDatamodelsCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	if err := c.CreateDatamodel(orgName, body); err != nil {
 		return err
 	}
@@ -191,7 +191,7 @@ func runDatamodelsUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	if err := c.UpdateDatamodel(orgName, args[0], body); err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func runDatamodelsDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := client.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token)
 	if err := c.DeleteDatamodel(orgName, args[0]); err != nil {
 		return err
 	}

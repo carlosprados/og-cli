@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -13,23 +13,23 @@ import (
 
 type datamodelsModel struct {
 	table   table.Model
-	items   []client.Datamodel
+	items   []opengate.Datamodel
 	loaded  bool
 	loading bool
 }
 
 type datamodelDetailModel struct {
-	dm    *client.Datamodel
+	dm    *opengate.Datamodel
 	table table.Model
 }
 
 type datamodelsFetchedMsg struct {
-	items []client.Datamodel
+	items []opengate.Datamodel
 	err   error
 }
 
 type datamodelDetailFetchedMsg struct {
-	dm  *client.Datamodel
+	dm  *opengate.Datamodel
 	err error
 }
 
@@ -104,7 +104,7 @@ func (m model) updateDatamodelDetail(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func buildDatamodelsTable(items []client.Datamodel, width int) table.Model {
+func buildDatamodelsTable(items []opengate.Datamodel, width int) table.Model {
 	columns := []table.Column{
 		{Title: "Identifier", Width: 30},
 		{Title: "Organization", Width: 20},
@@ -137,7 +137,7 @@ func buildDatamodelsTable(items []client.Datamodel, width int) table.Model {
 	return t
 }
 
-func buildDatamodelDetailTable(dm *client.Datamodel, width int) table.Model {
+func buildDatamodelDetailTable(dm *opengate.Datamodel, width int) table.Model {
 	columns := []table.Column{
 		{Title: "Category", Width: 20},
 		{Title: "Datastream", Width: 35},

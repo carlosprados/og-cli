@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerDashboardTools(s *server.MCPServer, c *client.Client) {
+func registerDashboardTools(s *server.MCPServer, c *opengate.Client) {
 	s.AddTool(dashListTool(), dashListHandler(c))
 	s.AddTool(dashGetTool(), dashGetHandler(c))
 	s.AddTool(dashExportTool(), dashExportHandler(c))
@@ -36,7 +36,7 @@ With 'workspace_id': returns only the dashboards of that workspace.`),
 	)
 }
 
-func dashListHandler(c *client.Client) server.ToolHandlerFunc {
+func dashListHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		wsID, _ := args["workspace_id"].(string)
@@ -63,7 +63,7 @@ func dashListHandler(c *client.Client) server.ToolHandlerFunc {
 	}
 }
 
-func collectDashEntries(w *client.Workspace) []dashListEntry {
+func collectDashEntries(w *opengate.Workspace) []dashListEntry {
 	out := make([]dashListEntry, 0, len(w.Dashboards))
 	for _, wd := range w.Dashboards {
 		if wd.Dashboard == nil {
@@ -92,7 +92,7 @@ func dashGetTool() mcp.Tool {
 	)
 }
 
-func dashGetHandler(c *client.Client) server.ToolHandlerFunc {
+func dashGetHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		id, _ := args["id"].(string)
@@ -115,7 +115,7 @@ func dashExportTool() mcp.Tool {
 	)
 }
 
-func dashExportHandler(c *client.Client) server.ToolHandlerFunc {
+func dashExportHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		id, _ := args["id"].(string)
@@ -140,7 +140,7 @@ If 'workspace_id' is provided, it overrides the "workspaces" field in the payloa
 	)
 }
 
-func dashImportHandler(c *client.Client) server.ToolHandlerFunc {
+func dashImportHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		body, _ := args["body"].(string)
@@ -167,7 +167,7 @@ func dashUpdateTool() mcp.Tool {
 	)
 }
 
-func dashUpdateHandler(c *client.Client) server.ToolHandlerFunc {
+func dashUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		id, _ := args["id"].(string)
@@ -189,7 +189,7 @@ func dashDeleteTool() mcp.Tool {
 	)
 }
 
-func dashDeleteHandler(c *client.Client) server.ToolHandlerFunc {
+func dashDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		id, _ := args["id"].(string)

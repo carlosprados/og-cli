@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -12,23 +12,23 @@ import (
 
 type workspacesModel struct {
 	table   table.Model
-	items   []client.Workspace
+	items   []opengate.Workspace
 	loaded  bool
 	loading bool
 }
 
 type workspaceDetailModel struct {
-	ws    *client.Workspace
+	ws    *opengate.Workspace
 	table table.Model
 }
 
 type workspacesFetchedMsg struct {
-	items []client.Workspace
+	items []opengate.Workspace
 	err   error
 }
 
 type workspaceDetailFetchedMsg struct {
-	ws  *client.Workspace
+	ws  *opengate.Workspace
 	err error
 }
 
@@ -124,7 +124,7 @@ func (m model) updateWorkspaceDetail(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func buildWorkspacesTable(items []client.Workspace, width int) table.Model {
+func buildWorkspacesTable(items []opengate.Workspace, width int) table.Model {
 	columns := []table.Column{
 		{Title: "ID", Width: 30},
 		{Title: "Name", Width: 25},
@@ -165,7 +165,7 @@ func buildWorkspacesTable(items []client.Workspace, width int) table.Model {
 	return t
 }
 
-func buildWorkspaceDetailTable(w *client.Workspace, width int) table.Model {
+func buildWorkspaceDetailTable(w *opengate.Workspace, width int) table.Model {
 	columns := []table.Column{
 		{Title: "Dashboard ID", Width: 35},
 		{Title: "Title", Width: 35},

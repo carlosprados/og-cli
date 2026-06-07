@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerOperationTools(s *server.MCPServer, c *client.Client) {
+func registerOperationTools(s *server.MCPServer, c *opengate.Client) {
 	s.AddTool(jobsSearchTool(), jobsSearchHandler(c))
 	s.AddTool(jobsGetTool(), jobsGetHandler(c))
 	s.AddTool(jobsCreateTool(), jobsCreateHandler(c))
@@ -35,7 +35,7 @@ Common fields: jobs.request.name, jobs.report.summary.status (IN_PROGRESS, FINIS
 	)
 }
 
-func jobsSearchHandler(c *client.Client) server.ToolHandlerFunc {
+func jobsSearchHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		filter, err := mcpBuildFilter(request.GetArguments())
 		if err != nil {
@@ -59,7 +59,7 @@ func jobsGetTool() mcp.Tool {
 	)
 }
 
-func jobsGetHandler(c *client.Client) server.ToolHandlerFunc {
+func jobsGetHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, _ := request.GetArguments()["id"].(string)
 		if id == "" {
@@ -85,7 +85,7 @@ Example for REFRESH_INFO on a device:
 	)
 }
 
-func jobsCreateHandler(c *client.Client) server.ToolHandlerFunc {
+func jobsCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		body, _ := request.GetArguments()["body"].(string)
 		if body == "" {
@@ -108,7 +108,7 @@ func jobsCancelTool() mcp.Tool {
 	)
 }
 
-func jobsCancelHandler(c *client.Client) server.ToolHandlerFunc {
+func jobsCancelHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, _ := request.GetArguments()["id"].(string)
 		if id == "" {
@@ -130,7 +130,7 @@ func jobsOpsTool() mcp.Tool {
 	)
 }
 
-func jobsOpsHandler(c *client.Client) server.ToolHandlerFunc {
+func jobsOpsHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, _ := request.GetArguments()["id"].(string)
 		if id == "" {
@@ -158,7 +158,7 @@ Common fields: tasks.name, tasks.state (ACTIVE, PAUSED, FINISHED)`),
 	)
 }
 
-func tasksSearchHandler(c *client.Client) server.ToolHandlerFunc {
+func tasksSearchHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		filter, err := mcpBuildFilter(request.GetArguments())
 		if err != nil {
@@ -182,7 +182,7 @@ func tasksGetTool() mcp.Tool {
 	)
 }
 
-func tasksGetHandler(c *client.Client) server.ToolHandlerFunc {
+func tasksGetHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, _ := request.GetArguments()["id"].(string)
 		if id == "" {
@@ -205,7 +205,7 @@ func tasksCreateTool() mcp.Tool {
 	)
 }
 
-func tasksCreateHandler(c *client.Client) server.ToolHandlerFunc {
+func tasksCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		body, _ := request.GetArguments()["body"].(string)
 		if body == "" {
@@ -228,7 +228,7 @@ func tasksCancelTool() mcp.Tool {
 	)
 }
 
-func tasksCancelHandler(c *client.Client) server.ToolHandlerFunc {
+func tasksCancelHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, _ := request.GetArguments()["id"].(string)
 		if id == "" {

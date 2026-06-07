@@ -2,8 +2,8 @@
 package tui
 
 import (
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/config"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -45,7 +45,7 @@ type model struct {
 	cfgPath string
 
 	// client
-	client *client.Client
+	client *opengate.Client
 
 	// sub-models
 	menu            menuModel
@@ -78,7 +78,7 @@ type model struct {
 
 // Run starts the interactive TUI.
 func Run(cfg *config.Config, profile *config.Profile, cfgPath string) error {
-	c := client.New(profile.Host, profile.Token).WithWebToken(profile.WebToken)
+	c := opengate.New(profile.Host, profile.Token).WithWebToken(profile.WebToken)
 
 	m := model{
 		view:    viewMenu,

@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerOpTypeTools(s *server.MCPServer, c *client.Client) {
+func registerOpTypeTools(s *server.MCPServer, c *opengate.Client) {
 	s.AddTool(optypesCatalogTool(), optypesCatalogHandler(c))
 	s.AddTool(optypesSearchTool(), optypesSearchHandler(c))
 	s.AddTool(optypesGetTool(), optypesGetHandler(c))
@@ -25,7 +25,7 @@ func optypesCatalogTool() mcp.Tool {
 	)
 }
 
-func optypesCatalogHandler(c *client.Client) server.ToolHandlerFunc {
+func optypesCatalogHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		data, err := c.OpTypesCatalog()
 		if err != nil {
@@ -41,7 +41,7 @@ func optypesSearchTool() mcp.Tool {
 	)
 }
 
-func optypesSearchHandler(c *client.Client) server.ToolHandlerFunc {
+func optypesSearchHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		data, err := c.SearchOpTypes(nil)
 		if err != nil {
@@ -59,7 +59,7 @@ func optypesGetTool() mcp.Tool {
 	)
 }
 
-func optypesGetHandler(c *client.Client) server.ToolHandlerFunc {
+func optypesGetHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -90,7 +90,7 @@ Body shape (ExtendedOperation):
 	)
 }
 
-func optypesCreateHandler(c *client.Client) server.ToolHandlerFunc {
+func optypesCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -114,7 +114,7 @@ func optypesUpdateTool() mcp.Tool {
 	)
 }
 
-func optypesUpdateHandler(c *client.Client) server.ToolHandlerFunc {
+func optypesUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
@@ -138,7 +138,7 @@ func optypesDeleteTool() mcp.Tool {
 	)
 }
 
-func optypesDeleteHandler(c *client.Client) server.ToolHandlerFunc {
+func optypesDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)

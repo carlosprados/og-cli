@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/config"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -73,7 +73,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("password is required")
 	}
 
-	c := client.New(p.Host, "")
+	c := opengate.New(p.Host, "")
 	result, err := c.Login(email, password)
 	if err != nil {
 		return fmt.Errorf("login failed: %w", err)
@@ -107,7 +107,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		if domain == "" || userProfile == "" {
 			fmt.Fprintln(os.Stderr, "Warning: Web API signin skipped (north login did not return domain or profile, and no override flags given). Workspace/dashboard commands will be unavailable.")
 		} else {
-			webResult, err := c.WebSignIn(client.WebSignInRequest{
+			webResult, err := c.WebSignIn(opengate.WebSignInRequest{
 				Email:     email,
 				Domain:    domain,
 				Profile:   userProfile,

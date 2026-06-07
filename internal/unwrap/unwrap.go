@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 )
 
 // Unwrap creates the workspace root directory and writes workspace.json
@@ -26,7 +26,7 @@ import (
 //	    <NN>__<type>__<wid>/   — one folder per widget (NN preserves grid order)
 //	      widget.json          — full grid item, JS fields removed
 //	      <field>.js           — one file per extracted JS string
-func Unwrap(w *client.Workspace, dir string) (string, error) {
+func Unwrap(w *opengate.Workspace, dir string) (string, error) {
 	if w == nil {
 		return "", fmt.Errorf("workspace is nil")
 	}
@@ -44,8 +44,8 @@ func Unwrap(w *client.Workspace, dir string) (string, error) {
 
 // UnwrapDashboardFull unwraps a full Dashboard (with grid+widgets) into the
 // given dashboard directory. Use it when you have the full Dashboard struct,
-// typically fetched via client.GetDashboard.
-func UnwrapDashboardFull(d *client.Dashboard, layout *client.WorkspaceDashboard, dir string) error {
+// typically fetched via opengate.GetDashboard.
+func UnwrapDashboardFull(d *opengate.Dashboard, layout *opengate.WorkspaceDashboard, dir string) error {
 	if d == nil {
 		return fmt.Errorf("dashboard is nil")
 	}
@@ -57,8 +57,8 @@ func UnwrapDashboardFull(d *client.Dashboard, layout *client.WorkspaceDashboard,
 	dClone := *d
 	dClone.Grid = nil
 	type dashboardOut struct {
-		*client.Dashboard
-		WorkspaceLayout *client.WorkspaceDashboard `json:"_workspaceLayout,omitempty"`
+		*opengate.Dashboard
+		WorkspaceLayout *opengate.WorkspaceDashboard `json:"_workspaceLayout,omitempty"`
 	}
 	out := dashboardOut{Dashboard: &dClone, WorkspaceLayout: layout}
 	if err := writeJSON(filepath.Join(dir, "dashboard.json"), out); err != nil {
@@ -77,7 +77,7 @@ func UnwrapDashboardFull(d *client.Dashboard, layout *client.WorkspaceDashboard,
 	return nil
 }
 
-func unwrapWidget(item *client.GridItem, dir string) error {
+func unwrapWidget(item *opengate.GridItem, dir string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("creating widget dir: %w", err)
 	}
@@ -115,7 +115,7 @@ func unwrapWidget(item *client.GridItem, dir string) error {
 }
 
 // widgetSlug builds the widget folder name: "<NN>__<type>__<wid>".
-func widgetSlug(index int, item client.GridItem, width int) string {
+func widgetSlug(index int, item opengate.GridItem, width int) string {
 	prefix := fmt.Sprintf("%0*d", width, index)
 	wtype := "Widget"
 	wid := item.I

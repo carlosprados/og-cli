@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/query"
 	"github.com/carlosprados/og-cli/internal/views"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -193,9 +193,9 @@ func buildDevicesViewTable(items []json.RawMessage, clauses []query.SelectClause
 		row := make(table.Row, len(cols))
 		for j, c := range cols {
 			if c.sub == "at" {
-				row[j] = client.ExtractFlatAt(raw, c.name)
+				row[j] = opengate.ExtractFlatAt(raw, c.name)
 			} else {
-				row[j] = client.ExtractFlatValue(raw, c.name)
+				row[j] = opengate.ExtractFlatValue(raw, c.name)
 			}
 		}
 		rows[i] = row

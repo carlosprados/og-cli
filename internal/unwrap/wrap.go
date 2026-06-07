@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 )
 
 // Wrap reconstructs a workspace from a previously-unwrapped directory tree.
@@ -18,14 +18,14 @@ import (
 //
 // The returned Workspace has every dashboard fully populated (grid included)
 // and can be re-serialized for /api/workspaces import.
-func Wrap(dir string) (*client.Workspace, error) {
+func Wrap(dir string) (*opengate.Workspace, error) {
 	wsPath := filepath.Join(dir, "workspace.json")
 	wsRaw, err := os.ReadFile(wsPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading workspace.json: %w", err)
 	}
 
-	var ws client.Workspace
+	var ws opengate.Workspace
 	if err := json.Unmarshal(wsRaw, &ws); err != nil {
 		return nil, fmt.Errorf("parsing workspace.json: %w", err)
 	}
@@ -35,7 +35,7 @@ func Wrap(dir string) (*client.Workspace, error) {
 		return nil, fmt.Errorf("listing workspace dir: %w", err)
 	}
 
-	var dashboards []client.WorkspaceDashboard
+	var dashboards []opengate.WorkspaceDashboard
 	for _, e := range dashEntries {
 		if !e.IsDir() {
 			continue
@@ -50,10 +50,10 @@ func Wrap(dir string) (*client.Workspace, error) {
 	return &ws, nil
 }
 
-// WrapDashboard reconstructs a full client.Dashboard (with grid + widget
+// WrapDashboard reconstructs a full opengate.Dashboard (with grid + widget
 // configs) from a dashboard directory, plus the WorkspaceDashboard layout
 // entry that wraps it inside its parent workspace.
-func WrapDashboard(dir string) (*client.Dashboard, *client.WorkspaceDashboard, error) {
+func WrapDashboard(dir string) (*opengate.Dashboard, *opengate.WorkspaceDashboard, error) {
 	wd, err := wrapDashboard(dir)
 	if err != nil {
 		return nil, nil, err
@@ -74,35 +74,35 @@ func WrapDashboard(dir string) (*client.Dashboard, *client.WorkspaceDashboard, e
 // wrapDashboard reads dashboard.json + each widget folder, and returns a
 // WorkspaceDashboard with the simplified body (grid included) and layout
 // in place.
-func wrapDashboard(dir string) (client.WorkspaceDashboard, error) {
+func wrapDashboard(dir string) (opengate.WorkspaceDashboard, error) {
 	dashPath := filepath.Join(dir, "dashboard.json")
 	raw, err := os.ReadFile(dashPath)
 	if err != nil {
-		return client.WorkspaceDashboard{}, fmt.Errorf("reading dashboard.json: %w", err)
+		return opengate.WorkspaceDashboard{}, fmt.Errorf("reading dashboard.json: %w", err)
 	}
 
 	// Decode into a generic map so we can split out the _workspaceLayout side
 	// channel that unwrap inserted.
 	var generic map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &generic); err != nil {
-		return client.WorkspaceDashboard{}, fmt.Errorf("parsing dashboard.json: %w", err)
+		return opengate.WorkspaceDashboard{}, fmt.Errorf("parsing dashboard.json: %w", err)
 	}
 
-	var layout client.WorkspaceDashboard
+	var layout opengate.WorkspaceDashboard
 	if layoutRaw, ok := generic["_workspaceLayout"]; ok {
 		if err := json.Unmarshal(layoutRaw, &layout); err != nil {
-			return client.WorkspaceDashboard{}, fmt.Errorf("parsing _workspaceLayout: %w", err)
+			return opengate.WorkspaceDashboard{}, fmt.Errorf("parsing _workspaceLayout: %w", err)
 		}
 		delete(generic, "_workspaceLayout")
 	}
 
 	bodyRaw, err := json.Marshal(generic)
 	if err != nil {
-		return client.WorkspaceDashboard{}, fmt.Errorf("re-encoding dashboard body: %w", err)
+		return opengate.WorkspaceDashboard{}, fmt.Errorf("re-encoding dashboard body: %w", err)
 	}
-	var simplified client.DashboardSimplified
+	var simplified opengate.DashboardSimplified
 	if err := json.Unmarshal(bodyRaw, &simplified); err != nil {
-		return client.WorkspaceDashboard{}, fmt.Errorf("decoding dashboard body: %w", err)
+		return opengate.WorkspaceDashboard{}, fmt.Errorf("decoding dashboard body: %w", err)
 	}
 
 	// Reassemble the grid from the widget sub-folders. This is the inverse of
@@ -116,9 +116,9 @@ func wrapDashboard(dir string) (client.WorkspaceDashboard, error) {
 	return layout, nil
 }
 
-// readFullDashboard reads dashboard.json as a full client.Dashboard (with
+// readFullDashboard reads dashboard.json as a full opengate.Dashboard (with
 // grid populated by collectGrid).
-func readFullDashboard(dir string) (*client.Dashboard, error) {
+func readFullDashboard(dir string) (*opengate.Dashboard, error) {
 	raw, err := os.ReadFile(filepath.Join(dir, "dashboard.json"))
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func readFullDashboard(dir string) (*client.Dashboard, error) {
 	if err != nil {
 		return nil, err
 	}
-	var d client.Dashboard
+	var d opengate.Dashboard
 	if err := json.Unmarshal(bodyRaw, &d); err != nil {
 		return nil, fmt.Errorf("decoding dashboard: %w", err)
 	}
@@ -141,7 +141,7 @@ func readFullDashboard(dir string) (*client.Dashboard, error) {
 
 // collectGrid walks widget sub-directories in alphabetical order and rebuilds
 // each GridItem, re-injecting any .js files back into the config.
-func collectGrid(dir string) []client.GridItem {
+func collectGrid(dir string) []opengate.GridItem {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
@@ -154,7 +154,7 @@ func collectGrid(dir string) []client.GridItem {
 	}
 	sort.Strings(names)
 
-	var grid []client.GridItem
+	var grid []opengate.GridItem
 	for _, name := range names {
 		item, err := wrapWidget(filepath.Join(dir, name))
 		if err != nil {
@@ -168,12 +168,12 @@ func collectGrid(dir string) []client.GridItem {
 
 // wrapWidget reads widget.json + every <field>.js sibling and produces a
 // GridItem ready for inclusion in a Dashboard.Grid.
-func wrapWidget(dir string) (*client.GridItem, error) {
+func wrapWidget(dir string) (*opengate.GridItem, error) {
 	raw, err := os.ReadFile(filepath.Join(dir, "widget.json"))
 	if err != nil {
 		return nil, err
 	}
-	var item client.GridItem
+	var item opengate.GridItem
 	if err := json.Unmarshal(raw, &item); err != nil {
 		return nil, fmt.Errorf("parsing widget.json: %w", err)
 	}

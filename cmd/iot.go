@@ -6,7 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -63,7 +63,7 @@ func runIoTCollect(cmd *cobra.Command, args []string) error {
 	// Try to parse as number, bool, or keep as string
 	value := parseValue(rawValue)
 
-	if err := client.CollectSimple(p.Host, p.APIKey, deviceID, datastreamID, value); err != nil {
+	if err := opengate.CollectSimple(p.Host, p.APIKey, deviceID, datastreamID, value); err != nil {
 		return err
 	}
 
@@ -87,12 +87,12 @@ func runIoTCollectFile(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	var payload client.IoTPayload
+	var payload opengate.IoTPayload
 	if err := json.Unmarshal(data, &payload); err != nil {
 		return fmt.Errorf("parsing IoT payload: %w", err)
 	}
 
-	if err := client.CollectIoT(p.Host, p.APIKey, deviceID, payload); err != nil {
+	if err := opengate.CollectIoT(p.Host, p.APIKey, deviceID, payload); err != nil {
 		return err
 	}
 

@@ -4,20 +4,20 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type dashboardDetailModel struct {
-	dash    *client.Dashboard
+	dash    *opengate.Dashboard
 	table   table.Model
 	loading bool
 }
 
 type dashboardDetailFetchedMsg struct {
-	dash *client.Dashboard
+	dash *opengate.Dashboard
 	err  error
 }
 
@@ -46,7 +46,7 @@ func (m model) updateDashboardDetail(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func buildDashboardDetailTable(d *client.Dashboard, width int) table.Model {
+func buildDashboardDetailTable(d *opengate.Dashboard, width int) table.Model {
 	columns := []table.Column{
 		{Title: "Widget Type", Width: 25},
 		{Title: "WID", Width: 20},

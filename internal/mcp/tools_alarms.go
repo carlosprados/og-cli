@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerAlarmTools(s *server.MCPServer, c *client.Client) {
+func registerAlarmTools(s *server.MCPServer, c *opengate.Client) {
 	s.AddTool(alarmsSearchTool(), alarmsSearchHandler(c))
 	s.AddTool(alarmsSummaryTool(), alarmsSummaryHandler(c))
 	s.AddTool(alarmsAttendTool(), alarmsAttendHandler(c))
@@ -51,7 +51,7 @@ Examples:
 	)
 }
 
-func alarmsSearchHandler(c *client.Client) server.ToolHandlerFunc {
+func alarmsSearchHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 
@@ -87,7 +87,7 @@ func alarmsSummaryTool() mcp.Tool {
 	)
 }
 
-func alarmsSummaryHandler(c *client.Client) server.ToolHandlerFunc {
+func alarmsSummaryHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 
@@ -124,7 +124,7 @@ func alarmsAttendTool() mcp.Tool {
 	)
 }
 
-func alarmsAttendHandler(c *client.Client) server.ToolHandlerFunc {
+func alarmsAttendHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		return handleAlarmAction(c, "attend", args)
@@ -146,14 +146,14 @@ func alarmsCloseTool() mcp.Tool {
 	)
 }
 
-func alarmsCloseHandler(c *client.Client) server.ToolHandlerFunc {
+func alarmsCloseHandler(c *opengate.Client) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 		return handleAlarmAction(c, "close", args)
 	}
 }
 
-func handleAlarmAction(c *client.Client, action string, args map[string]any) (*mcp.CallToolResult, error) {
+func handleAlarmAction(c *opengate.Client, action string, args map[string]any) (*mcp.CallToolResult, error) {
 	idsStr, _ := args["ids"].(string)
 	if idsStr == "" {
 		return mcp.NewToolResultError("ids is required"), nil
@@ -168,7 +168,7 @@ func handleAlarmAction(c *client.Client, action string, args map[string]any) (*m
 
 	notes, _ := args["notes"].(string)
 
-	var resp *client.AlarmActionResponse
+	var resp *opengate.AlarmActionResponse
 	var err error
 	if action == "attend" {
 		resp, err = c.AttendAlarms(ids, notes)

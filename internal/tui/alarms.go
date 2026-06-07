@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -13,19 +13,19 @@ import (
 
 type alarmsModel struct {
 	table   table.Model
-	items   []client.Alarm
+	items   []opengate.Alarm
 	loaded  bool
 	loading bool
 }
 
 type alarmsFetchedMsg struct {
-	items []client.Alarm
+	items []opengate.Alarm
 	err   error
 }
 
 type alarmActionMsg struct {
 	action string
-	resp   *client.AlarmActionResponse
+	resp   *opengate.AlarmActionResponse
 	err    error
 }
 
@@ -41,7 +41,7 @@ func (m model) fetchAlarms() tea.Cmd {
 
 func (m model) doAlarmAction(action string, id string) tea.Cmd {
 	return func() tea.Msg {
-		var resp *client.AlarmActionResponse
+		var resp *opengate.AlarmActionResponse
 		var err error
 		if action == "attend" {
 			resp, err = m.client.AttendAlarms([]string{id}, "")
@@ -99,7 +99,7 @@ func (m model) updateAlarms(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func selectedAlarm(m model) *client.Alarm {
+func selectedAlarm(m model) *opengate.Alarm {
 	if len(m.alarms.items) == 0 {
 		return nil
 	}
@@ -110,7 +110,7 @@ func selectedAlarm(m model) *client.Alarm {
 	return nil
 }
 
-func buildAlarmsTable(items []client.Alarm, width int) table.Model {
+func buildAlarmsTable(items []opengate.Alarm, width int) table.Model {
 	columns := []table.Column{
 		{Title: "Severity", Width: 12},
 		{Title: "Status", Width: 10},
@@ -188,7 +188,7 @@ func (m model) viewAlarmsScreen() string {
 	return b.String()
 }
 
-func formatAlarmDetail(a *client.Alarm) string {
+func formatAlarmDetail(a *opengate.Alarm) string {
 	var b strings.Builder
 	b.WriteString(dimStyle.Render(fmt.Sprintf("  ID: %s", a.Identifier)))
 	if a.Description != "" {

@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/carlosprados/og-cli/internal/client"
 	"github.com/carlosprados/og-cli/internal/output"
 	"github.com/carlosprados/og-cli/internal/unwrap"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -81,7 +81,7 @@ func runDashboardList(cmd *cobra.Command, args []string) error {
 	)
 }
 
-func collectDashboardRows(w *client.Workspace) []dashboardRow {
+func collectDashboardRows(w *opengate.Workspace) []dashboardRow {
 	rows := make([]dashboardRow, 0, len(w.Dashboards))
 	for _, wd := range w.Dashboards {
 		if wd.Dashboard == nil {
@@ -127,7 +127,7 @@ func runDashboardGet(cmd *cobra.Command, args []string) error {
 	return output.Print(outFmt, d,
 		[]string{"Field", "Value"},
 		func(data any) [][]string {
-			d := data.(*client.Dashboard)
+			d := data.(*opengate.Dashboard)
 			return [][]string{
 				{"ID", d.ID},
 				{"Title", d.Title},
@@ -192,7 +192,7 @@ func runDashboardExport(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func fetchDashboardExportData(c *client.Client, id string, full bool) ([]byte, error) {
+func fetchDashboardExportData(c *opengate.Client, id string, full bool) ([]byte, error) {
 	if full {
 		d, err := c.GetDashboard(id)
 		if err != nil {
@@ -483,15 +483,15 @@ func runDashboardUnwrapFile(cmd *cobra.Command, args []string) error {
 
 // parseDashboardFromBytes accepts either a raw Dashboard object or the
 // {"dashboards":[...]} wrapper.
-func parseDashboardFromBytes(raw []byte) (*client.Dashboard, error) {
+func parseDashboardFromBytes(raw []byte) (*opengate.Dashboard, error) {
 	var wrapper struct {
-		Dashboards []client.Dashboard `json:"dashboards"`
+		Dashboards []opengate.Dashboard `json:"dashboards"`
 	}
 	if err := json.Unmarshal(raw, &wrapper); err == nil && len(wrapper.Dashboards) > 0 {
 		return &wrapper.Dashboards[0], nil
 	}
 
-	var d client.Dashboard
+	var d opengate.Dashboard
 	if err := json.Unmarshal(raw, &d); err != nil {
 		return nil, fmt.Errorf("parsing dashboard JSON: %w", err)
 	}
