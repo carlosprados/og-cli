@@ -36,3 +36,8 @@ wkf/
 .gemini/
 *.har
 test1.json
+
+# Local working artifacts — exports and unwrapped resource trees
+datamodels/
+devices/
+local_workspaces/
