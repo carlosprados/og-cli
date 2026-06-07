@@ -86,8 +86,15 @@ type GridItem struct {
 }
 
 // WidgetDefinition describes the widget rendered in a grid cell.
+//
+// Ftype is an OpenGate platform field paired with Type: Type is the visual
+// component (e.g. FullDevicesList, OperationsList) and Ftype is its data domain
+// (entities, jobs, operations, alarms). og does not interpret it — it is
+// preserved verbatim so the unwrap → wrap → import round-trip keeps the
+// widget's data-source binding intact.
 type WidgetDefinition struct {
 	Type   string          `json:"type,omitempty"`
+	Ftype  string          `json:"Ftype,omitempty"`
 	Wid    string          `json:"wid,omitempty"`
 	Config json.RawMessage `json:"config,omitempty"`
 }
