@@ -481,6 +481,16 @@ og workspace pull-file ws.json --dir wsroot/
 
 # All unwrap/pull commands accept --force to overwrite an existing destination
 
+# Ownership filter: unwrap only writes items you can actually edit. A workspace
+# (or nested dashboard) whose `owner` is not the active profile's email is not
+# editable by you — re-importing it would fail or clobber someone else's work.
+#   - single-item (pull / pull-file): refuses loudly with the owner shown
+#   - bulk (pull-all): skips non-owned items with a warning, continues the rest
+# Pass --force-owner to override on single-item commands (e.g. to inspect a
+# shared/system workspace read-only). On pull, --force-owner also forces the
+# workspace's nested dashboards.
+og workspace pull <workspace-id> --dir wsroot/ --force-owner
+
 # Share with other users/domains — OPTIONAL and separate from deploy/import:
 # publishing never shares by itself (the workspace stays owner-only until you
 # share it). The lists REPLACE current sharing on every call.
@@ -592,6 +602,11 @@ og dashboard pull-all --dir dashroot/                        # every dashboard
 og dashboard pull-all --dir dashroot/ --workspace <ws-id>    # only one workspace
 og dashboard pull-file dash.json --dir dashroot/             # from local JSON file
 og dashboard pull <dashboard-id> --dir dashroot/ --force     # overwrite existing
+og dashboard pull <dashboard-id> --dir dashroot/ --force-owner  # unwrap even if not owned by you
+
+# Ownership filter (same as workspaces): single-item pull/pull-file refuse a
+# dashboard whose owner is not the active profile (use --force-owner to
+# override); pull-all skips non-owned dashboards with a warning and continues.
 
 # Share a single dashboard (same semantics as workspace share)
 og dashboard share <dashboard-id> --user claudia@amplia.es

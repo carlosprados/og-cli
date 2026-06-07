@@ -306,8 +306,9 @@ Use "og dashboard wrap" or "og dashboard deploy" to rebuild and re-upload.`,
 }
 
 var (
-	dashboardUnwrapDir   string
-	dashboardUnwrapForce bool
+	dashboardUnwrapDir        string
+	dashboardUnwrapForce      bool
+	dashboardUnwrapForceOwner bool
 )
 
 func runDashboardUnwrap(cmd *cobra.Command, args []string) error {
@@ -319,6 +320,10 @@ func runDashboardUnwrap(cmd *cobra.Command, args []string) error {
 
 	d, err := c.GetDashboard(args[0])
 	if err != nil {
+		return err
+	}
+
+	if err := requireOwnership("dashboard", d.ID, d.Owner, p, dashboardUnwrapForceOwner); err != nil {
 		return err
 	}
 
@@ -386,7 +391,7 @@ func runDashboardUnwrapAll(cmd *cobra.Command, args []string) error {
 	}
 
 	taken := make(map[string]bool)
-	var ok, failed int
+	var ok, skipped, failed int
 	for _, r := range rows {
 		if r.DashboardID == "" {
 			continue
@@ -395,6 +400,11 @@ func runDashboardUnwrapAll(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", r.DashboardID, err)
 			failed++
+			continue
+		}
+		if !isOwnedByProfile(d.Owner, p) {
+			fmt.Fprintf(os.Stderr, "  ⤳ skipped dashboard %s (owner=%q, not editable by you)\n", d.ID, d.Owner)
+			skipped++
 			continue
 		}
 		slug := unwrap.DedupedSlug(d.Title, d.ID, taken)
@@ -412,7 +422,7 @@ func runDashboardUnwrapAll(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  ✓ dashboard %s (%d widgets) → %s\n", d.ID, len(d.Grid), dashDir)
 		ok++
 	}
-	fmt.Printf("\n%d dashboard(s) unwrapped, %d failed.\n", ok, failed)
+	fmt.Printf("\n%d dashboard(s) unwrapped, %d skipped (not owned), %d failed.\n", ok, skipped, failed)
 	if failed > 0 {
 		return fmt.Errorf("%d dashboard(s) failed", failed)
 	}
@@ -435,8 +445,9 @@ workspace export.`,
 }
 
 var (
-	dashboardUnwrapFileDir   string
-	dashboardUnwrapFileForce bool
+	dashboardUnwrapFileDir        string
+	dashboardUnwrapFileForce      bool
+	dashboardUnwrapFileForceOwner bool
 )
 
 func runDashboardUnwrapFile(cmd *cobra.Command, args []string) error {
@@ -447,6 +458,11 @@ func runDashboardUnwrapFile(cmd *cobra.Command, args []string) error {
 
 	d, err := parseDashboardFromBytes(raw)
 	if err != nil {
+		return err
+	}
+
+	p, _ := activeProfile()
+	if err := requireOwnership("dashboard", d.ID, d.Owner, p, dashboardUnwrapFileForceOwner); err != nil {
 		return err
 	}
 
@@ -742,6 +758,7 @@ func init() {
 
 	dashboardUnwrapCmd.Flags().StringVar(&dashboardUnwrapDir, "dir", "", "destination directory (required)")
 	dashboardUnwrapCmd.Flags().BoolVar(&dashboardUnwrapForce, "force", false, "overwrite destination if it already exists")
+	dashboardUnwrapCmd.Flags().BoolVar(&dashboardUnwrapForceOwner, "force-owner", false, "unwrap even if the dashboard owner is not the active profile (not editable)")
 	_ = dashboardUnwrapCmd.MarkFlagRequired("dir")
 
 	dashboardUnwrapAllCmd.Flags().StringVar(&dashboardUnwrapAllDir, "dir", "", "destination directory (required)")
@@ -751,6 +768,7 @@ func init() {
 
 	dashboardUnwrapFileCmd.Flags().StringVar(&dashboardUnwrapFileDir, "dir", "", "destination directory (required)")
 	dashboardUnwrapFileCmd.Flags().BoolVar(&dashboardUnwrapFileForce, "force", false, "overwrite destination if it already exists")
+	dashboardUnwrapFileCmd.Flags().BoolVar(&dashboardUnwrapFileForceOwner, "force-owner", false, "unwrap even if the dashboard owner is not the active profile (not editable)")
 	_ = dashboardUnwrapFileCmd.MarkFlagRequired("dir")
 
 	dashboardWrapCmd.Flags().StringVar(&dashboardWrapOut, "out", "", "write rebuilt JSON to this file (default: stdout)")

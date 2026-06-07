@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/carlosprados/og-cli/internal/client"
+	"github.com/carlosprados/og-cli/internal/config"
 	"github.com/carlosprados/og-cli/internal/output"
 	"github.com/carlosprados/og-cli/internal/unwrap"
 	"github.com/spf13/cobra"
@@ -377,8 +378,9 @@ single workspace JSON ready for import.`,
 }
 
 var (
-	workspaceUnwrapDir   string
-	workspaceUnwrapForce bool
+	workspaceUnwrapDir        string
+	workspaceUnwrapForce      bool
+	workspaceUnwrapForceOwner bool
 )
 
 func runWorkspaceUnwrap(cmd *cobra.Command, args []string) error {
@@ -393,6 +395,10 @@ func runWorkspaceUnwrap(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if err := requireOwnership("workspace", w.ID, w.Owner, p, workspaceUnwrapForceOwner); err != nil {
+		return err
+	}
+
 	wsSlugs := make(map[string]bool)
 	wsSlug := unwrap.DedupedSlug(w.Name, w.ID, wsSlugs)
 	wsDir := filepath.Join(workspaceUnwrapDir, wsSlug)
@@ -400,7 +406,7 @@ func runWorkspaceUnwrap(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return unwrapOneWorkspace(c, w, wsDir)
+	return unwrapOneWorkspace(c, w, wsDir, p, workspaceUnwrapForceOwner)
 }
 
 // unwrapOneWorkspace performs the full unwrap including fetching each
@@ -408,7 +414,12 @@ func runWorkspaceUnwrap(cmd *cobra.Command, args []string) error {
 //
 // Dashboard folders are prefixed with NN__ to preserve the array order, so
 // the inverse wrap can re-assemble dashboards in their original sequence.
-func unwrapOneWorkspace(c *client.Client, w *client.Workspace, wsDir string) error {
+//
+// Nested dashboards whose owner does not match the active profile email are
+// skipped with a warning — see the ownership filter for the rationale. When
+// forceOwner is true the ownership check is bypassed, matching the top-level
+// workspace override.
+func unwrapOneWorkspace(c *client.Client, w *client.Workspace, wsDir string, p *config.Profile, forceOwner bool) error {
 	if _, err := unwrap.Unwrap(w, wsDir); err != nil {
 		return err
 	}
@@ -419,6 +430,10 @@ func unwrapOneWorkspace(c *client.Client, w *client.Workspace, wsDir string) err
 	width := dashIndexWidth(len(w.Dashboards))
 	for i, wd := range w.Dashboards {
 		if wd.Dashboard == nil {
+			continue
+		}
+		if !forceOwner && !isOwnedByProfile(wd.Dashboard.Owner, p) {
+			fmt.Fprintf(os.Stderr, "    ⤳ skipped dashboard %s (owner=%q, not editable by you)\n", wd.Dashboard.ID, wd.Dashboard.Owner)
 			continue
 		}
 		dashSlug := indexedDashSlug(i, width, wd.Dashboard.Title, wd.Dashboard.ID, dashSlugs)
@@ -481,9 +496,14 @@ func runWorkspaceUnwrapAll(cmd *cobra.Command, args []string) error {
 	}
 
 	wsSlugs := make(map[string]bool)
-	var ok, failed int
+	var ok, skipped, failed int
 	for i := range wss {
 		w := &wss[i]
+		if !isOwnedByProfile(w.Owner, p) {
+			fmt.Fprintf(os.Stderr, "  ⤳ skipped workspace %s (owner=%q, not editable by you)\n", w.ID, w.Owner)
+			skipped++
+			continue
+		}
 		wsSlug := unwrap.DedupedSlug(w.Name, w.ID, wsSlugs)
 		wsDir := filepath.Join(workspaceUnwrapAllDir, wsSlug)
 		if err := prepareUnwrapTarget(wsDir, workspaceUnwrapAllForce); err != nil {
@@ -491,14 +511,14 @@ func runWorkspaceUnwrapAll(cmd *cobra.Command, args []string) error {
 			failed++
 			continue
 		}
-		if err := unwrapOneWorkspace(c, w, wsDir); err != nil {
+		if err := unwrapOneWorkspace(c, w, wsDir, p, false); err != nil {
 			fmt.Fprintf(os.Stderr, "  ✗ workspace %s: %v\n", w.ID, err)
 			failed++
 			continue
 		}
 		ok++
 	}
-	fmt.Printf("\n%d workspace(s) unwrapped, %d failed.\n", ok, failed)
+	fmt.Printf("\n%d workspace(s) unwrapped, %d skipped (not owned), %d failed.\n", ok, skipped, failed)
 	if failed > 0 {
 		return fmt.Errorf("%d workspace(s) failed", failed)
 	}
@@ -521,8 +541,9 @@ from the OpenGate web UI. Accepts either the raw workspace object or the
 }
 
 var (
-	workspaceUnwrapFileDir   string
-	workspaceUnwrapFileForce bool
+	workspaceUnwrapFileDir        string
+	workspaceUnwrapFileForce      bool
+	workspaceUnwrapFileForceOwner bool
 )
 
 func runWorkspaceUnwrapFile(cmd *cobra.Command, args []string) error {
@@ -533,6 +554,11 @@ func runWorkspaceUnwrapFile(cmd *cobra.Command, args []string) error {
 
 	w, err := parseWorkspaceFromBytes(raw)
 	if err != nil {
+		return err
+	}
+
+	p, _ := activeProfile() // best-effort: no profile means ownership check fails closed
+	if err := requireOwnership("workspace", w.ID, w.Owner, p, workspaceUnwrapFileForceOwner); err != nil {
 		return err
 	}
 
@@ -557,6 +583,10 @@ func runWorkspaceUnwrapFile(cmd *cobra.Command, args []string) error {
 	width := dashIndexWidth(len(w.Dashboards))
 	for i, wd := range w.Dashboards {
 		if wd.Dashboard == nil {
+			continue
+		}
+		if !workspaceUnwrapFileForceOwner && !isOwnedByProfile(wd.Dashboard.Owner, p) {
+			fmt.Fprintf(os.Stderr, "    ⤳ skipped dashboard %s (owner=%q, not editable by you)\n", wd.Dashboard.ID, wd.Dashboard.Owner)
 			continue
 		}
 		dashSlug := indexedDashSlug(i, width, wd.Dashboard.Title, wd.Dashboard.ID, dashSlugs)
@@ -837,6 +867,7 @@ func init() {
 
 	workspaceUnwrapCmd.Flags().StringVar(&workspaceUnwrapDir, "dir", "", "destination directory (required)")
 	workspaceUnwrapCmd.Flags().BoolVar(&workspaceUnwrapForce, "force", false, "overwrite destination if it already exists")
+	workspaceUnwrapCmd.Flags().BoolVar(&workspaceUnwrapForceOwner, "force-owner", false, "unwrap even if the workspace owner is not the active profile (not editable)")
 	_ = workspaceUnwrapCmd.MarkFlagRequired("dir")
 
 	workspaceUnwrapAllCmd.Flags().StringVar(&workspaceUnwrapAllDir, "dir", "", "destination directory (required)")
@@ -845,6 +876,7 @@ func init() {
 
 	workspaceUnwrapFileCmd.Flags().StringVar(&workspaceUnwrapFileDir, "dir", "", "destination directory (required)")
 	workspaceUnwrapFileCmd.Flags().BoolVar(&workspaceUnwrapFileForce, "force", false, "overwrite destination if it already exists")
+	workspaceUnwrapFileCmd.Flags().BoolVar(&workspaceUnwrapFileForceOwner, "force-owner", false, "unwrap even if the workspace owner is not the active profile (not editable)")
 	_ = workspaceUnwrapFileCmd.MarkFlagRequired("dir")
 
 	workspaceWrapCmd.Flags().StringVar(&workspaceWrapOut, "out", "", "write rebuilt JSON to this file (default: stdout)")

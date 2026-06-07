@@ -130,6 +130,12 @@ og dashboard pull <dash-id> --dir dashroot/
 og dashboard pull-all --dir dashroot/ [--workspace <ws-id>]
 og dashboard pull-file dash.json --dir dashroot/
 # all accept --force to overwrite an existing destination
+# Ownership filter: pull only writes items the active profile owns (owner == profile email).
+#   single-item (pull / pull-file): REFUSES with the owner shown if not yours
+#   bulk (pull-all):                SKIPS non-owned items with a warning, continues
+#   --force-owner overrides the single-item refusal (on `workspace pull` it also
+#                 forces the nested dashboards). Items with owner=null (system/shared)
+#                 are never "owned" — they always need --force-owner.
 
 # Wrap — tree → single JSON (no upload)
 og workspace wrap wsroot/<workspace-slug> --out ws.json
