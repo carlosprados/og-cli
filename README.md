@@ -767,6 +767,34 @@ og iot collect sense-001 wp 1013
 og iot collect-file sense-001 -f payload.json
 ```
 
+#### MQTT (South plane)
+
+og also speaks the OpenGate **MQTT** south connector — publish telemetry, observe
+traffic, and act as a full **virtual device**. Auth is `username = device-id`,
+`password = API key` (broker derived from the profile host, port 1883; `--tls` for
+8883). Topics default to `odm/iot/<id>` (data), `odm/request/<id>` (operations) and
+`odm/response/<id>` (responses), but **any `--topic` is accepted** — connector
+functions define their own southCriterias, so topics are not fixed.
+
+```bash
+# Publish data over MQTT (instead of HTTP collect)
+og iot publish sense-001 temperature 21.5
+og iot publish sense-001 -f payload.json
+og iot publish sense-001 --topic my/cf/route --raw '{"raw":21,"id":"abc"}'   # custom CF route
+
+# Observe any topic live (debug CFs / operations); --count N to stop after N
+og iot subscribe sense-001                      # watch incoming operations
+og iot subscribe sense-001 --topic odm/iot/sense-001
+
+# Run as a virtual device: auto-answer operations launched against it
+og iot device sense-001                          # answers SUCCESSFUL on odm/response/<id>
+og iot device sense-001 --refresh-data refresh.json   # also fulfils REFRESH_INFO with data
+```
+
+`og iot device` subscribes to the request topic and publishes an acknowledging
+response for every operation it receives, so a `og jobs create` REBOOT_EQUIPMENT /
+REFRESH_INFO targeting the device completes against the virtual device.
+
 Payload format:
 
 ```json
@@ -905,8 +933,11 @@ For a detailed guide on how prompts, resources, and tools work together, see [do
 | `tasks_get` | Get task detail |
 | `tasks_create` | Create operation task |
 | `tasks_cancel` | Cancel a task |
-| `iot_collect` | Send a single data point to a device |
-| `iot_collect_payload` | Send a full IoT payload to a device |
+| `iot_collect` | Send a single data point to a device (HTTP South) |
+| `iot_collect_payload` | Send a full IoT payload to a device (HTTP South) |
+| `iot_mqtt_publish` | Publish data/raw body over MQTT (topic overridable for CFs) |
+| `iot_mqtt_subscribe` | Subscribe to a topic and collect up to N messages (bounded) |
+| `iot_mqtt_device` | Virtual device: auto-answer operations over MQTT (bounded) |
 | `workspaces_list` | List workspaces (optionally with embedded dashboards) |
 | `workspaces_get` | Get a workspace by ID |
 | `workspaces_export` | Export a workspace via `/workspaces/export/{id}` |

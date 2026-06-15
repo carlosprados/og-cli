@@ -43,7 +43,8 @@ When the user says...          → Use this tool
 "provision function", "provision processor", "bulk provisioning", "provisión masiva", "procesador de provisión" → provision_list, provision_get, provision_create, provision_update, provision_delete, provision_plan, provision_bulk, provision_bulk_status, provision_bulk_details (org-scoped; script in scriptProcessor.script with normalizeRawObject + actionsPlanning; ALWAYS provision_plan first to dry-run an Excel before provision_bulk mutates data)
 "operation type", "tipo de operación", "define operation", "custom operation" → optypes_catalog, optypes_search, optypes_get, optypes_create, optypes_update, optypes_delete
 "task", "tarea", "scheduled", "programada" → tasks_search, tasks_get, tasks_create, tasks_cancel
-"send data", "enviar dato", "collect", "publicar" → iot_collect, iot_collect_payload
+"send data", "enviar dato", "collect", "publicar" → iot_collect, iot_collect_payload (HTTP South)
+"MQTT", "publish/subscribe", "virtual device", "dispositivo virtual", "responder operaciones" → iot_mqtt_publish, iot_mqtt_subscribe, iot_mqtt_device (MQTT South; broker auth user=deviceId pass=apiKey; topics default odm/iot|request|response/{id} but are OVERRIDABLE — connector functions define custom southCriterias; iot_mqtt_device auto-answers operation jobs)
 "workspace", "espacio de trabajo" → workspaces_list, workspaces_get, workspaces_export, workspaces_import, workspaces_update, workspaces_delete
 "dashboard", "panel", "cuadro de mando" → dashboards_list, dashboards_get, dashboards_export, dashboards_import, dashboards_update, dashboards_delete
 
