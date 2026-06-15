@@ -15,11 +15,10 @@ import (
 // registerIoTMQTTTools adds the MQTT south-plane tools. host is the profile host
 // (scheme stripped for the broker); apiKey is the device/user API key used as the
 // MQTT password (username = device id).
-func registerIoTMQTTTools(s *server.MCPServer, host, apiKey string) {
-	broker := opengate.MQTTHostFromProfile(host)
-	s.AddTool(iotMQTTPublishTool(), iotMQTTPublishHandler(broker, apiKey))
-	s.AddTool(iotMQTTSubscribeTool(), iotMQTTSubscribeHandler(broker, apiKey))
-	s.AddTool(iotMQTTDeviceTool(), iotMQTTDeviceHandler(broker, apiKey))
+func registerIoTMQTTTools(s *server.MCPServer, p *provider) {
+	s.AddTool(iotMQTTPublishTool(), iotMQTTPublishHandler(p))
+	s.AddTool(iotMQTTSubscribeTool(), iotMQTTSubscribeHandler(p))
+	s.AddTool(iotMQTTDeviceTool(), iotMQTTDeviceHandler(p))
 }
 
 func mqttArgInt(args map[string]any, key string, def int) int {
@@ -60,8 +59,13 @@ Default topic is odm/iot/<device_id>; override 'topic' to publish to a connector
 	)
 }
 
-func iotMQTTPublishHandler(broker, apiKey string) server.ToolHandlerFunc {
+func iotMQTTPublishHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		broker := opengate.MQTTHostFromProfile(p.host)
+		apiKey, errRes := p.apiKey(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		if apiKey == "" {
 			return mcp.NewToolResultError("no API key available. Login first."), nil
 		}
@@ -108,8 +112,13 @@ func iotMQTTSubscribeTool() mcp.Tool {
 	)
 }
 
-func iotMQTTSubscribeHandler(broker, apiKey string) server.ToolHandlerFunc {
+func iotMQTTSubscribeHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		broker := opengate.MQTTHostFromProfile(p.host)
+		apiKey, errRes := p.apiKey(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		if apiKey == "" {
 			return mcp.NewToolResultError("no API key available. Login first."), nil
 		}
@@ -177,8 +186,13 @@ func iotMQTTDeviceTool() mcp.Tool {
 	)
 }
 
-func iotMQTTDeviceHandler(broker, apiKey string) server.ToolHandlerFunc {
+func iotMQTTDeviceHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		broker := opengate.MQTTHostFromProfile(p.host)
+		apiKey, errRes := p.apiKey(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		if apiKey == "" {
 			return mcp.NewToolResultError("no API key available. Login first."), nil
 		}

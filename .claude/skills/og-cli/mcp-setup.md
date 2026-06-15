@@ -9,7 +9,23 @@ Claude Desktop, LM Studio, ...) can drive OpenGate through tools.
 og login -e user@example.com     # REQUIRED first — server reads tokens from ~/.og/config.yaml
 og mcp                           # stdio transport (default, what clients spawn)
 og mcp --http :8080              # HTTP transport for remote/debug setups
+og mcp --http :8080 --multi-tenant   # HTTP, per-request credentials from headers
 ```
+
+## Multi-tenant HTTP mode (one server, many users)
+
+Two distinct ways to serve multiple identities:
+
+- **Per-profile (stdio):** one og process per profile (`--profile production`), each
+  with its own startup credentials. Good for a few fixed tenants on one machine.
+- **`--multi-tenant` (HTTP):** ONE stateless server; credentials arrive **per request
+  in HTTP headers**, never in tool args (which would pass through the LLM) and never
+  from the startup profile. For multi-user chatbots. Required headers per request:
+  - `Authorization: Bearer <north JWT>` — every tool.
+  - `X-OG-Web-Token: <web JWT>` — workspace/dashboard tools.
+  - `X-OG-Api-Key: <api key>` — South/IoT tools.
+  A tool errors if a credential it needs is absent (no cross-user fallback); the
+  `login` tool is dropped (it would leak a JWT to the LLM). Put TLS in front.
 
 ## Client configuration
 

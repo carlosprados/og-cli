@@ -5,18 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerDatasetTools(s *server.MCPServer, c *opengate.Client) {
-	s.AddTool(dsListTool(), dsListHandler(c))
-	s.AddTool(dsGetTool(), dsGetHandler(c))
-	s.AddTool(dsCreateTool(), dsCreateHandler(c))
-	s.AddTool(dsUpdateTool(), dsUpdateHandler(c))
-	s.AddTool(dsDeleteTool(), dsDeleteHandler(c))
-	s.AddTool(dsDataTool(), dsDataHandler(c))
+func registerDatasetTools(s *server.MCPServer, p *provider) {
+	s.AddTool(dsListTool(), dsListHandler(p))
+	s.AddTool(dsGetTool(), dsGetHandler(p))
+	s.AddTool(dsCreateTool(), dsCreateHandler(p))
+	s.AddTool(dsUpdateTool(), dsUpdateHandler(p))
+	s.AddTool(dsDeleteTool(), dsDeleteHandler(p))
+	s.AddTool(dsDataTool(), dsDataHandler(p))
 }
 
 func dsListTool() mcp.Tool {
@@ -26,8 +25,12 @@ func dsListTool() mcp.Tool {
 	)
 }
 
-func dsListHandler(c *opengate.Client) server.ToolHandlerFunc {
+func dsListHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		if org == "" {
@@ -50,8 +53,12 @@ func dsGetTool() mcp.Tool {
 	)
 }
 
-func dsGetHandler(c *opengate.Client) server.ToolHandlerFunc {
+func dsGetHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -75,8 +82,12 @@ func dsCreateTool() mcp.Tool {
 	)
 }
 
-func dsCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func dsCreateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		body, _ := args["body"].(string)
@@ -99,8 +110,12 @@ func dsUpdateTool() mcp.Tool {
 	)
 }
 
-func dsUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func dsUpdateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -123,8 +138,12 @@ func dsDeleteTool() mcp.Tool {
 	)
 }
 
-func dsDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
+func dsDeleteHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -152,8 +171,12 @@ Use 'query' to filter by column names defined in the dataset.`),
 	)
 }
 
-func dsDataHandler(c *opengate.Client) server.ToolHandlerFunc {
+func dsDataHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)

@@ -11,11 +11,11 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerIoTTools(s *server.MCPServer, host, apiKey string) {
-	s.AddTool(iotCollectTool(), iotCollectHandler(host, apiKey))
-	s.AddTool(iotCollectPayloadTool(), iotCollectPayloadHandler(host, apiKey))
-	s.AddTool(iotCollectRawTool(), iotCollectRawHandler(host, apiKey))
-	registerIoTMQTTTools(s, host, apiKey)
+func registerIoTTools(s *server.MCPServer, p *provider) {
+	s.AddTool(iotCollectTool(), iotCollectHandler(p))
+	s.AddTool(iotCollectPayloadTool(), iotCollectPayloadHandler(p))
+	s.AddTool(iotCollectRawTool(), iotCollectRawHandler(p))
+	registerIoTMQTTTools(s, p)
 }
 
 // --- collect raw (HTTP connector-function south route) ---
@@ -32,8 +32,13 @@ Unlike iot_collect (structured payload to collect/iot, which bypasses connector 
 	)
 }
 
-func iotCollectRawHandler(host, apiKey string) server.ToolHandlerFunc {
+func iotCollectRawHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		host := p.host
+		apiKey, errRes := p.apiKey(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		if apiKey == "" {
 			return mcp.NewToolResultError("no API key available. Login first."), nil
 		}
@@ -79,8 +84,13 @@ Examples:
 	)
 }
 
-func iotCollectHandler(host, apiKey string) server.ToolHandlerFunc {
+func iotCollectHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		host := p.host
+		apiKey, errRes := p.apiKey(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		if apiKey == "" {
 			return mcp.NewToolResultError("no API key available. Login first."), nil
 		}
@@ -121,8 +131,13 @@ The payload follows the OpenGate collection format with version, datastreams, an
 	)
 }
 
-func iotCollectPayloadHandler(host, apiKey string) server.ToolHandlerFunc {
+func iotCollectPayloadHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		host := p.host
+		apiKey, errRes := p.apiKey(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		if apiKey == "" {
 			return mcp.NewToolResultError("no API key available. Login first."), nil
 		}

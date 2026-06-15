@@ -12,15 +12,15 @@ import (
 
 const defaultRulesChannel = "default_channel"
 
-func registerRuleTools(s *server.MCPServer, c *opengate.Client, apiKey string) {
-	s.AddTool(rulesSearchTool(), rulesSearchHandler(c))
-	s.AddTool(rulesGetTool(), rulesGetHandler(c))
-	s.AddTool(rulesCreateTool(), rulesCreateHandler(c))
-	s.AddTool(rulesUpdateTool(), rulesUpdateHandler(c))
-	s.AddTool(rulesDeleteTool(), rulesDeleteHandler(c))
-	s.AddTool(rulesSetActiveTool(), rulesSetActiveHandler(c))
-	s.AddTool(rulesCatalogTool(), rulesCatalogHandler(c))
-	s.AddTool(rulesLogsTool(), rulesLogsHandler(c, apiKey))
+func registerRuleTools(s *server.MCPServer, p *provider) {
+	s.AddTool(rulesSearchTool(), rulesSearchHandler(p))
+	s.AddTool(rulesGetTool(), rulesGetHandler(p))
+	s.AddTool(rulesCreateTool(), rulesCreateHandler(p))
+	s.AddTool(rulesUpdateTool(), rulesUpdateHandler(p))
+	s.AddTool(rulesDeleteTool(), rulesDeleteHandler(p))
+	s.AddTool(rulesSetActiveTool(), rulesSetActiveHandler(p))
+	s.AddTool(rulesCatalogTool(), rulesCatalogHandler(p))
+	s.AddTool(rulesLogsTool(), rulesLogsHandler(p))
 }
 
 // --- catalog ---
@@ -31,8 +31,12 @@ func rulesCatalogTool() mcp.Tool {
 	)
 }
 
-func rulesCatalogHandler(c *opengate.Client) server.ToolHandlerFunc {
+func rulesCatalogHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		data, err := c.RulesCatalog()
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("catalog failed: %v", err)), nil
@@ -55,8 +59,16 @@ func rulesLogsTool() mcp.Tool {
 	)
 }
 
-func rulesLogsHandler(c *opengate.Client, apiKey string) server.ToolHandlerFunc {
+func rulesLogsHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
+		apiKey, errRes := p.apiKey(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		return functionLogsResult(c, apiKey, opengate.LoggerRules, ruleChannelArg(args), args)
 	}
@@ -89,8 +101,12 @@ Examples:
 	)
 }
 
-func rulesSearchHandler(c *opengate.Client) server.ToolHandlerFunc {
+func rulesSearchHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		filter, err := mcpBuildFilter(request.GetArguments())
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid query: %v", err)), nil
@@ -118,8 +134,12 @@ func rulesGetTool() mcp.Tool {
 	)
 }
 
-func rulesGetHandler(c *opengate.Client) server.ToolHandlerFunc {
+func rulesGetHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -156,8 +176,12 @@ ADVANCED rule body shape (JavaScript decides; use openAlarm()/closeAlarm() helpe
 	)
 }
 
-func rulesCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func rulesCreateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		body, _ := args["body"].(string)
@@ -183,8 +207,12 @@ func rulesUpdateTool() mcp.Tool {
 	)
 }
 
-func rulesUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func rulesUpdateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -210,8 +238,12 @@ func rulesDeleteTool() mcp.Tool {
 	)
 }
 
-func rulesDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
+func rulesDeleteHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -237,8 +269,12 @@ func rulesSetActiveTool() mcp.Tool {
 	)
 }
 
-func rulesSetActiveHandler(c *opengate.Client) server.ToolHandlerFunc {
+func rulesSetActiveHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)

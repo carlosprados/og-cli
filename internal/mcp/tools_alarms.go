@@ -11,11 +11,11 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerAlarmTools(s *server.MCPServer, c *opengate.Client) {
-	s.AddTool(alarmsSearchTool(), alarmsSearchHandler(c))
-	s.AddTool(alarmsSummaryTool(), alarmsSummaryHandler(c))
-	s.AddTool(alarmsAttendTool(), alarmsAttendHandler(c))
-	s.AddTool(alarmsCloseTool(), alarmsCloseHandler(c))
+func registerAlarmTools(s *server.MCPServer, p *provider) {
+	s.AddTool(alarmsSearchTool(), alarmsSearchHandler(p))
+	s.AddTool(alarmsSummaryTool(), alarmsSummaryHandler(p))
+	s.AddTool(alarmsAttendTool(), alarmsAttendHandler(p))
+	s.AddTool(alarmsCloseTool(), alarmsCloseHandler(p))
 }
 
 // --- search ---
@@ -51,8 +51,12 @@ Examples:
 	)
 }
 
-func alarmsSearchHandler(c *opengate.Client) server.ToolHandlerFunc {
+func alarmsSearchHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 
 		filter, err := mcpBuildFilter(args)
@@ -87,8 +91,12 @@ func alarmsSummaryTool() mcp.Tool {
 	)
 }
 
-func alarmsSummaryHandler(c *opengate.Client) server.ToolHandlerFunc {
+func alarmsSummaryHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 
 		filter, err := mcpBuildFilter(args)
@@ -124,8 +132,12 @@ func alarmsAttendTool() mcp.Tool {
 	)
 }
 
-func alarmsAttendHandler(c *opengate.Client) server.ToolHandlerFunc {
+func alarmsAttendHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		return handleAlarmAction(c, "attend", args)
 	}
@@ -146,8 +158,12 @@ func alarmsCloseTool() mcp.Tool {
 	)
 }
 
-func alarmsCloseHandler(c *opengate.Client) server.ToolHandlerFunc {
+func alarmsCloseHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		return handleAlarmAction(c, "close", args)
 	}

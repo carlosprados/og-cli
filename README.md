@@ -818,11 +818,29 @@ Payload format:
 Start the MCP (Model Context Protocol) server, exposing all commands as LLM tools.
 
 ```bash
-og mcp              # stdio transport (default)
-og mcp --http :8080 # HTTP transport
+og mcp                            # stdio transport (default)
+og mcp --http :8080               # HTTP transport (single-tenant: startup profile)
+og mcp --http :8080 --multi-tenant # HTTP, per-request credentials from headers
 ```
 
 **Prerequisites:** run `og login` first to store credentials.
+
+#### Multi-tenant HTTP mode
+
+For a multi-user chatbot, `--multi-tenant` makes the server a **stateless conduit**:
+credentials are read **per request from HTTP headers**, never from tool arguments
+(which would flow through the LLM) and never from the startup profile. Each request
+must carry the caller's own identity:
+
+- `Authorization: Bearer <north JWT>` — required for every tool.
+- `X-OG-Web-Token: <web JWT>` — required by workspace/dashboard tools (OpenGate's
+  north and web planes use different JWTs).
+- `X-OG-Api-Key: <api key>` — required by South/IoT tools.
+
+A tool returns an error if a credential it needs is absent (no cross-user fallback).
+The `login` tool is **not exposed** in this mode (it would return a JWT to the LLM).
+**Run TLS in front** — tokens travel in headers. The host stays a fixed server config
+(one og MCP server = one OpenGate instance); only credentials vary per request.
 
 Configuration for MCP clients:
 

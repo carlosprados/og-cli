@@ -63,8 +63,9 @@ audit **recommends (a)** — the current split is sane; it's just undocumented.
 
 ## 3. Findings & remediation (prioritised for v1.0)
 
-> **Progress (branch `og-cli/v1-parity`, 2026-06-15):** B2 ✅, A2 ✅, A3 ✅, A3b ✅ —
-> see "Done" notes inline. Remaining for v1.0: **B1 (auth)**, P2 docs + CA default, P3 tests/scope.
+> **Progress (branch `og-cli/v1-parity`):** B1 ✅, B2 ✅, A2 ✅, A3 ✅, A3b ✅ — see "Done"
+> notes inline. Remaining for v1.0: P2 (surface-split docs ✅ in README/skill, **MQTT CA**),
+> P3 (test backfill, assets/subscribers scope decision).
 
 ### P0 — v1.0 blockers (Charlie-confirmed)
 
@@ -73,6 +74,12 @@ audit **recommends (a)** — the current split is sane; it's just undocumented.
   No per-request auth / header passthrough. Blocks multi-tenant MCP hosting.
   Design already drafted (memory `project-mcp-multitenant-auth`). _Files:_
   `internal/mcp/server.go`, `cmd/mcp.go`.
+  **✅ DONE** — `og mcp --http --multi-tenant`: stateless per-request credentials from
+  headers (Authorization Bearer / X-OG-Web-Token / X-OG-Api-Key) via a `provider` seam
+  (`internal/mcp/session.go`) + `WithHTTPContextFunc`. Per-tool requirement (Bearer always;
+  web/apikey only where used); no startup fallback; login tool dropped in MT. Verified live:
+  missing Bearer → error, valid Bearer → real devices_search. OIDC-agnostic (token provenance
+  is a backend concern).
 - **[B2] HTTP south custom-route collect.** No command posts raw data to
   `/south/v80/devices/{id}/{uri-path}` (a connector function's HTTP southCriteria
   route). MQTT covers its own custom topics via `og iot publish --topic --raw`, but

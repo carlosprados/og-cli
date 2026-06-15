@@ -5,18 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerWorkspaceTools(s *server.MCPServer, c *opengate.Client) {
-	s.AddTool(wsListTool(), wsListHandler(c))
-	s.AddTool(wsGetTool(), wsGetHandler(c))
-	s.AddTool(wsExportTool(), wsExportHandler(c))
-	s.AddTool(wsImportTool(), wsImportHandler(c))
-	s.AddTool(wsUpdateTool(), wsUpdateHandler(c))
-	s.AddTool(wsDeleteTool(), wsDeleteHandler(c))
+func registerWorkspaceTools(s *server.MCPServer, p *provider) {
+	s.AddTool(wsListTool(), wsListHandler(p))
+	s.AddTool(wsGetTool(), wsGetHandler(p))
+	s.AddTool(wsExportTool(), wsExportHandler(p))
+	s.AddTool(wsImportTool(), wsImportHandler(p))
+	s.AddTool(wsUpdateTool(), wsUpdateHandler(p))
+	s.AddTool(wsDeleteTool(), wsDeleteHandler(p))
 }
 
 func wsListTool() mcp.Tool {
@@ -26,8 +25,12 @@ func wsListTool() mcp.Tool {
 	)
 }
 
-func wsListHandler(c *opengate.Client) server.ToolHandlerFunc {
+func wsListHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		full, _ := args["full"].(bool)
 		wss, err := c.ListWorkspaces(full)
@@ -47,8 +50,12 @@ func wsGetTool() mcp.Tool {
 	)
 }
 
-func wsGetHandler(c *opengate.Client) server.ToolHandlerFunc {
+func wsGetHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		id, _ := args["id"].(string)
 		if id == "" {
@@ -71,8 +78,12 @@ func wsExportTool() mcp.Tool {
 	)
 }
 
-func wsExportHandler(c *opengate.Client) server.ToolHandlerFunc {
+func wsExportHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		id, _ := args["id"].(string)
 		if id == "" {
@@ -93,8 +104,12 @@ func wsImportTool() mcp.Tool {
 	)
 }
 
-func wsImportHandler(c *opengate.Client) server.ToolHandlerFunc {
+func wsImportHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		body, _ := args["body"].(string)
 		if body == "" {
@@ -119,8 +134,12 @@ func wsUpdateTool() mcp.Tool {
 	)
 }
 
-func wsUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func wsUpdateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		id, _ := args["id"].(string)
 		body, _ := args["body"].(string)
@@ -141,8 +160,12 @@ func wsDeleteTool() mcp.Tool {
 	)
 }
 
-func wsDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
+func wsDeleteHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		id, _ := args["id"].(string)
 		if id == "" {

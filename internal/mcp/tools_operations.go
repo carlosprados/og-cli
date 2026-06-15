@@ -5,21 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerOperationTools(s *server.MCPServer, c *opengate.Client) {
-	s.AddTool(jobsSearchTool(), jobsSearchHandler(c))
-	s.AddTool(jobsGetTool(), jobsGetHandler(c))
-	s.AddTool(jobsCreateTool(), jobsCreateHandler(c))
-	s.AddTool(jobsCancelTool(), jobsCancelHandler(c))
-	s.AddTool(jobsOpsTool(), jobsOpsHandler(c))
-	s.AddTool(tasksSearchTool(), tasksSearchHandler(c))
-	s.AddTool(tasksGetTool(), tasksGetHandler(c))
-	s.AddTool(tasksCreateTool(), tasksCreateHandler(c))
-	s.AddTool(tasksCancelTool(), tasksCancelHandler(c))
+func registerOperationTools(s *server.MCPServer, p *provider) {
+	s.AddTool(jobsSearchTool(), jobsSearchHandler(p))
+	s.AddTool(jobsGetTool(), jobsGetHandler(p))
+	s.AddTool(jobsCreateTool(), jobsCreateHandler(p))
+	s.AddTool(jobsCancelTool(), jobsCancelHandler(p))
+	s.AddTool(jobsOpsTool(), jobsOpsHandler(p))
+	s.AddTool(tasksSearchTool(), tasksSearchHandler(p))
+	s.AddTool(tasksGetTool(), tasksGetHandler(p))
+	s.AddTool(tasksCreateTool(), tasksCreateHandler(p))
+	s.AddTool(tasksCancelTool(), tasksCancelHandler(p))
 }
 
 // --- jobs search ---
@@ -35,8 +34,12 @@ Common fields: jobs.request.name, jobs.report.summary.status (IN_PROGRESS, FINIS
 	)
 }
 
-func jobsSearchHandler(c *opengate.Client) server.ToolHandlerFunc {
+func jobsSearchHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		filter, err := mcpBuildFilter(request.GetArguments())
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid query: %v", err)), nil
@@ -59,8 +62,12 @@ func jobsGetTool() mcp.Tool {
 	)
 }
 
-func jobsGetHandler(c *opengate.Client) server.ToolHandlerFunc {
+func jobsGetHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		id, _ := request.GetArguments()["id"].(string)
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
@@ -85,8 +92,12 @@ Example for REFRESH_INFO on a device:
 	)
 }
 
-func jobsCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func jobsCreateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		body, _ := request.GetArguments()["body"].(string)
 		if body == "" {
 			return mcp.NewToolResultError("body is required"), nil
@@ -108,8 +119,12 @@ func jobsCancelTool() mcp.Tool {
 	)
 }
 
-func jobsCancelHandler(c *opengate.Client) server.ToolHandlerFunc {
+func jobsCancelHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		id, _ := request.GetArguments()["id"].(string)
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
@@ -130,8 +145,12 @@ func jobsOpsTool() mcp.Tool {
 	)
 }
 
-func jobsOpsHandler(c *opengate.Client) server.ToolHandlerFunc {
+func jobsOpsHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		id, _ := request.GetArguments()["id"].(string)
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
@@ -158,8 +177,12 @@ Common fields: tasks.name, tasks.state (ACTIVE, PAUSED, FINISHED)`),
 	)
 }
 
-func tasksSearchHandler(c *opengate.Client) server.ToolHandlerFunc {
+func tasksSearchHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		filter, err := mcpBuildFilter(request.GetArguments())
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid query: %v", err)), nil
@@ -182,8 +205,12 @@ func tasksGetTool() mcp.Tool {
 	)
 }
 
-func tasksGetHandler(c *opengate.Client) server.ToolHandlerFunc {
+func tasksGetHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		id, _ := request.GetArguments()["id"].(string)
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
@@ -205,8 +232,12 @@ func tasksCreateTool() mcp.Tool {
 	)
 }
 
-func tasksCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func tasksCreateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		body, _ := request.GetArguments()["body"].(string)
 		if body == "" {
 			return mcp.NewToolResultError("body is required"), nil
@@ -228,8 +259,12 @@ func tasksCancelTool() mcp.Tool {
 	)
 }
 
-func tasksCancelHandler(c *opengate.Client) server.ToolHandlerFunc {
+func tasksCancelHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		id, _ := request.GetArguments()["id"].(string)
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil

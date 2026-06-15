@@ -8,17 +8,16 @@ import (
 
 	"github.com/carlosprados/og-cli/internal/query"
 	"github.com/carlosprados/og-cli/internal/views"
-	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerDeviceTools(s *server.MCPServer, c *opengate.Client) {
-	s.AddTool(devicesSearchTool(), devicesSearchHandler(c))
-	s.AddTool(devicesGetTool(), devicesGetHandler(c))
-	s.AddTool(devicesCreateTool(), devicesCreateHandler(c))
-	s.AddTool(devicesUpdateTool(), devicesUpdateHandler(c))
-	s.AddTool(devicesDeleteTool(), devicesDeleteHandler(c))
+func registerDeviceTools(s *server.MCPServer, p *provider) {
+	s.AddTool(devicesSearchTool(), devicesSearchHandler(p))
+	s.AddTool(devicesGetTool(), devicesGetHandler(p))
+	s.AddTool(devicesCreateTool(), devicesCreateHandler(p))
+	s.AddTool(devicesUpdateTool(), devicesUpdateHandler(p))
+	s.AddTool(devicesDeleteTool(), devicesDeleteHandler(p))
 }
 
 // --- search ---
@@ -77,8 +76,12 @@ Examples:
 	)
 }
 
-func devicesSearchHandler(c *opengate.Client) server.ToolHandlerFunc {
+func devicesSearchHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 
 		filter, err := mcpBuildFilter(args)
@@ -176,8 +179,12 @@ func devicesGetTool() mcp.Tool {
 	)
 }
 
-func devicesGetHandler(c *opengate.Client) server.ToolHandlerFunc {
+func devicesGetHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		orgName, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -211,8 +218,12 @@ func devicesCreateTool() mcp.Tool {
 	)
 }
 
-func devicesCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func devicesCreateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		orgName, _ := args["organization"].(string)
 		body, _ := args["body"].(string)
@@ -249,8 +260,12 @@ func devicesUpdateTool() mcp.Tool {
 	)
 }
 
-func devicesUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func devicesUpdateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		orgName, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -284,8 +299,12 @@ func devicesDeleteTool() mcp.Tool {
 	)
 }
 
-func devicesDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
+func devicesDeleteHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		orgName, _ := args["organization"].(string)
 		id, _ := args["id"].(string)

@@ -6,21 +6,20 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerProvisionTools(s *server.MCPServer, c *opengate.Client) {
-	s.AddTool(provisionListTool(), provisionListHandler(c))
-	s.AddTool(provisionGetTool(), provisionGetHandler(c))
-	s.AddTool(provisionCreateTool(), provisionCreateHandler(c))
-	s.AddTool(provisionUpdateTool(), provisionUpdateHandler(c))
-	s.AddTool(provisionDeleteTool(), provisionDeleteHandler(c))
-	s.AddTool(provisionPlanTool(), provisionPlanHandler(c))
-	s.AddTool(provisionBulkTool(), provisionBulkHandler(c))
-	s.AddTool(provisionBulkStatusTool(), provisionBulkStatusHandler(c))
-	s.AddTool(provisionBulkDetailsTool(), provisionBulkDetailsHandler(c))
+func registerProvisionTools(s *server.MCPServer, p *provider) {
+	s.AddTool(provisionListTool(), provisionListHandler(p))
+	s.AddTool(provisionGetTool(), provisionGetHandler(p))
+	s.AddTool(provisionCreateTool(), provisionCreateHandler(p))
+	s.AddTool(provisionUpdateTool(), provisionUpdateHandler(p))
+	s.AddTool(provisionDeleteTool(), provisionDeleteHandler(p))
+	s.AddTool(provisionPlanTool(), provisionPlanHandler(p))
+	s.AddTool(provisionBulkTool(), provisionBulkHandler(p))
+	s.AddTool(provisionBulkStatusTool(), provisionBulkStatusHandler(p))
+	s.AddTool(provisionBulkDetailsTool(), provisionBulkDetailsHandler(p))
 }
 
 const provisionScriptContract = `A provision function ("provision processor") is a JavaScript script that turns inbound rows (typically an Excel sheet) into ODM provisioning actions. It MUST implement two functions:
@@ -42,8 +41,12 @@ func provisionListTool() mcp.Tool {
 	)
 }
 
-func provisionListHandler(c *opengate.Client) server.ToolHandlerFunc {
+func provisionListHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org := provisionStringArg(args, "organization")
 		if org == "" {
@@ -71,8 +74,12 @@ func provisionGetTool() mcp.Tool {
 	)
 }
 
-func provisionGetHandler(c *opengate.Client) server.ToolHandlerFunc {
+func provisionGetHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org := provisionStringArg(args, "organization")
 		id := provisionStringArg(args, "id")
@@ -102,8 +109,12 @@ Note: name must match ^[a-zA-Z0-9]+$ (alphanumeric only).`),
 	)
 }
 
-func provisionCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func provisionCreateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org := provisionStringArg(args, "organization")
 		body := provisionStringArg(args, "body")
@@ -128,8 +139,12 @@ func provisionUpdateTool() mcp.Tool {
 	)
 }
 
-func provisionUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func provisionUpdateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org := provisionStringArg(args, "organization")
 		id := provisionStringArg(args, "id")
@@ -154,8 +169,12 @@ func provisionDeleteTool() mcp.Tool {
 	)
 }
 
-func provisionDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
+func provisionDeleteHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org := provisionStringArg(args, "organization")
 		id := provisionStringArg(args, "id")
@@ -181,8 +200,12 @@ func provisionPlanTool() mcp.Tool {
 	)
 }
 
-func provisionPlanHandler(c *opengate.Client) server.ToolHandlerFunc {
+func provisionPlanHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org := provisionStringArg(args, "organization")
 		id := provisionStringArg(args, "id")
@@ -216,8 +239,12 @@ func provisionBulkTool() mcp.Tool {
 	)
 }
 
-func provisionBulkHandler(c *opengate.Client) server.ToolHandlerFunc {
+func provisionBulkHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org := provisionStringArg(args, "organization")
 		id := provisionStringArg(args, "id")
@@ -246,8 +273,12 @@ func provisionBulkStatusTool() mcp.Tool {
 	)
 }
 
-func provisionBulkStatusHandler(c *opengate.Client) server.ToolHandlerFunc {
+func provisionBulkStatusHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org := provisionStringArg(args, "organization")
 		bulkID := provisionStringArg(args, "bulk_id")
@@ -273,8 +304,12 @@ func provisionBulkDetailsTool() mcp.Tool {
 	)
 }
 
-func provisionBulkDetailsHandler(c *opengate.Client) server.ToolHandlerFunc {
+func provisionBulkDetailsHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org := provisionStringArg(args, "organization")
 		bulkID := provisionStringArg(args, "bulk_id")
