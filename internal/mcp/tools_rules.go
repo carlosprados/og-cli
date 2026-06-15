@@ -12,13 +12,54 @@ import (
 
 const defaultRulesChannel = "default_channel"
 
-func registerRuleTools(s *server.MCPServer, c *opengate.Client) {
+func registerRuleTools(s *server.MCPServer, c *opengate.Client, apiKey string) {
 	s.AddTool(rulesSearchTool(), rulesSearchHandler(c))
 	s.AddTool(rulesGetTool(), rulesGetHandler(c))
 	s.AddTool(rulesCreateTool(), rulesCreateHandler(c))
 	s.AddTool(rulesUpdateTool(), rulesUpdateHandler(c))
 	s.AddTool(rulesDeleteTool(), rulesDeleteHandler(c))
 	s.AddTool(rulesSetActiveTool(), rulesSetActiveHandler(c))
+	s.AddTool(rulesCatalogTool(), rulesCatalogHandler(c))
+	s.AddTool(rulesLogsTool(), rulesLogsHandler(c, apiKey))
+}
+
+// --- catalog ---
+
+func rulesCatalogTool() mcp.Tool {
+	return mcp.NewTool("rules_catalog",
+		mcp.WithDescription("Show the platform rules catalog (predefined rule templates). No arguments."),
+	)
+}
+
+func rulesCatalogHandler(c *opengate.Client) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		data, err := c.RulesCatalog()
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("catalog failed: %v", err)), nil
+		}
+		return mcp.NewToolResultText(string(data)), nil
+	}
+}
+
+// --- logs (bounded) ---
+
+func rulesLogsTool() mcp.Tool {
+	return mcp.NewTool("rules_logs",
+		mcp.WithDescription("Collect a rule's execution logs (functions-logger), up to 'count' lines or until 'timeout_seconds'. Traces come from logger.trace/debug/info/warn/error in ADVANCED rule JS."),
+		mcp.WithString("organization", mcp.Description("Organization name"), mcp.Required()),
+		mcp.WithString("id", mcp.Description("Rule identifier"), mcp.Required()),
+		mcp.WithString("channel", mcp.Description("Channel name (default: default_channel)")),
+		mcp.WithString("level", mcp.Description("Log level: ERROR|WARN|INFO|DEBUG|TRACE (default INFO)")),
+		mcp.WithNumber("count", mcp.Description("Max log lines to collect (default 20)")),
+		mcp.WithNumber("timeout_seconds", mcp.Description("Max seconds to wait (default 15)")),
+	)
+}
+
+func rulesLogsHandler(c *opengate.Client, apiKey string) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		args := request.GetArguments()
+		return functionLogsResult(c, apiKey, opengate.LoggerRules, ruleChannelArg(args), args)
+	}
 }
 
 func ruleChannelArg(args map[string]any) string {

@@ -31,6 +31,7 @@ func newMenuModel() menuModel {
 			{"Time Series", viewTimeSeries},
 			{"Datasets", viewDatasets},
 			{"Jobs", viewJobs},
+			{"Scheduled Tasks", viewTasks},
 			{"Workspaces", viewWorkspaces},
 		},
 	}
@@ -76,6 +77,9 @@ func (m model) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.fetchDatasets()
 			case viewJobs:
 				return m, m.fetchJobs()
+			case viewTasks:
+				m.tasks.loading = true
+				return m, m.fetchTasks()
 			case viewWorkspaces:
 				m.workspaces.loading = true
 				return m, m.fetchWorkspaces()

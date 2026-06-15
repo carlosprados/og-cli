@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -48,7 +49,70 @@ The JSON must follow the OpenGate collection format:
 	RunE: runIoTCollectFile,
 }
 
-var collectFile string
+var (
+	collectFile    string
+	rawRoute       string
+	rawBody        string
+	rawFile        string
+	rawContentType string
+)
+
+// --- collect-raw (HTTP custom south route — connector function trigger) ---
+
+var iotCollectRawCmd = &cobra.Command{
+	Use:   "collect-raw <device-id> --route <path>",
+	Short: "POST a raw body to a connector function's HTTP south route",
+	Long: `Trigger a COLLECTION/RESPONSE connector function over its HTTP south route.
+
+Unlike 'collect' (which posts a structured payload to collect/iot and bypasses
+connector functions), this POSTs a raw body to /south/v80/devices/<id>/<route>,
+where <route> is the connector function's HTTP southCriteria path. The CF then
+transforms the body and emits datapoints (verify the result with 'og devices search').
+
+Body comes from --body or -f <file>. X-ApiKey auth (from the profile).
+
+Examples:
+  og iot collect-raw charlie-01 --route ogcli-demo --body '{"raw":21,"id":"abc"}'
+  og iot collect-raw charlie-01 --route sensors/temp -f reading.json
+  og iot collect-raw charlie-01 --route raw/feed --body 'PLAIN TEXT' --content-type text/plain`,
+	Args: cobra.ExactArgs(1),
+	RunE: runIoTCollectRaw,
+}
+
+func runIoTCollectRaw(cmd *cobra.Command, args []string) error {
+	p, err := activeProfile()
+	if err != nil {
+		return err
+	}
+	if p.APIKey == "" {
+		return fmt.Errorf("no API key found. Run 'og login' first to obtain one")
+	}
+	deviceID := args[0]
+
+	var body []byte
+	switch {
+	case rawFile != "":
+		data, err := os.ReadFile(rawFile)
+		if err != nil {
+			return fmt.Errorf("reading file: %w", err)
+		}
+		body = data
+	case rawBody != "":
+		body = []byte(rawBody)
+	default:
+		return fmt.Errorf("provide a body with --body or -f <file>")
+	}
+
+	data, status, err := opengate.CollectRaw(p.Host, p.APIKey, deviceID, rawRoute, body, rawContentType)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Posted to %s/%s (HTTP %d)\n", deviceID, strings.TrimPrefix(rawRoute, "/"), status)
+	if len(data) > 0 {
+		fmt.Println(string(data))
+	}
+	return nil
+}
 
 func runIoTCollect(cmd *cobra.Command, args []string) error {
 	p, err := activeProfile()
@@ -413,8 +477,15 @@ func init() {
 	iotDeviceCmd.Flags().StringVar(&mqttDescription, "description", "", "step description in the response")
 	iotDeviceCmd.Flags().StringVar(&mqttRefreshData, "refresh-data", "", "JSON payload published to odm/iot on REFRESH_INFO")
 
+	iotCollectRawCmd.Flags().StringVar(&rawRoute, "route", "", "connector function's HTTP south path (e.g. ogcli-demo)")
+	iotCollectRawCmd.Flags().StringVar(&rawBody, "body", "", "raw body to POST")
+	iotCollectRawCmd.Flags().StringVarP(&rawFile, "file", "f", "", "read the raw body from this file")
+	iotCollectRawCmd.Flags().StringVar(&rawContentType, "content-type", "application/json", "Content-Type header")
+	iotCollectRawCmd.MarkFlagRequired("route")
+
 	iotCmd.AddCommand(iotCollectCmd)
 	iotCmd.AddCommand(iotCollectFileCmd)
+	iotCmd.AddCommand(iotCollectRawCmd)
 	iotCmd.AddCommand(iotPublishCmd)
 	iotCmd.AddCommand(iotSubscribeCmd)
 	iotCmd.AddCommand(iotDeviceCmd)

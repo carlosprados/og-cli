@@ -10,13 +10,54 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerConnectorTools(s *server.MCPServer, c *opengate.Client) {
+func registerConnectorTools(s *server.MCPServer, c *opengate.Client, apiKey string) {
 	s.AddTool(connectorsListTool(), connectorsListHandler(c))
 	s.AddTool(connectorsGetTool(), connectorsGetHandler(c))
 	s.AddTool(connectorsCreateTool(), connectorsCreateHandler(c))
 	s.AddTool(connectorsUpdateTool(), connectorsUpdateHandler(c))
 	s.AddTool(connectorsDeleteTool(), connectorsDeleteHandler(c))
 	s.AddTool(connectorsSetStatusTool(), connectorsSetStatusHandler(c))
+	s.AddTool(connectorsCatalogTool(), connectorsCatalogHandler(c))
+	s.AddTool(connectorsLogsTool(), connectorsLogsHandler(c, apiKey))
+}
+
+// --- catalog ---
+
+func connectorsCatalogTool() mcp.Tool {
+	return mcp.NewTool("connectors_catalog",
+		mcp.WithDescription("Show the platform connector functions catalog (predefined templates). No arguments."),
+	)
+}
+
+func connectorsCatalogHandler(c *opengate.Client) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		data, err := c.ConnectorFunctionsCatalog()
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("catalog failed: %v", err)), nil
+		}
+		return mcp.NewToolResultText(string(data)), nil
+	}
+}
+
+// --- logs (bounded) ---
+
+func connectorsLogsTool() mcp.Tool {
+	return mcp.NewTool("connectors_logs",
+		mcp.WithDescription("Collect a connector function's execution logs (functions-logger), up to 'count' lines or until 'timeout_seconds'. Traces come from logger.trace/debug/info/warn/error in the connector function JS."),
+		mcp.WithString("organization", mcp.Description("Organization name"), mcp.Required()),
+		mcp.WithString("id", mcp.Description("Connector function identifier"), mcp.Required()),
+		mcp.WithString("channel", mcp.Description("Channel name (default: default_channel)")),
+		mcp.WithString("level", mcp.Description("Log level: ERROR|WARN|INFO|DEBUG|TRACE (default INFO)")),
+		mcp.WithNumber("count", mcp.Description("Max log lines to collect (default 20)")),
+		mcp.WithNumber("timeout_seconds", mcp.Description("Max seconds to wait (default 15)")),
+	)
+}
+
+func connectorsLogsHandler(c *opengate.Client, apiKey string) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		args := request.GetArguments()
+		return functionLogsResult(c, apiKey, opengate.LoggerConnectorFunctions, connectorChannelArg(args), args)
+	}
 }
 
 func connectorChannelArg(args map[string]any) string {

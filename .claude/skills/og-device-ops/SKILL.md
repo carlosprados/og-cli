@@ -214,7 +214,16 @@ og iot collect <device-id> <datastream-id> <value>     # single point
 og iot collect sense-001 wt 25.3
 
 og iot collect-file <device-id> -f payload.json        # multiple datastreams at once
+
+og iot collect-raw <device-id> --route <cf-path> --body '<raw>'   # trigger an HTTP CF route
 ```
+
+`collect`/`collect-file` post to `collect/iot` and **bypass connector functions**.
+To TRIGGER a COLLECTION/RESPONSE connector function over HTTP, use `collect-raw`:
+it POSTs a raw body to `/south/v80/devices/<id>/<route>` (the CF's HTTP
+southCriteria path), so the CF transforms it and emits datapoints — verify the
+result in the north with `og devices search`. (The MQTT equivalent is
+`og iot publish --topic <cf-topic> --raw`.)
 
 ```json
 {
