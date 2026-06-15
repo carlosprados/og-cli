@@ -25,6 +25,8 @@ func newMenuModel() menuModel {
 			{"Devices", viewDevices},
 			{"Alarms", viewAlarms},
 			{"Rules", viewRules},
+			{"Connector Functions", viewConnectors},
+			{"Provision Functions", viewProvision},
 			{"Operation Types", viewOpTypes},
 			{"Time Series", viewTimeSeries},
 			{"Datasets", viewDatasets},
@@ -59,6 +61,12 @@ func (m model) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case viewRules:
 				m.rules.loading = true
 				return m, m.fetchRules()
+			case viewConnectors:
+				m.connectors.loading = true
+				return m, m.fetchConnectors()
+			case viewProvision:
+				m.provision.loading = true
+				return m, m.fetchProvision()
 			case viewOpTypes:
 				m.optypes.loading = true
 				return m, m.fetchOpTypes()

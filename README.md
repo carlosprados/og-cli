@@ -340,6 +340,98 @@ ADVANCED rule JavaScript context: `entity['<datastream>']._value._current.value`
 [demo/rules/](demo/rules/default_channel/env-anomaly/javascript.js) for a working
 multi-datastream rule with hysteresis.
 
+### connectors (alias: cf)
+
+Manage **connector functions** — JavaScript hooks in the device-integration
+pipeline. Three types: **REQUEST** (transform an outgoing operation request,
+matched by `operationName` + `northCriterias`), **RESPONSE** (process an
+operation response from the device) and **COLLECTION** (process collected data
+and emit datapoints) — both matched by `southCriterias` (URIs, topics, OIDs).
+The code lives in the `javascript` field; `operationalStatus` is one of
+`DISABLED | PRODUCTION | TEST`. Connector functions are channel-scoped — all
+commands take `--channel` (default: `default_channel`) plus the global `--org`.
+
+```bash
+# List and inspect
+og connectors list --org sensehat
+og connectors get <cf-id> --org sensehat
+og connectors catalog                     # predefined connector function templates
+
+# CRUD from a JSON file
+og connectors create --org sensehat -f cf.json
+og connectors update <cf-id> --org sensehat -f cf.json
+og connectors delete <cf-id> --org sensehat
+
+# Change operationalStatus without editing JSON
+og connectors status <cf-id> TEST --org sensehat
+og connectors enable <cf-id> --org sensehat    # → PRODUCTION
+og connectors disable <cf-id> --org sensehat   # → DISABLED
+
+# Local editing cycle — the connector function's JavaScript becomes a real .js file
+og connectors pull <cf-id> --dir connectors/ --org sensehat
+#   → connectors/<cf-slug>/connectorfunction.json + javascript.js
+$EDITOR connectors/<cf-slug>/javascript.js
+og connectors deploy connectors/<cf-slug> --update --org sensehat
+
+# pull-all / wrap mirror the rules and workspace verbs
+og connectors pull-all --dir connectors/ --org sensehat
+og connectors wrap connectors/<cf-slug> --out cf.json
+```
+
+COLLECTION JavaScript uses the `collection` global
+(`collection.addDatapoint(datastreamId, value, at, source, sourceInfo)`,
+`collection.send()`); concatenated executions use the `cf` global
+(`cf.response(criteria, payload)`, `cf.collection(criteria, payload)`).
+
+### provision (alias: pf)
+
+Manage **provision functions** — "provision processors" in the API. A provision
+function is a JavaScript script that turns inbound rows (typically an Excel
+sheet) into ODM provisioning actions (create/update/delete assets, devices,
+subscriptions, subscribers). The script must implement two functions —
+`normalizeRawObject(rawObject)` (validate + shape one row) and
+`actionsPlanning(normalizedObject)` (return the array of actions) — and lives in
+the `scriptProcessor.script` field. Provision functions are **organization-scoped**
+(global `--org`, no `--channel`) and have no status field.
+
+```bash
+# List and inspect
+og provision list --org sensehat
+og provision get <pp-id> --org sensehat
+
+# CRUD from a JSON file
+og provision create --org sensehat -f pp.json
+og provision update <pp-id> --org sensehat -f pp.json
+og provision delete <pp-id> --org sensehat
+
+# Local editing cycle — the script becomes a real .js file
+og provision pull <pp-id> --dir provision/ --org sensehat
+#   → provision/<pp-slug>/provisionfunction.json + scriptProcessor__script.js
+$EDITOR provision/<pp-slug>/scriptProcessor__script.js
+og provision deploy provision/<pp-slug> --update --org sensehat
+
+# pull-all / wrap mirror the rules and connector verbs
+og provision pull-all --dir provision/ --org sensehat
+og provision wrap provision/<pp-slug> --out pp.json
+```
+
+Closing the loop with execution — **`plan`** is a dry-run that returns the
+computed action plan as JSON **without mutating any data**, ideal for iterating
+on a script; **`bulk`** runs the full provisioning:
+
+```bash
+# Dry-run the first 3 rows of an Excel file — no data is changed
+og provision plan <pp-id> --file data.xlsx --rows 3 --org sensehat
+
+# Run for real, then track the bulk process and download its result Excel
+og provision bulk <pp-id> --file data.xlsx --org sensehat
+og provision bulk-status <bulk-id> --org sensehat
+og provision bulk-details <bulk-id> --out result.xlsx --org sensehat
+```
+
+> `plan`/`bulk`/`bulk-details` take a local file path and are CLI/MCP operations;
+> the TUI covers the list/inspect surface.
+
 ### optypes (alias: operation-types)
 
 Manage operation **type definitions** — the DDL side of operations. Define a
@@ -788,6 +880,21 @@ For a detailed guide on how prompts, resources, and tools work together, see [do
 | `rules_update` | Update a rule (full body) |
 | `rules_delete` | Delete a rule |
 | `rules_set_active` | Enable/disable a rule |
+| `connectors_list` | List connector functions in a channel |
+| `connectors_get` | Get a connector function (includes its JavaScript) |
+| `connectors_create` | Create a REQUEST/RESPONSE/COLLECTION connector function |
+| `connectors_update` | Update a connector function (full body) |
+| `connectors_delete` | Delete a connector function |
+| `connectors_set_status` | Set operationalStatus (DISABLED/PRODUCTION/TEST) |
+| `provision_list` | List provision functions in an organization |
+| `provision_get` | Get a provision function (includes its script) |
+| `provision_create` | Create a provision function |
+| `provision_update` | Update a provision function (full body) |
+| `provision_delete` | Delete a provision function |
+| `provision_plan` | Dry-run an Excel against a provision function (no data mutated) |
+| `provision_bulk` | Run a full provisioning bulk from an Excel file |
+| `provision_bulk_status` | Read a bulk process status summary |
+| `provision_bulk_details` | Download the result Excel of a bulk process |
 | `optypes_catalog` | Catalog of predefined operation types |
 | `optypes_search` | Search operation type definitions |
 | `optypes_get` | Get an operation type (parameters schema, steps) |
