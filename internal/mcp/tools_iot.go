@@ -14,6 +14,7 @@ import (
 func registerIoTTools(s *server.MCPServer, host, apiKey string) {
 	s.AddTool(iotCollectTool(), iotCollectHandler(host, apiKey))
 	s.AddTool(iotCollectPayloadTool(), iotCollectPayloadHandler(host, apiKey))
+	registerIoTMQTTTools(s, host, apiKey)
 }
 
 // --- collect simple ---

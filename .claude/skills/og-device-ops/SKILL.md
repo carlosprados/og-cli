@@ -1,6 +1,6 @@
 ---
 name: "og-device-ops"
-description: "Operate on OpenGate devices with the og CLI: launch operation jobs, DEFINE custom operation types (og optypes), manage automation rules (EASY/ADVANCED with locally-edited JavaScript — og rules pull/deploy), edit connector functions (REQUEST/RESPONSE/COLLECTION JS hooks — og connectors pull/deploy), author provision functions (bulk provisioning processors with locally-edited JS — og provision pull/deploy, plan dry-run before bulk), schedule recurring tasks, triage alarms (summary → search → attend/close), and inject IoT data via the South API. Use when executing actions on devices, automating with rules, handling alarms, or sending telemetry."
+description: "Operate on OpenGate devices with the og CLI: launch operation jobs, DEFINE custom operation types (og optypes), manage automation rules (EASY/ADVANCED with locally-edited JavaScript — og rules pull/deploy), edit connector functions (REQUEST/RESPONSE/COLLECTION JS hooks — og connectors pull/deploy), author provision functions (bulk provisioning processors with locally-edited JS — og provision pull/deploy, plan dry-run before bulk), schedule recurring tasks, triage alarms (summary → search → attend/close), inject IoT data via the South API (HTTP or MQTT), and run og as a virtual MQTT device (og iot publish/subscribe/device — auto-answer operations). Use when executing actions on devices, automating with rules, handling alarms, or sending telemetry."
 ---
 
 # OpenGate device operations skill
@@ -232,6 +232,32 @@ og iot collect-file <device-id> -f payload.json        # multiple datastreams at
 - After collecting, verify with `og dev search -w "<ds> exists" -s <ds>@at` —
   the `_at` column should show your injection time.
 - This WRITES platform data: on production tenants, confirm with the user first.
+
+### MQTT south client (publish / subscribe / virtual device)
+
+`og iot` also speaks the OpenGate MQTT south connector. Broker = profile host
+(port 1883; `--tls` → 8883), **auth user = device-id, pass = API key**. Default
+topics `odm/iot/<id>` (data), `odm/request/<id>` (operations), `odm/response/<id>`
+(responses) — but **every verb takes `--topic`**: connector functions define their
+own southCriterias, so topics are NOT fixed.
+
+```bash
+og iot publish <id> <ds> <value>                 # publish data over MQTT
+og iot publish <id> --topic <cf-route> --raw '{...}'   # custom CF south route
+og iot subscribe <id> [--topic T] [--count N]    # observe a topic live (debug CFs/ops)
+og iot device <id>                               # VIRTUAL DEVICE: auto-answer operations
+og iot device <id> --refresh-data refresh.json   # also fulfils REFRESH_INFO with data
+```
+
+- `og iot device` subscribes to `odm/request/<id>` and publishes an acknowledging
+  response (`{operation:{response:{name,id,resultCode:SUCCESSFUL,steps,deviceId}}}`)
+  to `odm/response/<id>` for each operation — so a `og jobs create` REBOOT_EQUIPMENT /
+  REFRESH_INFO targeting the device reaches FINISHED/SUCCESSFUL. Runs until Ctrl-C.
+- MCP equivalents are **bounded** (return after N msgs / ops or a timeout):
+  `iot_mqtt_publish`, `iot_mqtt_subscribe`, `iot_mqtt_device`.
+- To drive a connector function end-to-end over MQTT: `og iot publish <id>
+  --topic <cf-southCriteria> --raw '<rawBody>'`, then check the result in the north
+  with `og devices search` (see the connector-functions reference).
 
 ## Verification pattern (close the loop)
 
