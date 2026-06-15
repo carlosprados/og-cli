@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -191,6 +194,34 @@ func (c *Client) Get(path string) ([]byte, int, error) {
 	return c.doRequest(http.MethodGet, path, nil)
 }
 
+// GetWithAccept performs a GET request with an explicit Accept header. Used by
+// endpoints that return a non-JSON body (e.g. an Excel file) and reject the
+// request with HTTP 409 when Accept does not match the response content type.
+func (c *Client) GetWithAccept(path, accept string) ([]byte, int, error) {
+	req, err := http.NewRequest(http.MethodGet, c.BaseURL+path, nil)
+	if err != nil {
+		return nil, 0, fmt.Errorf("creating request: %w", err)
+	}
+	if accept != "" {
+		req.Header.Set("Accept", accept)
+	}
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("reading response: %w", err)
+	}
+	return data, resp.StatusCode, nil
+}
+
 // Post performs a POST request with a JSON body.
 func (c *Client) Post(path string, body io.Reader) ([]byte, int, error) {
 	return c.doRequest(http.MethodPost, path, body)
@@ -204,6 +235,74 @@ func (c *Client) Put(path string, body io.Reader) ([]byte, int, error) {
 // Delete performs a DELETE request.
 func (c *Client) Delete(path string) ([]byte, int, error) {
 	return c.doRequest(http.MethodDelete, path, nil)
+}
+
+// excelContentType maps a spreadsheet file extension to its MIME type.
+// Defaults to the xlsx type for unknown extensions.
+func excelContentType(filePath string) string {
+	switch strings.ToLower(filepath.Ext(filePath)) {
+	case ".xls":
+		return "application/vnd.ms-excel"
+	default:
+		return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	}
+}
+
+// PostMultipartFile uploads a local file as multipart/form-data to the north API
+// and returns the response body, status code, and the Location response header
+// (used by endpoints that report a created resource via Location). The part's
+// content type is derived from the file extension.
+//
+// accept sets the request's Accept header when non-empty. Some endpoints (e.g.
+// the provision bulk execution) reject the request with HTTP 409 unless Accept
+// matches the uploaded file's content type.
+func (c *Client) PostMultipartFile(path, fieldName, filePath, accept string) (body []byte, status int, location string, err error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("opening %s: %w", filePath, err)
+	}
+	defer file.Close()
+
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition",
+		fmt.Sprintf(`form-data; name=%q; filename=%q`, fieldName, filepath.Base(filePath)))
+	header.Set("Content-Type", excelContentType(filePath))
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("creating multipart part: %w", err)
+	}
+	if _, err := io.Copy(part, file); err != nil {
+		return nil, 0, "", fmt.Errorf("writing multipart body: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return nil, 0, "", fmt.Errorf("closing multipart writer: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, c.BaseURL+path, &buf)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if accept != "" {
+		req.Header.Set("Accept", accept)
+	}
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, "", fmt.Errorf("reading response: %w", err)
+	}
+	return data, resp.StatusCode, resp.Header.Get("Location"), nil
 }
 
 // APIError represents an error response from the OpenGate API.

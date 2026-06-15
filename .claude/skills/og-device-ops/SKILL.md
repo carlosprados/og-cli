@@ -1,6 +1,6 @@
 ---
 name: "og-device-ops"
-description: "Operate on OpenGate devices with the og CLI: launch operation jobs, DEFINE custom operation types (og optypes), manage automation rules (EASY/ADVANCED with locally-edited JavaScript — og rules pull/deploy), schedule recurring tasks, triage alarms (summary → search → attend/close), and inject IoT data via the South API. Use when executing actions on devices, automating with rules, handling alarms, or sending telemetry."
+description: "Operate on OpenGate devices with the og CLI: launch operation jobs, DEFINE custom operation types (og optypes), manage automation rules (EASY/ADVANCED with locally-edited JavaScript — og rules pull/deploy), edit connector functions (REQUEST/RESPONSE/COLLECTION JS hooks — og connectors pull/deploy), author provision functions (bulk provisioning processors with locally-edited JS — og provision pull/deploy, plan dry-run before bulk), schedule recurring tasks, triage alarms (summary → search → attend/close), and inject IoT data via the South API. Use when executing actions on devices, automating with rules, handling alarms, or sending telemetry."
 ---
 
 # OpenGate device operations skill
@@ -83,12 +83,95 @@ priority, message)`. Working example with multi-datastream correlation:
   ADVANCED rule JS (open/close alarms, datastream getters, counters, emails...)
 - [connector-functions-js-reference.md](connector-functions-js-reference.md) —
   the connector functions JS API (south-side payload processing)
+- [provision-functions-js-reference.md](provision-functions-js-reference.md) —
+  the provision processor JS API (normalizeRawObject + actionsPlanning, Entity
+  builder, *_ACTION builders, V8 search/get utils)
 
 For widget JS (dashboards), the grimoire lives in
 `og-workspaces/reference/widget-js-api.md`.
 
 Verify a rule fires: inject a triggering value with `og iot collect`, wait ~5 s,
 then `og alarms search -w "alarm.entityIdentifier eq <device>"`.
+
+## Connector functions — south-side JS hooks
+
+Connector functions (`og connectors`, alias `cf`) are JavaScript hooks in the
+device-integration pipeline. Channel-scoped like rules (`--channel`, default
+`default_channel`) + `--org`. **No search endpoint** — use `list` to enumerate.
+
+Three `type`s (immutable after creation):
+- **REQUEST** — transform an outgoing operation request before it reaches the
+  device. Matched by `operationName` + `northCriterias` ([{path, value}] over
+  device/operation metadata). `payloadType` must be JSON.
+- **RESPONSE** — process an operation response from the device. Matched by
+  `southCriterias` (URIs/topics/OIDs). `operationName` must be null.
+- **COLLECTION** — process collected data and emit datapoints. Matched by
+  `southCriterias`. `operationName` must be null.
+
+`operationalStatus` is `DISABLED | PRODUCTION | TEST` (not a boolean like rules).
+
+```bash
+og connectors list --org <org>
+og connectors catalog                                  # predefined templates
+og connectors status <cf-id> TEST --org <org>          # generic status setter
+og connectors enable|disable <cf-id> --org <org>       # → PRODUCTION | DISABLED
+```
+
+**Local JS editing loop** (same signature move as rules):
+
+```bash
+og connectors pull <cf-id> --dir connectors/ --org <org>
+#   → connectors/<slug>/connectorfunction.json + javascript.js
+# edit javascript.js in the IDE
+og connectors deploy connectors/<slug> --update --org <org>  # PUT (needs identifier)
+og connectors deploy connectors/<slug> --org <org>           # POST: create new
+og connectors pull-all --dir connectors/ --org <org>         # whole channel
+```
+
+COLLECTION JS uses the `collection` global (`addDatapoint`, `setFeed`, `send`,
+`getValue`); concatenated executions use the `cf` global (`cf.response`,
+`cf.collection`). Full grimoire:
+[connector-functions-js-reference.md](connector-functions-js-reference.md).
+
+## Provision functions — bulk provisioning JS
+
+Provision functions (`og provision`, alias `pf`) — "provision processors" in the
+API — turn inbound rows (typically an Excel sheet) into ODM provisioning actions
+(create/update/delete assets, devices, subscriptions, subscribers). **Organization-scoped**
+(`--org`, NO `--channel`). **No status field, no catalog, no live logs** (the
+script's `printLog` writes to platform logs). Identifier field is
+`provisionProcessorId` (not `identifier`); `name` must match `^[a-zA-Z0-9]+$`.
+
+The script lives in `scriptProcessor.script` and MUST implement two functions:
+- `normalizeRawObject(rawObject)` — validate + shape one inbound row.
+- `actionsPlanning(normalizedObject)` — return the array of actions
+  (`CREATE_DEVICE_ACTION`, `UPDATE_ASSET_ACTION`, ...).
+
+**Local JS editing loop** (same move as rules/connectors):
+
+```bash
+og provision list --org <org>
+og provision pull <pp-id> --dir provision/ --org <org>
+#   → provision/<slug>/provisionfunction.json + scriptProcessor__script.js
+# edit scriptProcessor__script.js in the IDE
+og provision deploy provision/<slug> --update --org <org>  # PUT (needs provisionProcessorId)
+og provision deploy provision/<slug> --org <org>           # POST: create new
+og provision pull-all --dir provision/ --org <org>
+```
+
+**Execution loop — ALWAYS dry-run with `plan` before `bulk` (which mutates data):**
+
+```bash
+og provision plan <pp-id> --file data.xlsx --rows 3 --org <org>   # JSON action plan, no mutation
+og provision bulk <pp-id> --file data.xlsx --org <org>            # real run → bulk id
+og provision bulk-status <bulk-id> --org <org>                    # processed/successful/error
+og provision bulk-details <bulk-id> --out result.xlsx --org <org> # 204 while still running
+```
+
+`plan` is the key iteration tool: write the script, plan it against a sample
+sheet, inspect the computed actions, fix, repeat — no entity is touched until
+`bulk`. Full grimoire (the two mandatory functions, V8/Entity/Action utils):
+[provision-functions-js-reference.md](provision-functions-js-reference.md).
 
 ## Tasks — scheduled / recurring operations
 

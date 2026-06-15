@@ -331,6 +331,25 @@ var rulesDeployCmd = &cobra.Command{
 	},
 }
 
+// --- logs ---
+
+var rulesLogsCmd = &cobra.Command{
+	Use:   "logs <rule-id>",
+	Short: "Stream a rule's execution logs (live, colourised by severity)",
+	Long: `Stream the live execution logs of an automation rule over WebSocket.
+
+Traces are emitted by logger.trace/debug/info/warn/error calls inside the rule's
+JavaScript, colourised by severity. Press Ctrl-C to stop.
+
+Examples:
+  og rules logs <rule-id> --org sensehat
+  og rules logs <rule-id> --level TRACE --org sensehat`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return streamFunctionLogs(opengate.LoggerRules, rulesChannel, args[0])
+	},
+}
+
 // --- helpers ---
 
 func rulesClient() (*opengate.Client, string, error) {
@@ -394,6 +413,8 @@ func init() {
 
 	rulesDeployCmd.Flags().BoolVar(&ruleDeployUpdate, "update", false, "update an existing rule (PUT) instead of creating (POST)")
 
+	rulesLogsCmd.Flags().StringVar(&logsLevel, "level", "INFO", "log level: ERROR | WARN | INFO | DEBUG | TRACE")
+
 	rulesCmd.AddCommand(rulesSearchCmd)
 	rulesCmd.AddCommand(rulesGetCmd)
 	rulesCmd.AddCommand(rulesCreateCmd)
@@ -406,6 +427,7 @@ func init() {
 	rulesCmd.AddCommand(rulesPullAllCmd)
 	rulesCmd.AddCommand(rulesWrapCmd)
 	rulesCmd.AddCommand(rulesDeployCmd)
+	rulesCmd.AddCommand(rulesLogsCmd)
 
 	rootCmd.AddCommand(rulesCmd)
 }

@@ -39,6 +39,8 @@ When the user says...          → Use this tool
 "dataset", "conjunto de datos"  → datasets_list, datasets_get, datasets_data, datasets_create, datasets_update, datasets_delete
 "job", "operation", "operación", "ejecutar", "lanzar" → jobs_search, jobs_get, jobs_create, jobs_cancel, jobs_operations
 "rule", "regla", "automation", "automatización" → rules_search, rules_get, rules_create, rules_update, rules_delete, rules_set_active
+"connector function", "función de conector", "REQUEST/RESPONSE/COLLECTION function" → connectors_list, connectors_get, connectors_create, connectors_update, connectors_delete, connectors_set_status
+"provision function", "provision processor", "bulk provisioning", "provisión masiva", "procesador de provisión" → provision_list, provision_get, provision_create, provision_update, provision_delete, provision_plan, provision_bulk, provision_bulk_status, provision_bulk_details (org-scoped; script in scriptProcessor.script with normalizeRawObject + actionsPlanning; ALWAYS provision_plan first to dry-run an Excel before provision_bulk mutates data)
 "operation type", "tipo de operación", "define operation", "custom operation" → optypes_catalog, optypes_search, optypes_get, optypes_create, optypes_update, optypes_delete
 "task", "tarea", "scheduled", "programada" → tasks_search, tasks_get, tasks_create, tasks_cancel
 "send data", "enviar dato", "collect", "publicar" → iot_collect, iot_collect_payload
@@ -129,6 +131,22 @@ Rules are channel-scoped: get/create/update/delete take organization + channel
 (default channel is "default_channel"). ADVANCED rules carry their code in the
 'javascript' field; helpers available in that JS: entity['<datastream>']._value._current.value
 (and ._previous.value), parameterObject, getVariableValue(), openAlarm(), closeAlarm(), ruleName.
+
+### Connector functions (connectors_* tools)
+JavaScript hooks in the device-integration pipeline. Channel-scoped like rules
+(organization + channel, default channel "default_channel"). No search endpoint —
+use connectors_list to enumerate. Key fields:
+- name — descriptive, unique per channel
+- type — REQUEST | RESPONSE | COLLECTION (immutable after creation)
+- operationalStatus — DISABLED | PRODUCTION | TEST (change with connectors_set_status, NOT delete)
+- payloadType — TEXT | JSON | BINARY (REQUEST functions only accept JSON)
+- operationName — required for REQUEST (an operation name available for the API key); must be null for COLLECTION/RESPONSE
+- northCriterias — [{path, value}] selection for REQUEST functions (by device/operation metadata)
+- southCriterias — [string] URIs/topics/OIDs for COLLECTION/RESPONSE functions
+- javascript — the connector function code
+
+COLLECTION code uses the 'collection' global (collection.addDatapoint(datastreamId, value, at, source, sourceInfo), collection.setFeed(), collection.send(), collection.getValue());
+concatenated executions use the 'cf' global (cf.response(criteria, payload), cf.collection(criteria, payload)).
 
 ## Operation types vs jobs
 
