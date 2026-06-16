@@ -11,10 +11,52 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerIoTTools(s *server.MCPServer, host, apiKey string) {
-	s.AddTool(iotCollectTool(), iotCollectHandler(host, apiKey))
-	s.AddTool(iotCollectPayloadTool(), iotCollectPayloadHandler(host, apiKey))
-	registerIoTMQTTTools(s, host, apiKey)
+func registerIoTTools(s *server.MCPServer, p *provider) {
+	s.AddTool(iotCollectTool(), iotCollectHandler(p))
+	s.AddTool(iotCollectPayloadTool(), iotCollectPayloadHandler(p))
+	s.AddTool(iotCollectRawTool(), iotCollectRawHandler(p))
+	registerIoTMQTTTools(s, p)
+}
+
+// --- collect raw (HTTP connector-function south route) ---
+
+func iotCollectRawTool() mcp.Tool {
+	return mcp.NewTool("iot_collect_raw",
+		mcp.WithDescription(`Trigger a COLLECTION/RESPONSE connector function over its HTTP south route by POSTing a raw body to /south/v80/devices/<device_id>/<route>.
+
+Unlike iot_collect (structured payload to collect/iot, which bypasses connector functions), this hits the CF's HTTP southCriteria path so the CF transforms the body and emits datapoints (verify with devices_search). Uses X-ApiKey auth.`),
+		mcp.WithString("device_id", mcp.Description("Device identifier"), mcp.Required()),
+		mcp.WithString("route", mcp.Description("Connector function HTTP south path (e.g. \"ogcli-demo\")"), mcp.Required()),
+		mcp.WithString("body", mcp.Description("Raw body to POST"), mcp.Required()),
+		mcp.WithString("content_type", mcp.Description("Content-Type header (default application/json)")),
+	)
+}
+
+func iotCollectRawHandler(p *provider) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		host := p.host
+		apiKey, errRes := p.apiKey(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
+		if apiKey == "" {
+			return mcp.NewToolResultError("no API key available. Login first."), nil
+		}
+		args := request.GetArguments()
+		deviceID, _ := args["device_id"].(string)
+		route, _ := args["route"].(string)
+		body, _ := args["body"].(string)
+		if deviceID == "" || route == "" || body == "" {
+			return mcp.NewToolResultError("device_id, route, and body are required"), nil
+		}
+		contentType, _ := args["content_type"].(string)
+
+		data, status, err := opengate.CollectRaw(host, apiKey, deviceID, route, []byte(body), contentType)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("collect-raw failed: %v", err)), nil
+		}
+		return mcp.NewToolResultText(fmt.Sprintf("Posted to %s/%s (HTTP %d). Response: %s", deviceID, route, status, string(data))), nil
+	}
 }
 
 // --- collect simple ---
@@ -42,8 +84,13 @@ Examples:
 	)
 }
 
-func iotCollectHandler(host, apiKey string) server.ToolHandlerFunc {
+func iotCollectHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		host := p.host
+		apiKey, errRes := p.apiKey(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		if apiKey == "" {
 			return mcp.NewToolResultError("no API key available. Login first."), nil
 		}
@@ -84,8 +131,13 @@ The payload follows the OpenGate collection format with version, datastreams, an
 	)
 }
 
-func iotCollectPayloadHandler(host, apiKey string) server.ToolHandlerFunc {
+func iotCollectPayloadHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		host := p.host
+		apiKey, errRes := p.apiKey(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		if apiKey == "" {
 			return mcp.NewToolResultError("no API key available. Login first."), nil
 		}

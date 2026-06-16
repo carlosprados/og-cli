@@ -15,10 +15,6 @@ var (
 			Foreground(accent).
 			MarginBottom(1)
 
-	subtitleStyle = lipgloss.NewStyle().
-			Foreground(subtle).
-			MarginBottom(1)
-
 	selectedStyle = lipgloss.NewStyle().
 			Foreground(highlight).
 			Bold(true)
@@ -38,15 +34,4 @@ var (
 	helpStyle = lipgloss.NewStyle().
 			Foreground(subtle).
 			MarginTop(1)
-
-	tableBorderStyle = lipgloss.NewStyle().
-				Foreground(subtle)
-
-	tableHeaderStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(accent)
-
-	tableSelectedStyle = lipgloss.NewStyle().
-				Foreground(highlight).
-				Bold(true)
 )

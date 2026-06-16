@@ -10,13 +10,66 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerConnectorTools(s *server.MCPServer, c *opengate.Client) {
-	s.AddTool(connectorsListTool(), connectorsListHandler(c))
-	s.AddTool(connectorsGetTool(), connectorsGetHandler(c))
-	s.AddTool(connectorsCreateTool(), connectorsCreateHandler(c))
-	s.AddTool(connectorsUpdateTool(), connectorsUpdateHandler(c))
-	s.AddTool(connectorsDeleteTool(), connectorsDeleteHandler(c))
-	s.AddTool(connectorsSetStatusTool(), connectorsSetStatusHandler(c))
+func registerConnectorTools(s *server.MCPServer, p *provider) {
+	s.AddTool(connectorsListTool(), connectorsListHandler(p))
+	s.AddTool(connectorsGetTool(), connectorsGetHandler(p))
+	s.AddTool(connectorsCreateTool(), connectorsCreateHandler(p))
+	s.AddTool(connectorsUpdateTool(), connectorsUpdateHandler(p))
+	s.AddTool(connectorsDeleteTool(), connectorsDeleteHandler(p))
+	s.AddTool(connectorsSetStatusTool(), connectorsSetStatusHandler(p))
+	s.AddTool(connectorsCatalogTool(), connectorsCatalogHandler(p))
+	s.AddTool(connectorsLogsTool(), connectorsLogsHandler(p))
+}
+
+// --- catalog ---
+
+func connectorsCatalogTool() mcp.Tool {
+	return mcp.NewTool("connectors_catalog",
+		mcp.WithDescription("Show the platform connector functions catalog (predefined templates). No arguments."),
+	)
+}
+
+func connectorsCatalogHandler(p *provider) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
+		data, err := c.ConnectorFunctionsCatalog()
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("catalog failed: %v", err)), nil
+		}
+		return mcp.NewToolResultText(string(data)), nil
+	}
+}
+
+// --- logs (bounded) ---
+
+func connectorsLogsTool() mcp.Tool {
+	return mcp.NewTool("connectors_logs",
+		mcp.WithDescription("Collect a connector function's execution logs (functions-logger), up to 'count' lines or until 'timeout_seconds'. Traces come from logger.trace/debug/info/warn/error in the connector function JS."),
+		mcp.WithString("organization", mcp.Description("Organization name"), mcp.Required()),
+		mcp.WithString("id", mcp.Description("Connector function identifier"), mcp.Required()),
+		mcp.WithString("channel", mcp.Description("Channel name (default: default_channel)")),
+		mcp.WithString("level", mcp.Description("Log level: ERROR|WARN|INFO|DEBUG|TRACE (default INFO)")),
+		mcp.WithNumber("count", mcp.Description("Max log lines to collect (default 20)")),
+		mcp.WithNumber("timeout_seconds", mcp.Description("Max seconds to wait (default 15)")),
+	)
+}
+
+func connectorsLogsHandler(p *provider) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
+		apiKey, errRes := p.apiKey(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
+		args := request.GetArguments()
+		return functionLogsResult(c, apiKey, opengate.LoggerConnectorFunctions, connectorChannelArg(args), args)
+	}
 }
 
 func connectorChannelArg(args map[string]any) string {
@@ -41,8 +94,12 @@ The code lives in the 'javascript' field. operationalStatus is DISABLED | PRODUC
 	)
 }
 
-func connectorsListHandler(c *opengate.Client) server.ToolHandlerFunc {
+func connectorsListHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		if org == "" {
@@ -71,8 +128,12 @@ func connectorsGetTool() mcp.Tool {
 	)
 }
 
-func connectorsGetHandler(c *opengate.Client) server.ToolHandlerFunc {
+func connectorsGetHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -109,8 +170,12 @@ COLLECTION/RESPONSE body shape (matched by southCriterias, operationName must be
 	)
 }
 
-func connectorsCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func connectorsCreateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		body, _ := args["body"].(string)
@@ -136,8 +201,12 @@ func connectorsUpdateTool() mcp.Tool {
 	)
 }
 
-func connectorsUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func connectorsUpdateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -163,8 +232,12 @@ func connectorsDeleteTool() mcp.Tool {
 	)
 }
 
-func connectorsDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
+func connectorsDeleteHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -190,8 +263,12 @@ func connectorsSetStatusTool() mcp.Tool {
 	)
 }
 
-func connectorsSetStatusHandler(c *opengate.Client) server.ToolHandlerFunc {
+func connectorsSetStatusHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)

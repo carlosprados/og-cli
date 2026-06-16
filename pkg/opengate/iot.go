@@ -3,12 +3,16 @@ package opengate
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
 )
 
-const collectPath = "/south/v80/devices/%s/collect/iot"
+const (
+	collectPath    = "/south/v80/devices/%s/collect/iot"
+	collectRawPath = "/south/v80/devices/%s/%s"
+)
 
 // IoTPayload is the body for the data collection endpoint.
 type IoTPayload struct {
@@ -62,6 +66,43 @@ func CollectIoT(host, apiKey, deviceID string, payload IoTPayload) error {
 	}
 
 	return nil
+}
+
+// CollectRaw posts a raw body to a connector function's custom south route
+// (its HTTP southCriteria path), i.e. POST /south/v80/devices/{id}/{route}.
+// Unlike CollectIoT (which posts a structured collection payload to collect/iot
+// and bypasses connector functions), this triggers a COLLECTION/RESPONSE
+// connector function that matches the route. Uses X-ApiKey authentication.
+// Returns the response body (a CF may return content) and status code.
+func CollectRaw(host, apiKey, deviceID, route string, body []byte, contentType string) ([]byte, int, error) {
+	route = strings.TrimPrefix(route, "/")
+	if route == "" {
+		return nil, 0, fmt.Errorf("route is required (the connector function's south path)")
+	}
+	if contentType == "" {
+		contentType = "application/json"
+	}
+	url := strings.TrimRight(host, "/") + fmt.Sprintf(collectRawPath, deviceID, route)
+
+	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(string(body)))
+	if err != nil {
+		return nil, 0, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("X-ApiKey", apiKey)
+
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("sending raw south data: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return data, resp.StatusCode, fmt.Errorf("collect-raw failed (HTTP %d): %s", resp.StatusCode, string(data))
+	}
+	return data, resp.StatusCode, nil
 }
 
 // CollectSimple is a convenience function to send a single value to a single datastream.

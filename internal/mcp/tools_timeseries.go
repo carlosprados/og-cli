@@ -5,19 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerTimeSeriesTools(s *server.MCPServer, c *opengate.Client) {
-	s.AddTool(tsListTool(), tsListHandler(c))
-	s.AddTool(tsGetTool(), tsGetHandler(c))
-	s.AddTool(tsCreateTool(), tsCreateHandler(c))
-	s.AddTool(tsUpdateTool(), tsUpdateHandler(c))
-	s.AddTool(tsDeleteTool(), tsDeleteHandler(c))
-	s.AddTool(tsDataTool(), tsDataHandler(c))
-	s.AddTool(tsExportTool(), tsExportHandler(c))
+func registerTimeSeriesTools(s *server.MCPServer, p *provider) {
+	s.AddTool(tsListTool(), tsListHandler(p))
+	s.AddTool(tsGetTool(), tsGetHandler(p))
+	s.AddTool(tsCreateTool(), tsCreateHandler(p))
+	s.AddTool(tsUpdateTool(), tsUpdateHandler(p))
+	s.AddTool(tsDeleteTool(), tsDeleteHandler(p))
+	s.AddTool(tsDataTool(), tsDataHandler(p))
+	s.AddTool(tsExportTool(), tsExportHandler(p))
 }
 
 // --- list ---
@@ -32,8 +31,12 @@ func tsListTool() mcp.Tool {
 	)
 }
 
-func tsListHandler(c *opengate.Client) server.ToolHandlerFunc {
+func tsListHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		if org == "" {
@@ -58,8 +61,12 @@ func tsGetTool() mcp.Tool {
 	)
 }
 
-func tsGetHandler(c *opengate.Client) server.ToolHandlerFunc {
+func tsGetHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -85,8 +92,12 @@ func tsCreateTool() mcp.Tool {
 	)
 }
 
-func tsCreateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func tsCreateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		body, _ := args["body"].(string)
@@ -111,8 +122,12 @@ func tsUpdateTool() mcp.Tool {
 	)
 }
 
-func tsUpdateHandler(c *opengate.Client) server.ToolHandlerFunc {
+func tsUpdateHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -137,8 +152,12 @@ func tsDeleteTool() mcp.Tool {
 	)
 }
 
-func tsDeleteHandler(c *opengate.Client) server.ToolHandlerFunc {
+func tsDeleteHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -169,8 +188,12 @@ Use 'query' to filter by column names defined in the time series.`),
 	)
 }
 
-func tsDataHandler(c *opengate.Client) server.ToolHandlerFunc {
+func tsDataHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)
@@ -211,8 +234,12 @@ func tsExportTool() mcp.Tool {
 	)
 }
 
-func tsExportHandler(c *opengate.Client) server.ToolHandlerFunc {
+func tsExportHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		org, _ := args["organization"].(string)
 		id, _ := args["id"].(string)

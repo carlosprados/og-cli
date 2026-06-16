@@ -336,13 +336,7 @@ func buildDatastreamsTable(fields []deviceField, width int) table.Model {
 		rows[i] = table.Row{f.Key, f.Value, f.Date}
 	}
 
-	height := len(rows) + 1
-	if height > 18 {
-		height = 18
-	}
-	if height < 2 {
-		height = 2
-	}
+	height := max(min(len(rows)+1, 18), 2)
 
 	t := table.New(
 		table.WithColumns(columns),
@@ -422,34 +416,6 @@ var (
 				Foreground(subtle)
 )
 
-func (m model) viewDevicesScreen() string {
-	var b strings.Builder
-
-	b.WriteString(titleStyle.Render("  Devices"))
-	b.WriteString("\n")
-
-	if m.devices.loading {
-		b.WriteString(dimStyle.Render("  Loading..."))
-		return b.String()
-	}
-
-	if m.err != nil {
-		b.WriteString(errorStyle.Render(fmt.Sprintf("  Error: %v", m.err)))
-		b.WriteString(helpStyle.Render("\n  r retry • esc back"))
-		return b.String()
-	}
-
-	if m.devices.loaded {
-		b.WriteString(dimStyle.Render(fmt.Sprintf("  %d devices", len(m.devices.items))))
-		b.WriteString("\n\n")
-		b.WriteString(m.devices.table.View())
-	}
-
-	b.WriteString(helpStyle.Render("\n  ↑↓/jk navigate • enter detail • r refresh • esc back"))
-
-	return b.String()
-}
-
 func (m model) viewDeviceDetailScreen() string {
 	var b strings.Builder
 
@@ -503,10 +469,7 @@ func (m model) viewDeviceDetailScreen() string {
 func (m model) renderOverviewTab() string {
 	var b strings.Builder
 	d := m.deviceDetail
-	cardWidth := m.width - 6
-	if cardWidth < 40 {
-		cardWidth = 40
-	}
+	cardWidth := max(m.width-6, 40)
 
 	style := cardStyle.Width(cardWidth)
 
@@ -568,10 +531,7 @@ func (m model) renderJSONTab() string {
 	d := m.deviceDetail
 	lines := strings.Split(d.jsonContent, "\n")
 
-	maxLines := m.height - 10
-	if maxLines < 5 {
-		maxLines = 5
-	}
+	maxLines := max(m.height-10, 5)
 
 	start := d.jsonScroll
 	if start >= len(lines) {
@@ -581,10 +541,7 @@ func (m model) renderJSONTab() string {
 		start = 0
 	}
 
-	end := start + maxLines
-	if end > len(lines) {
-		end = len(lines)
-	}
+	end := min(start+maxLines, len(lines))
 
 	visible := lines[start:end]
 

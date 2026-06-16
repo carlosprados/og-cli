@@ -6,12 +6,11 @@ import (
 	"strings"
 
 	"github.com/carlosprados/og-cli/internal/views"
-	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerResources(s *server.MCPServer, c *opengate.Client) {
+func registerResources(s *server.MCPServer, p *provider) {
 	// Static resource: query syntax reference
 	s.AddResource(
 		mcp.NewResource(
@@ -28,7 +27,7 @@ func registerResources(s *server.MCPServer, c *opengate.Client) {
 			"opengate://organizations/{org}/datamodel-fields",
 			"Available datastream fields for an organization's datamodels",
 		),
-		datamodelFieldsHandler(c),
+		datamodelFieldsHandler(p),
 	)
 
 	// Static resource: views dictionary (builtin + user + project layers)
@@ -159,8 +158,12 @@ Use opengate://organizations/{org}/datamodel-fields to discover them.
 	}, nil
 }
 
-func datamodelFieldsHandler(c *opengate.Client) server.ResourceTemplateHandlerFunc {
+func datamodelFieldsHandler(p *provider) server.ResourceTemplateHandlerFunc {
 	return func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		c, err := p.clientErr(ctx)
+		if err != nil {
+			return nil, err
+		}
 		// Extract org from URI: opengate://organizations/{org}/datamodel-fields
 		uri := request.Params.URI
 		parts := strings.Split(uri, "/")

@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerShareTools(s *server.MCPServer, c *opengate.Client) {
-	s.AddTool(workspacesShareTool(), workspacesShareHandler(c))
-	s.AddTool(dashboardsShareTool(), dashboardsShareHandler(c))
+func registerShareTools(s *server.MCPServer, p *provider) {
+	s.AddTool(workspacesShareTool(), workspacesShareHandler(p))
+	s.AddTool(dashboardsShareTool(), dashboardsShareHandler(p))
 }
 
 func splitCSV(s string) []string {
@@ -36,8 +35,12 @@ The lists REPLACE the current sharing on every call. Pass empty users and domain
 	)
 }
 
-func workspacesShareHandler(c *opengate.Client) server.ToolHandlerFunc {
+func workspacesShareHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		id, _ := args["id"].(string)
 		if id == "" {
@@ -61,8 +64,12 @@ func dashboardsShareTool() mcp.Tool {
 	)
 }
 
-func dashboardsShareHandler(c *opengate.Client) server.ToolHandlerFunc {
+func dashboardsShareHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		args := request.GetArguments()
 		id, _ := args["id"].(string)
 		if id == "" {

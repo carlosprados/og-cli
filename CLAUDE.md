@@ -41,23 +41,36 @@ internal/tui/        → Bubble Tea interactive TUI
 | Interactive TUI | `og` (no args) | `internal/tui/` (Bubble Tea) |
 | MCP server | `og mcp` | `internal/mcp/` (mcp-go) |
 
-### Core invariant: CLI ↔ TUI ↔ MCP parity
+### Surface model: CLI ↔ MCP ↔ TUI (documented split)
 
-**Every OpenGate API operation must be exposed through all three interfaces: CLI command, TUI view, and MCP tool.** All three call the same method in `internal/client/`. This is a hard invariant — never ship functionality in one interface without the other two.
+A single API operation lives in `pkg/opengate/<method>`; the interfaces are thin
+layers over it. The parity expectation is **deliberate and tiered**, not "all three
+always" (see `docs/v1-readiness-audit.md` §2):
 
-```
-cmd/<command>.go  ──→  internal/client/<method>  ←──  internal/mcp/tools.go
-                              ↑
-                    internal/tui/<view>.go
-```
+- **CLI (`cmd/`) — the complete surface.** Every operation gets a CLI verb, including
+  local-filesystem lifecycle verbs (`pull`/`wrap`/`deploy`, import/export).
+- **MCP (`internal/mcp/`) — full minus local-fs lifecycle.** Every operation a remote
+  LLM can drive gets a tool. `pull`/`deploy` (arbitrary local dirs) are intentionally
+  CLI-only; MCP offers the inline-body / import-export equivalents. Long-lived streams
+  (logs, MQTT subscribe/device) are exposed as **bounded** tools (count/timeout).
+- **TUI (`internal/tui/`) — browse + high-value actions.** List/detail/search for every
+  resource, plus a few key mutations (alarm attend/close, launch job, rule toggle,
+  connector status, workspace share). Full create/update/delete and pull/deploy are
+  **not** in the TUI by design; IoT injection has no TUI view (it's an action, not a
+  browseable resource).
 
 When adding a new endpoint:
-1. Add the client method in `internal/client/`
-2. Add the Cobra command in `cmd/`
-3. Add the MCP tool in `internal/mcp/`
-4. Add the TUI view in `internal/tui/`
-5. All four must be in the same PR — never ship one without the others
-6. Update the relevant skill under `.claude/skills/` (og-cli / og-workspaces / og-device-ops) so AI agents learn the new surface
+1. Add the client method in `pkg/opengate/`.
+2. Add the CLI command in `cmd/` (always).
+3. Add the MCP tool in `internal/mcp/` (unless it is purely a local-fs lifecycle verb).
+4. Add or extend the TUI view in `internal/tui/` for browse/inspect; add a TUI action
+   only if it is a high-value non-form interaction.
+5. Ship them in the same PR.
+6. Update the relevant skill under `.claude/skills/` (og-cli / og-workspaces / og-device-ops).
+
+**Entity scope (v1.0):** devices have full CRUD across the surfaces. Assets,
+subscribers and subscriptions are provisioned via **provision functions** (`og provision`)
+— direct CRUD for them is intentionally out of v1.0 (revisit post-v1 if demand appears).
 
 ### OpenGate API conventions
 

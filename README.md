@@ -765,6 +765,12 @@ og iot collect sense-001 wp 1013
 
 # Send a full payload from file
 og iot collect-file sense-001 -f payload.json
+
+# Trigger a connector function over its HTTP south route (raw body, custom path).
+# Unlike collect/iot (which bypasses connector functions), this hits the CF's
+# southCriteria path so the CF transforms the body and emits datapoints.
+og iot collect-raw charlie-01 --route ogcli-demo --body '{"raw":21,"id":"abc"}'
+og iot collect-raw charlie-01 --route raw/feed -f reading.json --content-type text/plain
 ```
 
 #### MQTT (South plane)
@@ -812,11 +818,29 @@ Payload format:
 Start the MCP (Model Context Protocol) server, exposing all commands as LLM tools.
 
 ```bash
-og mcp              # stdio transport (default)
-og mcp --http :8080 # HTTP transport
+og mcp                            # stdio transport (default)
+og mcp --http :8080               # HTTP transport (single-tenant: startup profile)
+og mcp --http :8080 --multi-tenant # HTTP, per-request credentials from headers
 ```
 
 **Prerequisites:** run `og login` first to store credentials.
+
+#### Multi-tenant HTTP mode
+
+For a multi-user chatbot, `--multi-tenant` makes the server a **stateless conduit**:
+credentials are read **per request from HTTP headers**, never from tool arguments
+(which would flow through the LLM) and never from the startup profile. Each request
+must carry the caller's own identity:
+
+- `Authorization: Bearer <north JWT>` — required for every tool.
+- `X-OG-Web-Token: <web JWT>` — required by workspace/dashboard tools (OpenGate's
+  north and web planes use different JWTs).
+- `X-OG-Api-Key: <api key>` — required by South/IoT tools.
+
+A tool returns an error if a credential it needs is absent (no cross-user fallback).
+The `login` tool is **not exposed** in this mode (it would return a JWT to the LLM).
+**Run TLS in front** — tokens travel in headers. The host stays a fixed server config
+(one og MCP server = one OpenGate instance); only credentials vary per request.
 
 Configuration for MCP clients:
 
@@ -908,12 +932,16 @@ For a detailed guide on how prompts, resources, and tools work together, see [do
 | `rules_update` | Update a rule (full body) |
 | `rules_delete` | Delete a rule |
 | `rules_set_active` | Enable/disable a rule |
+| `rules_catalog` | Platform rules catalog (predefined templates) |
+| `rules_logs` | Collect a rule's execution logs (bounded) |
 | `connectors_list` | List connector functions in a channel |
 | `connectors_get` | Get a connector function (includes its JavaScript) |
 | `connectors_create` | Create a REQUEST/RESPONSE/COLLECTION connector function |
 | `connectors_update` | Update a connector function (full body) |
 | `connectors_delete` | Delete a connector function |
 | `connectors_set_status` | Set operationalStatus (DISABLED/PRODUCTION/TEST) |
+| `connectors_catalog` | Platform connector functions catalog (templates) |
+| `connectors_logs` | Collect a connector function's execution logs (bounded) |
 | `provision_list` | List provision functions in an organization |
 | `provision_get` | Get a provision function (includes its script) |
 | `provision_create` | Create a provision function |
@@ -935,6 +963,7 @@ For a detailed guide on how prompts, resources, and tools work together, see [do
 | `tasks_cancel` | Cancel a task |
 | `iot_collect` | Send a single data point to a device (HTTP South) |
 | `iot_collect_payload` | Send a full IoT payload to a device (HTTP South) |
+| `iot_collect_raw` | POST a raw body to a connector function's HTTP south route |
 | `iot_mqtt_publish` | Publish data/raw body over MQTT (topic overridable for CFs) |
 | `iot_mqtt_subscribe` | Subscribe to a topic and collect up to N messages (bounded) |
 | `iot_mqtt_device` | Virtual device: auto-answer operations over MQTT (bounded) |
