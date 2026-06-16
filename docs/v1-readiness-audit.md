@@ -63,9 +63,12 @@ audit **recommends (a)** — the current split is sane; it's just undocumented.
 
 ## 3. Findings & remediation (prioritised for v1.0)
 
-> **Progress (branch `og-cli/v1-parity`):** B1 ✅, B2 ✅, A2 ✅, A3 ✅, A3b ✅ — see "Done"
-> notes inline. Remaining for v1.0: P2 (surface-split docs ✅ in README/skill, **MQTT CA**),
-> P3 (test backfill, assets/subscribers scope decision).
+> **Progress (branch `og-cli/v1-parity`):** B1 ✅, B2 ✅, A2 ✅, A3 ✅, A3b ✅. P2/P3 closed
+> for v1.0: surface split documented (CLAUDE.md §"Surface model" + README); test backfill ✅
+> (provider auth, MQTT/provision parsing, payload builders); MQTT CA **deferred to v1.1**
+> with `--insecure` default kept and a handoff brief (`docs/mqtt-tls-handoff.md`);
+> assets/subscribers direct CRUD **out of v1.0** (provision functions cover creation).
+> **→ v1.0 is feature-complete on this branch; ready to merge + tag.**
 
 ### P0 — v1.0 blockers (Charlie-confirmed)
 
@@ -111,8 +114,10 @@ audit **recommends (a)** — the current split is sane; it's just undocumented.
 - **[A1/A4] Document the intentional surface split** (section 2) in CLAUDE.md + README
   so the invariant is honest and reviewers stop expecting TUI CRUD.
 - **[C2] MQTT `--insecure` defaults to true** (skips TLS verify). Smell for v1.0.
-  Package/validate the OpenGate broker CA and flip the default to verify-on.
-  _Deferred per Charlie; do after P0._ _Files:_ `pkg/opengate/mqtt.go`.
+  **RESOLVED for v1.0: deferred to v1.1.** Root cause found — the broker cert is a
+  valid Let's Encrypt cert; the broker just **omits the intermediate** in the handshake
+  (server misconfig), so it's not a private-CA problem. v1.0 keeps `--insecure` default;
+  full pickup brief in `docs/mqtt-tls-handoff.md`. _Files:_ `pkg/opengate/mqtt.go`.
 - **[A5] Skills consistency pass.** og-device-ops, og-cli, og-workspaces are correctly
   partitioned and now include provision + MQTT. Do a final read to ensure every MCP
   tool name and CLI verb shipped this cycle appears in the matching skill.
@@ -120,12 +125,15 @@ audit **recommends (a)** — the current split is sane; it's just undocumented.
 ### P3 — coverage (post-v1 candidates / scope decisions)
 
 - **[C1] Assets / subscribers / subscriptions** have **no direct CRUD** on any surface
-  — only creatable via provision-function JS. Devices have full CRUD. Decide whether
-  direct entity provisioning belongs in v1.0.
-- **[C3] Test coverage** is thin: unit tests exist only for `unwrap`, `dashboards`,
-  `devices`, `query`, `views`. No tests for the `mqtt`, `provisions`, `connectors`,
-  `rules`, `alarms`, `iot`, `datasets`, `timeseries`, `operations` clients or the
-  cmd/mcp handlers. Much is verified live, but there is no regression net.
+  — only creatable via provision-function JS. Devices have full CRUD.
+  **RESOLVED: out of v1.0** — documented in CLAUDE.md §"Surface model" (Entity scope).
+  Provision functions cover creation; revisit post-v1 if demand appears.
+- **[C3] Test coverage** was thin (only `unwrap`, `dashboards`, `devices`, `query`,
+  `views`). **Backfilled for v1.0:** `internal/mcp/session_test.go` (the multi-tenant
+  provider — single/multi-tenant resolution, no startup fallback, per-tool apiKey),
+  `pkg/opengate/mqtt_test.go` (host/topic helpers, bulk-id, content-type, operation
+  request/response), `pkg/opengate/provisions_test.go` (summary parse, dual-key list).
+  Further client-layer HTTP tests remain a post-v1 nice-to-have.
 - **[C4] Organizations / users / roles** management is not covered (likely out of scope
   for a device-ops CLI — confirm).
 
