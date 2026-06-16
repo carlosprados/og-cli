@@ -51,13 +51,6 @@ func runJobsSearch(cmd *cobra.Command, args []string) error {
 		return output.PrintJSON(os.Stdout, resp.Jobs)
 	}
 
-	// Jobs are complex JSON — extract key fields
-	type jobSummary struct {
-		ID     string `json:"id"`
-		Name   string `json:"request.name"`
-		Status string `json:"report.summary.status"`
-	}
-
 	rows := make([][]string, len(resp.Jobs))
 	for i, raw := range resp.Jobs {
 		var m map[string]any

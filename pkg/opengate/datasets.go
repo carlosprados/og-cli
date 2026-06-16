@@ -7,11 +7,9 @@ import (
 )
 
 const (
-	datasetsBasePath   = "/north/v80/datasets/provision/organizations/%s"
-	datasetPath        = "/north/v80/datasets/provision/organizations/%s/%s"
-	datasetDataPath    = "/north/v80/datasets/provision/organizations/%s/%s/data"
-	datasetSearchPath  = "/north/v80/search/organizations/%s/datasets/%s"
-	datasetSummaryPath = "/north/v80/search/organizations/%s/datasets/%s/summary"
+	datasetsBasePath = "/north/v80/datasets/provision/organizations/%s"
+	datasetPath      = "/north/v80/datasets/provision/organizations/%s/%s"
+	datasetDataPath  = "/north/v80/datasets/provision/organizations/%s/%s/data"
 )
 
 // Dataset represents a dataset definition.
