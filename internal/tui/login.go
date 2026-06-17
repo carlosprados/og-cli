@@ -55,8 +55,7 @@ func (m model) updateLogin(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.client = opengate.New(m.profile.Host, msg.result.JWT)
 
-		profileName := m.cfg.DefaultProfile
-		_ = config.SaveCredentials(profileName, config.Credentials{
+		_ = config.SaveCredentials(m.profileName, config.Credentials{
 			Token:        msg.result.JWT,
 			APIKey:       msg.result.APIKey,
 			Organization: msg.result.Domain,

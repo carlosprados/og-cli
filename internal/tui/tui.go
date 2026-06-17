@@ -42,9 +42,10 @@ type model struct {
 	height   int
 
 	// config
-	cfg     *config.Config
-	profile *config.Profile
-	cfgPath string
+	cfg         *config.Config
+	profile     *config.Profile
+	profileName string
+	cfgPath     string
 
 	// client
 	client *opengate.Client
@@ -80,18 +81,24 @@ type model struct {
 	message string
 }
 
-// Run starts the interactive TUI.
-func Run(cfg *config.Config, profile *config.Profile, cfgPath string) error {
+// Run starts the interactive TUI. profileName is the selected profile (from
+// --profile); empty means the config's default profile.
+func Run(cfg *config.Config, profile *config.Profile, profileName, cfgPath string) error {
 	c := opengate.New(profile.Host, profile.Token).WithWebToken(profile.WebToken)
 
+	if profileName == "" {
+		profileName = cfg.DefaultProfile
+	}
+
 	m := model{
-		view:    viewMenu,
-		cfg:     cfg,
-		profile: profile,
-		cfgPath: cfgPath,
-		client:  c,
-		menu:    newMenuModel(),
-		login:   newLoginModel(),
+		view:        viewMenu,
+		cfg:         cfg,
+		profile:     profile,
+		profileName: profileName,
+		cfgPath:     cfgPath,
+		client:      c,
+		menu:        newMenuModel(),
+		login:       newLoginModel(),
 	}
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
