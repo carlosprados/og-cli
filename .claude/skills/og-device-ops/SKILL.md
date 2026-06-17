@@ -245,7 +245,9 @@ result in the north with `og devices search`. (The MQTT equivalent is
 ### MQTT south client (publish / subscribe / virtual device)
 
 `og iot` also speaks the OpenGate MQTT south connector. Broker = profile host
-(port 1883; `--tls` → 8883), **auth user = device-id, pass = API key**. Default
+(port 1883; `--tls` → 8883), **auth user = device-id, pass = API key**. TLS is
+**verified against the system root store by default**; `--ca-file <pem>` adds an
+extra CA/chain, `--insecure` skips verification (escape hatch only). Default
 topics `odm/iot/<id>` (data), `odm/request/<id>` (operations), `odm/response/<id>`
 (responses) — but **every verb takes `--topic`**: connector functions define their
 own southCriterias, so topics are NOT fixed.
