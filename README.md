@@ -778,9 +778,11 @@ og iot collect-raw charlie-01 --route raw/feed -f reading.json --content-type te
 og also speaks the OpenGate **MQTT** south connector — publish telemetry, observe
 traffic, and act as a full **virtual device**. Auth is `username = device-id`,
 `password = API key` (broker derived from the profile host, port 1883; `--tls` for
-8883). Topics default to `odm/iot/<id>` (data), `odm/request/<id>` (operations) and
-`odm/response/<id>` (responses), but **any `--topic` is accepted** — connector
-functions define their own southCriterias, so topics are not fixed.
+8883). TLS is **verified against the system root store** by default; use
+`--ca-file <pem>` to trust an extra CA/chain, or `--insecure` to skip verification
+(escape hatch). Topics default to `odm/iot/<id>` (data), `odm/request/<id>`
+(operations) and `odm/response/<id>` (responses), but **any `--topic` is accepted** —
+connector functions define their own southCriterias, so topics are not fixed.
 
 ```bash
 # Publish data over MQTT (instead of HTTP collect)

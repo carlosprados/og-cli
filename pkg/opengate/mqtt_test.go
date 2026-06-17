@@ -2,6 +2,8 @@ package opengate
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -17,6 +19,46 @@ func TestMQTTHostFromProfile(t *testing.T) {
 		if got := MQTTHostFromProfile(in); got != want {
 			t.Errorf("MQTTHostFromProfile(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestMQTTTLSConfig(t *testing.T) {
+	// Default: verify against system roots, no skip, ServerName carried through.
+	cfg, err := mqttTLSConfig("api.opengate.es", false, "")
+	if err != nil {
+		t.Fatalf("default: unexpected error: %v", err)
+	}
+	if cfg.InsecureSkipVerify {
+		t.Error("default config must not skip verification")
+	}
+	if cfg.ServerName != "api.opengate.es" {
+		t.Errorf("ServerName = %q, want api.opengate.es", cfg.ServerName)
+	}
+	if cfg.RootCAs != nil {
+		t.Error("default config should use the system pool (nil RootCAs)")
+	}
+
+	// insecure: skip verification.
+	cfg, err = mqttTLSConfig("api.opengate.es", true, "")
+	if err != nil {
+		t.Fatalf("insecure: unexpected error: %v", err)
+	}
+	if !cfg.InsecureSkipVerify {
+		t.Error("insecure config must skip verification")
+	}
+
+	// ca-file with garbage PEM must error, not silently pass.
+	bad := filepath.Join(t.TempDir(), "bad.pem")
+	if err := os.WriteFile(bad, []byte("not a cert"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mqttTLSConfig("api.opengate.es", false, bad); err == nil {
+		t.Error("expected error for a PEM with no valid certificates")
+	}
+
+	// ca-file that does not exist must error.
+	if _, err := mqttTLSConfig("api.opengate.es", false, "/no/such/file.pem"); err == nil {
+		t.Error("expected error for a missing ca-file")
 	}
 }
 

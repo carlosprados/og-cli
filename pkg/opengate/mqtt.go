@@ -2,6 +2,7 @@ package opengate
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -36,9 +37,11 @@ func MQTTHostFromProfile(host string) string {
 
 // NewMQTTClient connects to the OpenGate MQTT broker as the given device.
 // useTLS switches to ssl:// (default TLS port when port is 0/default plaintext).
-// insecure skips TLS certificate verification — needed for brokers fronted by a
-// private CA (the OpenGate MQTT broker presents a cert distinct from the HTTPS one).
-func NewMQTTClient(host string, port int, useTLS, insecure bool, deviceID, apiKey string) (*MQTTClient, error) {
+// The broker presents a public Let's Encrypt chain, so TLS verifies against the
+// system root store by default. insecure skips verification entirely (escape
+// hatch). caFile, when set, supplies an extra CA/chain PEM (e.g. for a site whose
+// broker still omits the intermediate) appended to the system pool.
+func NewMQTTClient(host string, port int, useTLS, insecure bool, caFile, deviceID, apiKey string) (*MQTTClient, error) {
 	scheme := "tcp"
 	if useTLS {
 		scheme = "ssl"
@@ -58,8 +61,12 @@ func NewMQTTClient(host string, port int, useTLS, insecure bool, deviceID, apiKe
 	opts.SetConnectTimeout(15 * time.Second)
 	opts.SetAutoReconnect(true)
 	opts.SetCleanSession(true)
-	if useTLS && insecure {
-		opts.SetTLSConfig(&tls.Config{InsecureSkipVerify: true})
+	if useTLS {
+		cfg, err := mqttTLSConfig(host, insecure, caFile)
+		if err != nil {
+			return nil, err
+		}
+		opts.SetTLSConfig(cfg)
 	}
 
 	c := mqtt.NewClient(opts)
@@ -67,6 +74,33 @@ func NewMQTTClient(host string, port int, useTLS, insecure bool, deviceID, apiKe
 		return nil, fmt.Errorf("connecting to MQTT broker %s://%s:%d: %w", scheme, host, port, tok.Error())
 	}
 	return &MQTTClient{c: c, deviceID: deviceID}, nil
+}
+
+// mqttTLSConfig builds the TLS config for the broker. By default it verifies the
+// server certificate against the system root store (the broker now serves the full
+// Let's Encrypt chain). insecure disables verification; caFile appends an extra
+// CA/chain PEM to the system pool for sites that still need it.
+func mqttTLSConfig(host string, insecure bool, caFile string) (*tls.Config, error) {
+	cfg := &tls.Config{ServerName: host}
+	if insecure {
+		cfg.InsecureSkipVerify = true
+		return cfg, nil
+	}
+	if caFile != "" {
+		pool, err := x509.SystemCertPool()
+		if err != nil || pool == nil {
+			pool = x509.NewCertPool()
+		}
+		pem, err := os.ReadFile(caFile)
+		if err != nil {
+			return nil, fmt.Errorf("reading --ca-file %s: %w", caFile, err)
+		}
+		if !pool.AppendCertsFromPEM(pem) {
+			return nil, fmt.Errorf("no valid certificates found in --ca-file %s", caFile)
+		}
+		cfg.RootCAs = pool
+	}
+	return cfg, nil
 }
 
 // Publish sends a message to a topic and waits for it to leave the client.

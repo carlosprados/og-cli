@@ -114,10 +114,12 @@ audit **recommends (a)** — the current split is sane; it's just undocumented.
 - **[A1/A4] Document the intentional surface split** (section 2) in CLAUDE.md + README
   so the invariant is honest and reviewers stop expecting TUI CRUD.
 - **[C2] MQTT `--insecure` defaults to true** (skips TLS verify). Smell for v1.0.
-  **RESOLVED for v1.0: deferred to v1.1.** Root cause found — the broker cert is a
-  valid Let's Encrypt cert; the broker just **omits the intermediate** in the handshake
-  (server misconfig), so it's not a private-CA problem. v1.0 keeps `--insecure` default;
-  full pickup brief in `docs/mqtt-tls-handoff.md`. _Files:_ `pkg/opengate/mqtt.go`.
+  **FIXED in v1.1.0 (2026-06-17).** The Amplía broker now serves the full Let's Encrypt
+  chain (verified live: `Verify return code: 0 (ok)`). og defaults flipped to
+  TLS-verify-ON (`--insecure` → false), a `--ca-file` flag was added, and
+  `NewMQTTClient` builds the TLS config against the system root store. History and
+  evidence in `docs/mqtt-tls-handoff.md`. _Files:_ `pkg/opengate/mqtt.go`, `cmd/iot.go`,
+  `internal/mcp/tools_iot_mqtt.go`.
 - **[A5] Skills consistency pass.** og-device-ops, og-cli, og-workspaces are correctly
   partitioned and now include provision + MQTT. Do a final read to ensure every MCP
   tool name and CLI verb shipped this cycle appears in the matching skill.

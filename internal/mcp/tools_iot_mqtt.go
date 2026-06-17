@@ -28,8 +28,9 @@ func mqttArgInt(args map[string]any, key string, def int) int {
 	return def
 }
 
-// mqttArgBool reads a bool arg defaulting to def when absent. The OpenGate broker
-// is TLS with a private CA, so tls/insecure default to true.
+// mqttArgBool reads a bool arg defaulting to def when absent. tls defaults to true
+// (the broker requires it); insecure defaults to false (the broker serves a valid
+// public chain, so TLS verifies against the system roots).
 func mqttArgBool(args map[string]any, key string, def bool) bool {
 	if v, ok := args[key].(bool); ok {
 		return v
@@ -37,11 +38,12 @@ func mqttArgBool(args map[string]any, key string, def bool) bool {
 	return def
 }
 
-// mqttConnect builds an MQTT client for an MCP tool call (TLS + insecure default true).
+// mqttConnect builds an MQTT client for an MCP tool call (TLS on, verification on).
 func mqttConnect(broker, deviceID, apiKey string, args map[string]any) (*opengate.MQTTClient, error) {
 	useTLS := mqttArgBool(args, "tls", true)
-	insecure := mqttArgBool(args, "insecure", true)
-	return opengate.NewMQTTClient(broker, 0, useTLS, insecure, deviceID, apiKey)
+	insecure := mqttArgBool(args, "insecure", false)
+	caFile, _ := args["ca_file"].(string)
+	return opengate.NewMQTTClient(broker, 0, useTLS, insecure, caFile, deviceID, apiKey)
 }
 
 // --- publish ---

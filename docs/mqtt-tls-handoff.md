@@ -1,8 +1,12 @@
 # Handoff: MQTT TLS — broker omits the intermediate certificate
 
-> Status: **deferred to v1.1+**. v1.0 ships with `--insecure` defaulting to **true**
-> for the MQTT south client. This document is the pickup brief for a future session
-> to do it properly. Have `pkg/opengate/mqtt.go` open alongside this.
+> Status: **RESOLVED 2026-06-17 (v1.1.0)**. The Amplía broker now serves the full
+> Let's Encrypt chain (leaf + R13 intermediate), verified live with
+> `openssl s_client -connect api.opengate.es:8883 -showcerts` (chain entry 1 present,
+> `Verify return code: 0 (ok)`). og now defaults to **TLS-verify-ON**: `--insecure`
+> defaults to **false**, a `--ca-file <pem>` flag was added, and `NewMQTTClient` builds
+> the TLS config against the system root store. `og iot subscribe sensehat` reaches MQTT
+> auth (no x509 error) without `--insecure`. The rest of this doc is kept for history.
 
 ## TL;DR
 
