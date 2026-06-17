@@ -42,7 +42,7 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return tui.Run(cfg, p, cfgFile)
+		return tui.Run(cfg, p, profile, cfgFile)
 	},
 	SilenceUsage: true,
 }
