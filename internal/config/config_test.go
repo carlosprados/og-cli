@@ -55,3 +55,63 @@ profiles:
 		t.Errorf("default profile org was clobbered: %q", def.Organization)
 	}
 }
+
+// TestSaveCredentialsPersistsTLS guards that `og login --insecure` (and --ca-file)
+// are written to the profile so later commands inherit them.
+func TestSaveCredentialsPersistsTLS(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+
+	creds := Credentials{Token: "tok", Insecure: true, CAFile: "/etc/og/ca.pem"}
+	if err := SaveCredentials("default", creds, cfgPath); err != nil {
+		t.Fatalf("SaveCredentials: %v", err)
+	}
+
+	cfg, err := Load(cfgPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	p, err := cfg.ActiveProfile("default")
+	if err != nil {
+		t.Fatalf("ActiveProfile: %v", err)
+	}
+	if !p.Insecure {
+		t.Error("insecure not persisted/loaded")
+	}
+	if p.CAFile != "/etc/og/ca.pem" {
+		t.Errorf("ca_file = %q, want /etc/og/ca.pem", p.CAFile)
+	}
+}
+
+// TestActiveProfileTLSEnvOverride guards the OG_INSECURE / OG_CA_FILE env overrides.
+func TestActiveProfileTLSEnvOverride(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+
+	existing := `default_profile: default
+profiles:
+  default:
+    host: https://default.example.com
+`
+	if err := os.WriteFile(cfgPath, []byte(existing), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("OG_INSECURE", "true")
+	t.Setenv("OG_CA_FILE", "/tmp/ca.pem")
+
+	cfg, err := Load(cfgPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	p, err := cfg.ActiveProfile("default")
+	if err != nil {
+		t.Fatalf("ActiveProfile: %v", err)
+	}
+	if !p.Insecure {
+		t.Error("OG_INSECURE override not applied")
+	}
+	if p.CAFile != "/tmp/ca.pem" {
+		t.Errorf("OG_CA_FILE override = %q", p.CAFile)
+	}
+}

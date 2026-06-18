@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -66,7 +65,7 @@ func newProvider(host string, fixed credentials, multiTenant bool) *provider {
 		host:        host,
 		multiTenant: multiTenant,
 		fixed:       fixed,
-		httpClient:  &http.Client{Timeout: 30 * time.Second},
+		httpClient:  opengate.NewHTTPClient(),
 	}
 }
 

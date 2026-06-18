@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
@@ -22,6 +23,11 @@ type Profile struct {
 	WebToken     string `mapstructure:"web_token"`
 	APIKey       string `mapstructure:"api_key"`
 	Organization string `mapstructure:"organization"`
+
+	// TLS escape hatches for self-signed / on-prem OpenGate servers. Apply to
+	// both REST planes (North/South HTTP) and the MQTT broker.
+	Insecure bool   `mapstructure:"insecure"` // skip TLS certificate verification
+	CAFile   string `mapstructure:"ca_file"`  // extra CA/chain PEM to trust
 
 	// Fields below are used to refresh the WebToken when it is invalidated
 	// (e.g. when the user logs in via the OpenGate web UI in parallel).
@@ -127,6 +133,14 @@ func (c *Config) ActiveProfile(name string) (*Profile, error) {
 	if o := os.Getenv(EnvPrefix + "_ORG"); o != "" {
 		p.Organization = o
 	}
+	if v := os.Getenv(EnvPrefix + "_INSECURE"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			p.Insecure = b
+		}
+	}
+	if cf := os.Getenv(EnvPrefix + "_CA_FILE"); cf != "" {
+		p.CAFile = cf
+	}
 	return &p, nil
 }
 
@@ -141,6 +155,11 @@ type Credentials struct {
 	Domain      string
 	UserProfile string
 	Workgroup   string
+
+	// TLS escape hatches persisted so subsequent commands inherit them
+	// (e.g. `og login --insecure` against a self-signed server).
+	Insecure bool
+	CAFile   string
 }
 
 // SaveCredentials persists login credentials into the named profile.
@@ -198,6 +217,12 @@ func SaveCredentials(profileName string, creds Credentials, configPath string) e
 		if v.GetString(prefix+".organization") == "" {
 			v.Set(prefix+".organization", creds.Organization)
 		}
+	}
+	if creds.Insecure {
+		v.Set(prefix+".insecure", true)
+	}
+	if creds.CAFile != "" {
+		v.Set(prefix+".ca_file", creds.CAFile)
 	}
 
 	return v.WriteConfig()

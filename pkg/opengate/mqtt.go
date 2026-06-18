@@ -2,7 +2,6 @@ package opengate
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -87,16 +86,9 @@ func mqttTLSConfig(host string, insecure bool, caFile string) (*tls.Config, erro
 		return cfg, nil
 	}
 	if caFile != "" {
-		pool, err := x509.SystemCertPool()
-		if err != nil || pool == nil {
-			pool = x509.NewCertPool()
-		}
-		pem, err := os.ReadFile(caFile)
+		pool, err := loadCAPool(caFile)
 		if err != nil {
-			return nil, fmt.Errorf("reading --ca-file %s: %w", caFile, err)
-		}
-		if !pool.AppendCertsFromPEM(pem) {
-			return nil, fmt.Errorf("no valid certificates found in --ca-file %s", caFile)
+			return nil, err
 		}
 		cfg.RootCAs = pool
 	}

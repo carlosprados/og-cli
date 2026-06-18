@@ -60,6 +60,8 @@ Environment variables (prefix `OG_`) override config values:
 | `OG_ORG` | Organization name |
 | `OG_EMAIL` | Login email |
 | `OG_PASSWORD` | Login password |
+| `OG_INSECURE` | Skip TLS verification (`true`/`false`) |
+| `OG_CA_FILE` | Path to an extra CA/chain PEM to trust |
 
 A `.env` file in the current directory is also loaded automatically.
 
@@ -189,6 +191,35 @@ with a suggestion (`unknown view "sumary" (did you mean "summary"?)`).
 | `--profile` | | Config profile to use |
 | `--org` | | Organization name |
 | `--output` | `-o` | Output format: `json` or `table` (default: `table`) |
+| `--insecure` | | Skip TLS certificate verification (HTTP + MQTT) |
+| `--ca-file` | | PEM file with extra CA/chain certs to trust (HTTP + MQTT) |
+
+#### TLS / self-signed servers
+
+By default og verifies every TLS connection — REST (North/South HTTP planes) and
+MQTT — against the system root store. For an on-prem OpenGate behind a self-signed
+or private-CA certificate:
+
+- `--insecure` skips verification entirely (accept any cert, no CA needed). It is a
+  global flag and applies to **all** connections; og prints a warning to stderr.
+- `--ca-file <pem>` trusts an extra CA/chain without disabling verification.
+
+Both are resolved as **flag → profile → env** (`OG_INSECURE`, `OG_CA_FILE`). The
+flag wins per invocation; the profile value persists across commands. Running
+`og login --insecure` (or `--ca-file`) writes the setting into the active profile,
+so subsequent commands inherit it without repeating the flag.
+
+```bash
+# One-off against a self-signed server
+og --insecure dev list
+
+# Persist it in the profile at login time
+og login -e user@example.com --insecure --profile onprem
+og --profile onprem dev list          # no --insecure needed
+
+# Trust a private CA instead of skipping verification
+og --ca-file /etc/og/ca.pem dev list
+```
 
 ### login
 
@@ -778,9 +809,9 @@ og iot collect-raw charlie-01 --route raw/feed -f reading.json --content-type te
 og also speaks the OpenGate **MQTT** south connector — publish telemetry, observe
 traffic, and act as a full **virtual device**. Auth is `username = device-id`,
 `password = API key` (broker derived from the profile host, port 1883; `--tls` for
-8883). TLS is **verified against the system root store** by default; use
-`--ca-file <pem>` to trust an extra CA/chain, or `--insecure` to skip verification
-(escape hatch). Topics default to `odm/iot/<id>` (data), `odm/request/<id>`
+8883). TLS is **verified against the system root store** by default; the global
+`--ca-file <pem>` / `--insecure` flags (see [TLS / self-signed servers](#tls--self-signed-servers))
+apply here too. Topics default to `odm/iot/<id>` (data), `odm/request/<id>`
 (operations) and `odm/response/<id>` (responses), but **any `--topic` is accepted** —
 connector functions define their own southCriterias, so topics are not fixed.
 

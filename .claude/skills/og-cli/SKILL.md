@@ -36,7 +36,11 @@ og login -e user@example.com --no-web   # skip Web API signin (no workspace/dash
 ```
 
 - Config: `~/.og/config.yaml`, profile-based. Select with `--profile` or `OG_PROFILE`.
-- Env overrides: `OG_HOST`, `OG_TOKEN`, `OG_ORG`, `OG_EMAIL`, `OG_PASSWORD`. A `.env` in cwd auto-loads.
+- Env overrides: `OG_HOST`, `OG_TOKEN`, `OG_ORG`, `OG_EMAIL`, `OG_PASSWORD`, `OG_INSECURE`, `OG_CA_FILE`. A `.env` in cwd auto-loads.
+- **Self-signed / private-CA servers**: global `--insecure` skips TLS verification
+  (no CA needed) and `--ca-file <pem>` trusts an extra CA — both cover HTTP (North/South)
+  **and** MQTT. Resolution is flag → profile → env; `og login --insecure` persists it
+  into the profile so later commands inherit it. og warns on stderr when verification is off.
 - Most provision commands need an organization: `--org <name>` or profile default.
 - **Two token surfaces**: North API (devices, alarms, ...) and Web API (workspaces,
   dashboards). Both obtained by one `og login`.

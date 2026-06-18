@@ -173,8 +173,6 @@ var (
 	mqttHost        string
 	mqttPort        int
 	mqttTLS         bool
-	mqttInsecure    bool
-	mqttCAFile      string
 	mqttQoS         int
 	mqttTopic       string
 	mqttFile        string
@@ -261,7 +259,9 @@ func mqttClientFor(deviceID string) (*opengate.MQTTClient, error) {
 	if host == "" {
 		host = opengate.MQTTHostFromProfile(p.Host)
 	}
-	return opengate.NewMQTTClient(host, mqttPort, mqttTLS, mqttInsecure, mqttCAFile, deviceID, p.APIKey)
+	// TLS verification is unified with HTTP: the global --insecure / --ca-file
+	// (or the active profile) resolve into effInsecure / effCAFile at startup.
+	return opengate.NewMQTTClient(host, mqttPort, mqttTLS, effInsecure, effCAFile, deviceID, p.APIKey)
 }
 
 func runIoTPublish(cmd *cobra.Command, args []string) error {
@@ -459,8 +459,6 @@ func init() {
 		c.Flags().StringVar(&mqttHost, "mqtt-host", "", "MQTT broker host (default: derived from profile host)")
 		c.Flags().IntVar(&mqttPort, "port", opengate.DefaultMQTTPort, "MQTT broker port")
 		c.Flags().BoolVar(&mqttTLS, "tls", true, "use TLS (ssl://, port 8883) — the OpenGate broker requires it")
-		c.Flags().BoolVar(&mqttInsecure, "insecure", false, "skip TLS certificate verification (escape hatch for brokers with an untrusted cert)")
-		c.Flags().StringVar(&mqttCAFile, "ca-file", "", "PEM file with extra CA/chain certs to trust (for brokers missing the intermediate)")
 		c.Flags().IntVar(&mqttQoS, "qos", 0, "MQTT QoS (0, 1 or 2)")
 	}
 

@@ -89,6 +89,10 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		APIKey:       result.APIKey,
 		Organization: result.Domain,
 		Email:        email,
+		// Persist the TLS escape hatches so later commands inherit them
+		// (e.g. logging in to a self-signed server with --insecure).
+		Insecure: effInsecure,
+		CAFile:   effCAFile,
 	}
 
 	// Attempt Web API signin (workspaces/dashboards) unless skipped.
