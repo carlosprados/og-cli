@@ -875,7 +875,34 @@ The `login` tool is **not exposed** in this mode (it would return a JWT to the L
 **Run TLS in front** — tokens travel in headers. The host stays a fixed server config
 (one og MCP server = one OpenGate instance); only credentials vary per request.
 
-Configuration for MCP clients:
+#### Automatic client setup (`og mcp install`)
+
+Instead of editing JSON by hand, register og in a Claude client automatically:
+
+```bash
+og mcp install                          # Claude Desktop (default) — per-OS config path
+og mcp install --client claude-code     # Claude Code — project-scoped .mcp.json in cwd
+og mcp install --profile production      # bake --profile into the server args
+og mcp install --print                  # dry-run: show path + entry, write nothing
+og mcp uninstall                         # remove the entry again
+```
+
+It writes the **absolute path** of the og binary (Claude Desktop does not inherit
+your shell `PATH`, so `"command": "og"` would fail), merges non-destructively
+(other servers and keys are preserved, the original is backed up to `<file>.bak`),
+and refuses to touch a config file that is not valid JSON. Config locations:
+
+| Client | Location |
+|--------|----------|
+| `claude-desktop` (macOS) | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| `claude-desktop` (Windows) | `%APPDATA%\Claude\claude_desktop_config.json` |
+| `claude-desktop` (Linux, unofficial build) | `~/.config/Claude/claude_desktop_config.json` |
+| `claude-code` | `./.mcp.json` (or `--dir`) |
+
+Flags: `--client`, `--name` (entry key, default `opengate`), `--dir` (override the
+directory), `--profile` (global), `--print`. Restart Claude Desktop after installing.
+
+#### Manual client configuration
 
 **Claude Code** (`~/.claude/settings.json` or project `.mcp.json`):
 

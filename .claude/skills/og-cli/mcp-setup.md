@@ -29,7 +29,24 @@ Two distinct ways to serve multiple identities:
 
 ## Client configuration
 
-Claude Code / Claude Desktop (`.mcp.json` in the project or `~/.claude/settings.json`):
+**Easiest — let og write the config:**
+
+```bash
+og mcp install                       # Claude Desktop (default): per-OS config path
+og mcp install --client claude-code  # Claude Code: project .mcp.json in cwd
+og mcp install --profile production   # bake --profile into the server args
+og mcp install --print                # dry-run: show what would be written
+og mcp uninstall                      # remove it again
+```
+
+`install` writes the binary's ABSOLUTE path (Claude Desktop has no shell PATH, so
+a bare `og` would fail — the nº1 cause of "it doesn't work"), merges
+non-destructively (other servers preserved, original backed up to `<file>.bak`),
+and refuses to clobber a config that is not valid JSON. Tell the user to restart
+Claude Desktop afterwards. Desktop paths: macOS `~/Library/Application Support/Claude/`,
+Windows `%APPDATA%\Claude\`, Linux (unofficial build) `~/.config/Claude/`.
+
+**Manual** — Claude Code / Claude Desktop (`.mcp.json` in the project or `~/.claude/settings.json`):
 
 ```json
 {
