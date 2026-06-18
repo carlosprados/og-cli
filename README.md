@@ -902,6 +902,30 @@ and refuses to touch a config file that is not valid JSON. Config locations:
 Flags: `--client`, `--name` (entry key, default `opengate`), `--dir` (override the
 directory), `--profile` (global), `--print`. Restart Claude Desktop after installing.
 
+##### Scope: where the server becomes available
+
+The two clients differ in how far the registration reaches:
+
+- **Claude Desktop** has a single, app-wide config, so `og mcp install` makes the
+  server available **everywhere in the app**. Nothing else to do (just restart it).
+- **Claude Code** is registered at **project scope**: `og mcp install --client
+  claude-code` writes `.mcp.json` in the current directory, so the server is
+  available **only when you open Claude Code in that directory** (or a subdirectory).
+  This works, but it is per-project on purpose — `og` does not edit the user-global
+  `~/.claude.json`, which holds a lot of Claude Code state.
+
+To make the server available in **every** directory under Claude Code, register it
+at user scope yourself with the Claude CLI (which manages `~/.claude.json` safely):
+
+```bash
+claude mcp add --scope user opengate -- og mcp --stdio
+# add a profile: ... -- og mcp --stdio --profile production
+```
+
+Tip: pass the absolute path of the binary (`$(command -v og)`) if `og` is not on
+the PATH that Claude Code sees. Use `og mcp install --client claude-code --print`
+to get the exact command/args to reuse.
+
 #### Manual client configuration
 
 **Claude Code** (`~/.claude/settings.json` or project `.mcp.json`):
