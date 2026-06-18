@@ -1095,6 +1095,24 @@ remains the exhaustive command reference.
 **Convention:** any PR that adds or changes commands must update the relevant
 skill, the same way it must update this README (see [CLAUDE.md](CLAUDE.md)).
 
+### Installing the skills without the repo
+
+The skills are embedded in the `og` binary and versioned together with it, so a
+colleague who installed `og` can drop them onto disk without cloning the repo:
+
+```bash
+og skills list                 # show the skills embedded in this binary
+og skills extract              # write them to ./.claude/skills/ (project-local)
+og skills extract --global     # write them to ~/.claude/skills/ (any directory)
+og skills extract --dir PATH   # write them to an arbitrary directory
+```
+
+`extract` replaces each skill as a whole (no stale files left behind) and only
+touches the skills `og` manages — other skills in the destination are left
+alone. If a skill already exists it **aborts and lists** what it would replace;
+re-run with `--force` to overwrite, adding `--backup` to keep a `<skill>.bak`
+copy of the previous version.
+
 ## Documentation
 
 | Document | Description |

@@ -11,6 +11,14 @@ This skill teaches how to DRIVE the tool. For its full command surface, read
 [README.md](../../../README.md). Related skills: **og-workspaces** (dashboards,
 widgets, pull/deploy lifecycle) and **og-device-ops** (jobs, alarms, IoT data).
 
+## Getting the skills onto a new machine
+
+These skills ship embedded in the `og` binary, so a user who installed `og` but
+did not clone the repo can still get them: `og skills extract` writes them to
+`./.claude/skills/`, `og skills extract --global` to `~/.claude/skills/`.
+It aborts on collision; `--force` (optionally `--backup`) overwrites. Editing a
+skill requires rebuilding `og` for the embedded copy to pick up the change.
+
 ## Intent → command map
 
 | User intent | Command | Notes |
