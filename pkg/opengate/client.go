@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 )
 
 // Client is the OpenGate REST API client.
@@ -39,14 +38,14 @@ type Client struct {
 	onWebRefresh      func(newToken string)
 }
 
-// New creates a Client from a host URL and an optional JWT token.
+// New creates a Client from a host URL and an optional JWT token. The HTTP
+// client honours the process-wide TLS settings configured via ConfigureTLS
+// (e.g. --insecure / --ca-file for self-signed servers).
 func New(host, token string) *Client {
 	return &Client{
-		BaseURL: strings.TrimRight(host, "/"),
-		Token:   token,
-		HTTPClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		BaseURL:    strings.TrimRight(host, "/"),
+		Token:      token,
+		HTTPClient: NewHTTPClient(),
 	}
 }
 

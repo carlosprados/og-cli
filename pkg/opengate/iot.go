@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 )
 
 const (
@@ -52,7 +51,7 @@ func CollectIoT(host, apiKey, deviceID string, payload IoTPayload) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-ApiKey", apiKey)
 
-	httpClient := &http.Client{Timeout: 30 * time.Second}
+	httpClient := NewHTTPClient()
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("sending IoT data: %w", err)
@@ -91,7 +90,7 @@ func CollectRaw(host, apiKey, deviceID, route string, body []byte, contentType s
 	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("X-ApiKey", apiKey)
 
-	httpClient := &http.Client{Timeout: 30 * time.Second}
+	httpClient := NewHTTPClient()
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, 0, fmt.Errorf("sending raw south data: %w", err)
