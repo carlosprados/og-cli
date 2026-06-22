@@ -27,6 +27,7 @@ skill requires rebuilding `og` for the embedded copy to pick up the change.
 | "battery / power state" | `og dev search --view power` | includes charge_at timestamps |
 | "where are the devices" | `og dev search --view location,status` | |
 | "devices with X > N" | `og dev search -w "X gt N" --view summary` | filters work on collected values too |
+| "devices that collected after T / reported recently" | `og dev search --filter '{...gte device.identifier._current.at...}'` | filter `at` (reception) of the always-collected identifier; see Searching → at vs date |
 | "show device X in full" | `og dev get <id> -o json` | the only case for full documents |
 | "what fields/datastreams exist" | `og dm get <datamodel> --org <org>` or `og views list` | |
 | "open/critical alarms" | `og alarms search -w "alarm.status eq OPEN"` | see og-device-ops |
@@ -70,6 +71,38 @@ og dev search -w "field op value" -w "field2 op value2"   # multiple -w = AND
 - OR / nested logic: only via raw JSON `--filter '{"filter":{"or":[...]}}'`.
 - Limit results: `--limit N`.
 
+**Value typing — the search lake is type-strict.** A field stored as a string only
+matches a JSON *string*; sending a number returns 0 silently (HTTP 204). The field's
+type lives in the datamodel (`og dm get <model>` → `schema.type` / `$ref`), NOT in the
+value's textual shape. `provision.device.identifier` is `ogIdentifier` (**string**) — so
+an IP-/MAC-looking id is a string, not a number.
+
+- ⚠️ **`-w` mis-casts numeric-looking strings.** A value with a numeric prefix
+  (`192.168.0.1`, `1.2.3`, an ISO timestamp) is silently coerced to a number, so
+  `-w "provision.device.identifier eq 192.168.0.1-..."` returns nothing. Until this is
+  fixed, use `like` for partial string match, or pass the exact JSON string via raw
+  `--filter '{"filter":{"eq":{"provision.device.identifier":"192.168.0.1-..."}}}'`.
+- **Knowing a field's type**: for *declared* streams read the datamodel; for *ad-hoc*
+  streams (collected, not in any datamodel) the stored type = whatever was collected —
+  sample one `_current.value` to learn it. Cache the org's field→type map for the session.
+
+### Filtering by collection time — `at` vs `date`
+
+Every collected field carries two timestamps under `_value._current`:
+**`at`** = when the platform *received* it, **`date`** = when the measurement was *taken*.
+Both are filterable via the path `<datastream>._current.at` / `._current.date`, value =
+**ISO-8601 with offset** (e.g. `2026-03-12T11:33:13.441+01:00`). The path WITHOUT
+`._current` is invalid. Use raw `--filter` (the `-w` parser mis-casts ISO strings, see above):
+
+```bash
+# Devices that COLLECTED ANYTHING after a moment → filter the always-collected identifier's at
+og dev search --filter '{"filter":{"gte":{"device.identifier._current.at":"2026-06-21T18:00:00.000+02:00"}}}'
+```
+
+- "Did the device report recently?" → `at` on `device.identifier` (always collected).
+- "Was *this measurement* taken after T?" → first ask the user **which datastream**,
+  then filter `<stream>._current.date` (measurement) and/or `._current.at` (reception).
+
 Ready-made recipes: [query-cookbook.md](query-cookbook.md).
 
 ## Projecting fields — the golden rule
@@ -102,7 +135,9 @@ og dev search --view power -s wt              # combinable; explicit -s wins
 |---|---|
 | Empty search result = HTTP 204 | og prints nothing / empty table; not an error |
 | Device docs are flattened (`?flattened=true`) | fields are root-level dotted keys: `wt`, `provision.device.name` |
-| Each field wraps value as `_value._current.{value,at,date,source}` | `at` = when measured; og's `@at` selects it |
+| Each field wraps value as `_value._current.{value,at,date,source}` | **`at` = reception (platform ingest), `date` = measurement time**; og's `@at` selects `at`. `date` is in the data but og has no `@date` projection yet — read it via `og dev get` (full doc) |
+| Search lake is **type-strict** | a string field only matches a JSON string; field types come from the datamodel (`schema.type`/`$ref`), not the value's shape |
+| `at`/`date` are filterable | path `<datastream>._current.{at,date}`, ISO-8601 value, via raw `--filter` (not `-w`) |
 | Datastream names are dynamic (defined per-org in datamodels) | discover with `og dm get` or the MCP resource `datamodel-fields` |
 | Timeseries/datasets filter by COLUMN names, not device paths | run `og ts get <id>` / `og ds get <id>` first to learn columns |
 

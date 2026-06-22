@@ -44,6 +44,35 @@ og dev search -s wt -s wp -s anin1 --at
 **Stale-data check pattern**: project `@at` and compare against now; a value whose
 `*_at` is days old means the device stopped reporting — surface that to the user.
 
+## Devices — filter by collection time (`at` = reception, `date` = measurement)
+
+Timestamps are **filterable server-side**, not just projectable. Path is
+`<datastream>._current.at` / `._current.date`, value = ISO-8601 with offset. Use raw
+`--filter` — the `-w` parser mis-casts ISO strings to numbers (known issue).
+
+```bash
+# Devices that COLLECTED ANYTHING after 18:00 yesterday
+# → the device identifier datastream is collected on every report, so its `at` answers it
+og dev search --filter '{"filter":{"gte":{"device.identifier._current.at":"2026-06-21T18:00:00.000+02:00"}}}'
+
+# Devices whose <stream> MEASUREMENT (date) is after T — ASK which stream first
+og dev search --filter '{"filter":{"gte":{"wt._current.date":"2026-06-21T18:00:00.000+02:00"}}}'
+
+# Combine a time window with a provision filter (AND)
+og dev search --filter '{"filter":{"and":[
+  {"eq":{"provision.device.administrativeState":"ACTIVE"}},
+  {"gte":{"device.identifier._current.at":"2026-06-21T18:00:00.000+02:00"}}
+]}}'
+```
+
+- **`at` vs `date`**: `at` is when the platform ingested the datapoint, `date` is when
+  the sensor measured it. They differ when data arrives late/buffered. "Reported after T"
+  → `at`; "measured after T" → `date`.
+- For a generic "which devices collected recently" use `device.identifier._current.at`
+  (always present). For a specific quantity, disambiguate the datastream with the user.
+- The lake is **type-strict**: a string-typed field needs a JSON string in `eq`; a number
+  won't match. Check the field type with `og dm get <model>` (`schema.type`/`$ref`).
+
 ## Devices — OR and nested filters (raw JSON)
 
 `-w` only does AND. For OR, pass the OpenGate filter JSON directly:
