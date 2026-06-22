@@ -124,7 +124,7 @@ func printSelectedDevices(devices []json.RawMessage, clauses []query.SelectClaus
 	type column struct {
 		header string
 		name   string // datastream name
-		sub    string // "value" or "at"
+		sub    string // current-value sub-field: value/at/date/source
 	}
 	var columns []column
 	for _, c := range clauses {
@@ -149,11 +149,7 @@ func printSelectedDevices(devices []json.RawMessage, clauses []query.SelectClaus
 			for i, raw := range devs {
 				row := make([]string, len(columns))
 				for j, col := range columns {
-					if col.sub == "at" {
-						row[j] = opengate.ExtractFlatAt(raw, col.name)
-					} else {
-						row[j] = opengate.ExtractFlatValue(raw, col.name)
-					}
+					row[j] = opengate.ExtractFlatSub(raw, col.name, col.sub)
 				}
 				rows[i] = row
 			}
@@ -308,7 +304,7 @@ func runDevicesDelete(cmd *cobra.Command, args []string) error {
 
 func init() {
 	devicesSearchCmd.Flags().StringArrayVarP(&devSearchWhere, "where", "w", nil, `filter condition: "field op value" (repeatable)`)
-	devicesSearchCmd.Flags().StringArrayVarP(&devSearchSelect, "select", "s", nil, "fields to return (repeatable; append @at for the timestamp, e.g. -s wt@at)")
+	devicesSearchCmd.Flags().StringArrayVarP(&devSearchSelect, "select", "s", nil, "fields to return (repeatable; append @at/@date/@source for sub-fields, e.g. -s wt@at@date)")
 	devicesSearchCmd.Flags().BoolVar(&devSearchAt, "at", false, "include the at timestamp for every selected field")
 	devicesSearchCmd.Flags().StringSliceVar(&devSearchView, "view", nil, "named views to project (comma-separated or repeatable, e.g. --view summary,power); see 'og views list'")
 	devicesSearchCmd.Flags().IntVar(&devSearchLimit, "limit", 0, "max number of results")

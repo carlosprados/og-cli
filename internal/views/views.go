@@ -44,7 +44,11 @@ type Definition struct {
 func (d Definition) Clauses() []query.SelectClause {
 	clauses := make([]query.SelectClause, len(d.Fields))
 	for i, f := range d.Fields {
-		c := query.NewSelectClause(f.Name, f.At)
+		var subs []string
+		if f.At {
+			subs = append(subs, "at")
+		}
+		c := query.NewSelectClause(f.Name, subs...)
 		if f.Alias != "" {
 			c.Fields[0].Alias = f.Alias
 			if f.At {
