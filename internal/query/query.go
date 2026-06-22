@@ -13,6 +13,7 @@ package query
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -88,38 +89,71 @@ type SelectClause struct {
 	Fields []SelectField `json:"fields"`
 }
 
+// fieldSubSuffixes are the projectable metadata sub-fields of a datastream's
+// current value, selectable via an @-suffix on a -s field. `at` = platform
+// reception time, `date` = measurement time, `source` = origin.
+var fieldSubSuffixes = []string{"at", "date", "source"}
+
 // SelectFromFields converts -s style field names into select clauses.
-// A "@at" suffix on a field adds the timestamp sub-field alongside the
-// value: "wt@at" → value + at. withAt forces the at sub-field on every field.
+// An "@<sub>" suffix adds a metadata sub-field alongside the value and is
+// repeatable: "wt@at" → value + at, "wt@at@date" → value + at + date.
+// withAt forces the at sub-field on every field (the --at flag).
 func SelectFromFields(fields []string, withAt bool) []SelectClause {
 	if len(fields) == 0 {
 		return nil
 	}
 	clauses := make([]SelectClause, len(fields))
 	for i, f := range fields {
-		name, at := parseAtSuffix(f)
-		clauses[i] = NewSelectClause(name, at || withAt)
+		name, subs := parseFieldSuffix(f)
+		if withAt && !containsString(subs, "at") {
+			subs = append(subs, "at")
+		}
+		clauses[i] = NewSelectClause(name, subs...)
 	}
 	return clauses
 }
 
-// NewSelectClause builds a clause for one datastream with auto-generated
-// aliases: value → FieldAlias(name), at → FieldAlias(name) + "_at".
-func NewSelectClause(name string, withAt bool) SelectClause {
+// NewSelectClause builds a clause for one datastream: always the value, plus
+// any requested sub-fields (at/date/source). Aliases are auto-generated:
+// value → FieldAlias(name), sub → FieldAlias(name) + "_" + sub.
+func NewSelectClause(name string, subs ...string) SelectClause {
 	alias := FieldAlias(name)
 	fields := []SelectField{{Field: "value", Alias: alias}}
-	if withAt {
-		fields = append(fields, SelectField{Field: "at", Alias: alias + "_at"})
+	for _, sub := range subs {
+		fields = append(fields, SelectField{Field: sub, Alias: alias + "_" + sub})
 	}
 	return SelectClause{Name: name, Fields: fields}
 }
 
-// parseAtSuffix splits the "@at" marker from a field name.
-func parseAtSuffix(field string) (name string, at bool) {
-	if n, found := strings.CutSuffix(field, "@at"); found {
-		return n, true
+// parseFieldSuffix strips trailing @-markers (@at, @date, @source) from a field
+// name, returning the bare name and the requested sub-fields in projection
+// order. "wt@at@date" → ("wt", ["at","date"]); "wt" → ("wt", nil).
+func parseFieldSuffix(field string) (name string, subs []string) {
+	name = field
+	for {
+		cut := false
+		for _, sub := range fieldSubSuffixes {
+			if n, found := strings.CutSuffix(name, "@"+sub); found {
+				subs = append([]string{sub}, subs...)
+				name = n
+				cut = true
+				break
+			}
+		}
+		if !cut {
+			break
+		}
 	}
-	return field, false
+	return name, subs
+}
+
+func containsString(ss []string, s string) bool {
+	for _, x := range ss {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }
 
 // SearchParams groups all parameters for building a search request.
@@ -190,22 +224,36 @@ func conditionToMap(c Condition) map[string]any {
 	}
 }
 
-// castValue tries to interpret the value as number or bool, falls back to string.
+// castValue interprets a filter value's JSON type so the search lake (which is
+// type-strict: a string field never matches a number) receives the right type.
+//
+//   - A single- or double-quoted value is forced to string and unquoted — the
+//     escape hatch for all-digit string identifiers, e.g. `eq '00123'`.
+//   - "true"/"false" → bool.
+//   - A value that is ENTIRELY an integer or float → number.
+//   - Everything else → string.
+//
+// strconv (not fmt.Sscanf) is deliberate: Sscanf stops at the first non-numeric
+// rune, so "192.168.0.1" or an ISO-8601 timestamp would be silently truncated to
+// a number and never match. strconv.Parse* require the whole string to parse,
+// which also makes timestamp filters (`<ds>._current.at gte <iso>`) work as
+// strings.
 func castValue(s string) any {
-	if s == "true" {
-		return true
+	if len(s) >= 2 {
+		if q := s[0]; (q == '\'' || q == '"') && s[len(s)-1] == q {
+			return s[1 : len(s)-1]
+		}
 	}
-	if s == "false" {
+	switch s {
+	case "true":
+		return true
+	case "false":
 		return false
 	}
-	// Try integer
-	var i int64
-	if _, err := fmt.Sscanf(s, "%d", &i); err == nil && fmt.Sprintf("%d", i) == s {
+	if i, err := strconv.ParseInt(s, 10, 64); err == nil {
 		return i
 	}
-	// Try float
-	var f float64
-	if _, err := fmt.Sscanf(s, "%f", &f); err == nil {
+	if f, err := strconv.ParseFloat(s, 64); err == nil {
 		return f
 	}
 	return s

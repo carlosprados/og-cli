@@ -192,11 +192,7 @@ func buildDevicesViewTable(items []json.RawMessage, clauses []query.SelectClause
 	for i, raw := range items {
 		row := make(table.Row, len(cols))
 		for j, c := range cols {
-			if c.sub == "at" {
-				row[j] = opengate.ExtractFlatAt(raw, c.name)
-			} else {
-				row[j] = opengate.ExtractFlatValue(raw, c.name)
-			}
+			row[j] = opengate.ExtractFlatSub(raw, c.name, c.sub)
 		}
 		rows[i] = row
 	}

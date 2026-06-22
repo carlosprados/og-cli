@@ -38,6 +38,12 @@ func ExtractFlatAt(raw json.RawMessage, field string) string {
 	return extractFlatCurrent(raw, field, "at")
 }
 
+// ExtractFlatSub extracts an arbitrary current-value sub-field (value, at, date
+// or source) of a field from the flattened format.
+func ExtractFlatSub(raw json.RawMessage, field, sub string) string {
+	return extractFlatCurrent(raw, field, sub)
+}
+
 func extractFlatCurrent(raw json.RawMessage, field, sub string) string {
 	var root map[string]json.RawMessage
 	if json.Unmarshal(raw, &root) != nil {

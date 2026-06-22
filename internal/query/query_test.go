@@ -178,6 +178,48 @@ func TestSelectFromFields(t *testing.T) {
 			},
 		},
 		{
+			name:   "date suffix",
+			fields: []string{"wt@date"},
+			want: []SelectClause{
+				{Name: "wt", Fields: []SelectField{
+					{Field: "value", Alias: "wt"},
+					{Field: "date", Alias: "wt_date"},
+				}},
+			},
+		},
+		{
+			name:   "at and date suffixes combined",
+			fields: []string{"device.identifier@at@date"},
+			want: []SelectClause{
+				{Name: "device.identifier", Fields: []SelectField{
+					{Field: "value", Alias: "identifier"},
+					{Field: "at", Alias: "identifier_at"},
+					{Field: "date", Alias: "identifier_date"},
+				}},
+			},
+		},
+		{
+			name:   "source suffix",
+			fields: []string{"wt@source"},
+			want: []SelectClause{
+				{Name: "wt", Fields: []SelectField{
+					{Field: "value", Alias: "wt"},
+					{Field: "source", Alias: "wt_source"},
+				}},
+			},
+		},
+		{
+			name:   "withAt does not duplicate an explicit @at",
+			fields: []string{"wt@at"},
+			withAt: true,
+			want: []SelectClause{
+				{Name: "wt", Fields: []SelectField{
+					{Field: "value", Alias: "wt"},
+					{Field: "at", Alias: "wt_at"},
+				}},
+			},
+		},
+		{
 			name:   "withAt forces at on all fields",
 			fields: []string{"wt", "device.temperature.value"},
 			withAt: true,
@@ -235,13 +277,29 @@ func TestFieldAlias(t *testing.T) {
 }
 
 func TestCastValue(t *testing.T) {
-	if v := castValue("true"); v != true {
-		t.Errorf("expected true, got %v", v)
+	tests := []struct {
+		in   string
+		want any
+	}{
+		{"true", true},
+		{"false", false},
+		{"42", int64(42)},
+		{"3.14", 3.14},
+		{"hello", "hello"},
+		// Regression: numeric-prefixed strings must NOT be truncated to numbers.
+		{"192.168.0.1-04.42.1A.B7.D7.D0", "192.168.0.1-04.42.1A.B7.D7.D0"},
+		{"1.2.3", "1.2.3"},
+		{"2026-06-21T18:00:00.000+02:00", "2026-06-21T18:00:00.000+02:00"},
+		// Quoting forces string (escape hatch for all-digit identifiers).
+		{"'00123'", "00123"},
+		{`"00123"`, "00123"},
+		{"'42'", "42"},
+		{"'true'", "true"},
+		{"'hello world'", "hello world"},
 	}
-	if v := castValue("42"); v != int64(42) {
-		t.Errorf("expected 42, got %v (%T)", v, v)
-	}
-	if v := castValue("hello"); v != "hello" {
-		t.Errorf("expected hello, got %v", v)
+	for _, tt := range tests {
+		if v := castValue(tt.in); v != tt.want {
+			t.Errorf("castValue(%q) = %v (%T), want %v (%T)", tt.in, v, v, tt.want, tt.want)
+		}
 	}
 }

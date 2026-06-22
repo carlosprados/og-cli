@@ -37,6 +37,19 @@ IMPORTANT: devices_search filters on BOTH provisioned metadata AND the latest co
 Do NOT redirect the user to timeseries_data or datasets_data just because they filter by a datastream
 value — only use those tools when the user explicitly asks for historical/time-windowed data.
 
+FILTER BY COLLECTION TIME: each datastream's current value also carries timestamps, filterable via the
+path "<datastream>._current.at" (platform reception) and "<datastream>._current.date" (measurement time),
+value = ISO-8601 with offset (e.g. "2026-06-21T18:00:00.000+02:00"). The path WITHOUT "._current" is invalid.
+  query: "device.identifier._current.at gte 2026-06-21T18:00:00.000+02:00"   # devices that reported after T
+For "which devices collected anything after T" use the always-collected device.identifier; for a specific
+measurement, filter that stream's "._current.date".
+
+TYPE-STRICT: the search lake does not coerce types — a string-typed field only matches a JSON string, a
+number-typed field a JSON number. Types come from the datamodel (read opengate://organizations/{org}/datamodel-fields
+or use datamodels_get → schema.type/$ref), NOT the value's shape. provision.device.identifier is a STRING
+(ogIdentifier), so an IP-/MAC-looking id is a string. For an all-digit value that is actually a string id,
+single-quote it to force string typing: query: "provision.device.identifier eq '00123'".
+
 Provision (metadata) fields:
 - provision.device.identifier — device ID
 - provision.device.name — device name
@@ -62,7 +75,7 @@ Examples:
 			mcp.Description("Filter using: \"field op value\". Multiple conditions joined with AND. Operators: eq, neq, like, gt, lt, gte, lte, in, exists. Example: \"provision.device.administrativeState eq ACTIVE\". Omit to list all devices."),
 		),
 		mcp.WithString("select",
-			mcp.Description("Comma-separated fields to return. Append @at to a field to also get the timestamp of its current value. Example: \"provision.device.identifier,provision.device.administrativeState,wt@at\""),
+			mcp.Description("Comma-separated fields to return. Append @at (reception time), @date (measurement time) and/or @source to a field for its current-value sub-fields; repeatable, e.g. \"wt@at@date\". Example: \"provision.device.identifier,provision.device.administrativeState,wt@at\""),
 		),
 		mcp.WithString("view",
 			mcp.Description("Comma-separated named views that expand into field sets — USE THIS instead of guessing field paths. Built-in views: summary (id, type, name, org, status), identifier, name, type, location, organization, topology, status, hardware, software, relations, temperature, power, resources. Collected fields include their at timestamp automatically. Combinable with 'select' (explicit fields win). Read the opengate://views resource for the full dictionary. Example: \"summary,power\""),
