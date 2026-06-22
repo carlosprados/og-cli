@@ -1,0 +1,26 @@
+# Enforce LF for all text files in the repo and on checkout, on every OS.
+# This is the authoritative, cross-platform rule — it travels with the repo,
+# so collaborators on Linux/macOS/Windows/WSL all get identical line endings
+# regardless of their local git config.
+
+* text=auto eol=lf
+
+# Binary types — never normalize line endings
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+*.tar   binary
+*.exe   binary
+*.dll   binary
+*.so    binary
+*.dylib binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
