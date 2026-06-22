@@ -47,16 +47,16 @@ og dev search -s wt -s wp -s anin1 --at
 ## Devices — filter by collection time (`at` = reception, `date` = measurement)
 
 Timestamps are **filterable server-side**, not just projectable. Path is
-`<datastream>._current.at` / `._current.date`, value = ISO-8601 with offset. Use raw
-`--filter` — the `-w` parser mis-casts ISO strings to numbers (known issue).
+`<datastream>._current.at` / `._current.date`, value = ISO-8601 with offset. Works with
+`-w` (the ISO value is kept as a string) or raw `--filter`. Project them with `@at`/`@date`.
 
 ```bash
 # Devices that COLLECTED ANYTHING after 18:00 yesterday
 # → the device identifier datastream is collected on every report, so its `at` answers it
-og dev search --filter '{"filter":{"gte":{"device.identifier._current.at":"2026-06-21T18:00:00.000+02:00"}}}'
+og dev search -w "device.identifier._current.at gte 2026-06-21T18:00:00.000+02:00" -s device.identifier@at
 
 # Devices whose <stream> MEASUREMENT (date) is after T — ASK which stream first
-og dev search --filter '{"filter":{"gte":{"wt._current.date":"2026-06-21T18:00:00.000+02:00"}}}'
+og dev search -w "wt._current.date gte 2026-06-21T18:00:00.000+02:00" -s wt@date
 
 # Combine a time window with a provision filter (AND)
 og dev search --filter '{"filter":{"and":[
