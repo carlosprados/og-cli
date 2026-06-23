@@ -41,10 +41,14 @@ skill requires rebuilding `og` for the embedded copy to pick up the change.
 og login -e user@example.com            # password prompted; stores North JWT + Web JWT + API key
 og login -e user@example.com --profile staging
 og login -e user@example.com --no-web   # skip Web API signin (no workspace/dashboard cmds)
+og login -e user@example.com --2fa-code 123456   # TOTP 2FA-enabled accounts
 ```
 
+- **2FA (TOTP):** if the account has 2FA enabled, login prompts for the 6-digit code
+  and retries. For non-interactive runs pass `--2fa-code` / `OG_2FA_CODE` (codes expire
+  in 30s — generate fresh per run). Enabling/resetting 2FA is done in the web UI, not og.
 - Config: `~/.og/config.yaml`, profile-based. Select with `--profile` or `OG_PROFILE`.
-- Env overrides: `OG_HOST`, `OG_TOKEN`, `OG_ORG`, `OG_EMAIL`, `OG_PASSWORD`, `OG_INSECURE`, `OG_CA_FILE`. A `.env` in cwd auto-loads.
+- Env overrides: `OG_HOST`, `OG_TOKEN`, `OG_ORG`, `OG_EMAIL`, `OG_PASSWORD`, `OG_2FA_CODE`, `OG_INSECURE`, `OG_CA_FILE`. A `.env` in cwd auto-loads.
 - **Self-signed / private-CA servers**: global `--insecure` skips TLS verification
   (no CA needed) and `--ca-file <pem>` trusts an extra CA — both cover HTTP (North/South)
   **and** MQTT. Resolution is flag → profile → env; `og login --insecure` persists it

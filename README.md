@@ -60,6 +60,7 @@ Environment variables (prefix `OG_`) override config values:
 | `OG_ORG` | Organization name |
 | `OG_EMAIL` | Login email |
 | `OG_PASSWORD` | Login password |
+| `OG_2FA_CODE` | 6-digit TOTP code for 2FA-enabled accounts |
 | `OG_INSECURE` | Skip TLS verification (`true`/`false`) |
 | `OG_CA_FILE` | Path to an extra CA/chain PEM to trust |
 
@@ -229,9 +230,16 @@ Authenticate against OpenGate and store JWT token, API key, and organization in 
 og login -e user@example.com
 og login -e user@example.com -p mypassword
 og login -e user@example.com --profile staging
+og login -e user@example.com --2fa-code 123456     # accounts with 2FA (TOTP) enabled
 ```
 
 The password is prompted securely if not provided. The API key (needed for IoT data collection) is obtained automatically from the login response.
+
+**Two-factor authentication (2FA).** If the account has TOTP 2FA enabled, `og login`
+asks for the 6-digit code interactively and retries. For non-interactive use
+(scripts, CI) supply it up front with `--2fa-code` or the `OG_2FA_CODE` env var —
+codes expire after 30 seconds, so generate a fresh one per run. Enabling/resetting
+2FA itself is done in the OpenGate web UI, not from `og`.
 
 ### datamodels (alias: dm)
 

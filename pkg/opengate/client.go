@@ -307,6 +307,7 @@ func (c *Client) PostMultipartFile(path, fieldName, filePath, accept string) (bo
 // APIError represents an error response from the OpenGate API.
 type APIError struct {
 	StatusCode int
+	Code       string // OpenGate error code (e.g. "0x000065"), when present
 	Message    string
 }
 
@@ -320,14 +321,30 @@ func CheckResponse(data []byte, statusCode int) error {
 		return nil
 	}
 	msg := string(data)
-	// Try to extract a message from JSON error response
-	var errBody struct {
-		Message string `json:"message"`
+	code := ""
+	// OpenGate error bodies come in two shapes:
+	//   {"message":"..."}                                (simple)
+	//   {"errors":[{"code":"0x..","message":"..."}]}     (ErrorList)
+	var errList struct {
+		Errors []struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"errors"`
 	}
-	if json.Unmarshal(data, &errBody) == nil && errBody.Message != "" {
-		msg = errBody.Message
+	if json.Unmarshal(data, &errList) == nil && len(errList.Errors) > 0 {
+		code = errList.Errors[0].Code
+		if errList.Errors[0].Message != "" {
+			msg = errList.Errors[0].Message
+		}
+	} else {
+		var errBody struct {
+			Message string `json:"message"`
+		}
+		if json.Unmarshal(data, &errBody) == nil && errBody.Message != "" {
+			msg = errBody.Message
+		}
 	}
-	return &APIError{StatusCode: statusCode, Message: msg}
+	return &APIError{StatusCode: statusCode, Code: code, Message: msg}
 }
 
 // IsEmptyResponse returns true when the API returned no content (204 or empty body).

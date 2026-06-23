@@ -21,6 +21,7 @@ var loginCmd = &cobra.Command{
 var (
 	loginEmail     string
 	loginPassword  string
+	loginTwoFaCode string
 	loginDomain    string
 	loginWorkgroup string
 	loginProfile   string
@@ -30,6 +31,7 @@ var (
 func init() {
 	loginCmd.Flags().StringVarP(&loginEmail, "email", "e", "", "OpenGate email (or OG_EMAIL env var)")
 	loginCmd.Flags().StringVarP(&loginPassword, "password", "p", "", "OpenGate password (or OG_PASSWORD env var)")
+	loginCmd.Flags().StringVar(&loginTwoFaCode, "2fa-code", "", "6-digit TOTP code for accounts with 2FA enabled (or OG_2FA_CODE env var; prompted if omitted)")
 	loginCmd.Flags().StringVar(&loginDomain, "domain", "", "domain for Web API signin (default: from north login response)")
 	loginCmd.Flags().StringVar(&loginWorkgroup, "workgroup", "default", "workgroup for Web API signin")
 	loginCmd.Flags().StringVar(&loginProfile, "user-profile", "", "user profile for Web API signin (default: from north login response)")
@@ -73,8 +75,21 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("password is required")
 	}
 
+	twoFaCode := loginTwoFaCode
+	if twoFaCode == "" {
+		twoFaCode = os.Getenv("OG_2FA_CODE")
+	}
+
 	c := opengate.New(p.Host, "")
-	result, err := c.Login(email, password)
+	result, err := c.Login(email, password, twoFaCode)
+	if err != nil && opengate.Is2FAChallenge(err) {
+		// The account has 2FA enabled and we need a (fresh) TOTP code.
+		code, perr := prompt2FACode(twoFaCode != "")
+		if perr != nil {
+			return perr
+		}
+		result, err = c.Login(email, password, code)
+	}
 	if err != nil {
 		return fmt.Errorf("login failed: %w", err)
 	}
@@ -137,4 +152,23 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		fmt.Println("Web API access enabled (workspace/dashboard commands available).")
 	}
 	return nil
+}
+
+// prompt2FACode asks the user for a TOTP code interactively. retried is true
+// when a code was already supplied (via flag/env) and rejected by the server.
+// On a non-interactive stdin it returns an actionable error instead of hanging.
+func prompt2FACode(retried bool) (string, error) {
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		if retried {
+			return "", fmt.Errorf("2FA code invalid or expired; supply a fresh code via --2fa-code or OG_2FA_CODE")
+		}
+		return "", fmt.Errorf("this account requires a 2FA code; supply it via --2fa-code or OG_2FA_CODE")
+	}
+	if retried {
+		fmt.Fprintln(os.Stderr, "Invalid or expired 2FA code, try again.")
+	}
+	fmt.Print("2FA code: ")
+	var code string
+	fmt.Scanln(&code)
+	return strings.TrimSpace(code), nil
 }

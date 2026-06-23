@@ -112,7 +112,9 @@ func (m model) updateLogin(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) doLogin(email, password string) tea.Cmd {
 	return func() tea.Msg {
 		c := opengate.New(m.profile.Host, "")
-		result, err := c.Login(email, password)
+		// 2FA-enabled accounts are not supported in the TUI login form; use
+		// `og login` (with --2fa-code) from the CLI instead.
+		result, err := c.Login(email, password, "")
 		return loginResultMsg{result: result, err: err}
 	}
 }
