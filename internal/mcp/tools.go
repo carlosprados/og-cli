@@ -45,6 +45,9 @@ func loginTool() mcp.Tool {
 		mcp.WithString("2FaCode",
 			mcp.Description("6-digit TOTP code, required only for accounts with 2FA enabled. If login reports 2FA is required, re-call this tool with a fresh code."),
 		),
+		mcp.WithString("2FaSecret",
+			mcp.Description("base32 TOTP secret; when provided, the 6-digit code is derived server-side (alternative to 2FaCode, for unattended logins)."),
+		),
 		mcp.WithString("host",
 			mcp.Description("OpenGate API host URL (optional, uses profile default if omitted)"),
 		),
@@ -58,9 +61,18 @@ func loginHandler(defaultHost string) server.ToolHandlerFunc {
 		email, _ := args["email"].(string)
 		password, _ := args["password"].(string)
 		twoFaCode, _ := args["2FaCode"].(string)
+		twoFaSecret, _ := args["2FaSecret"].(string)
 
 		if email == "" || password == "" {
 			return mcp.NewToolResultError("email and password are required"), nil
+		}
+
+		if twoFaCode == "" && twoFaSecret != "" {
+			code, gerr := opengate.GenerateTOTPCode(twoFaSecret)
+			if gerr != nil {
+				return mcp.NewToolResultError(fmt.Sprintf("invalid 2FA secret: %v", gerr)), nil
+			}
+			twoFaCode = code
 		}
 
 		host := defaultHost

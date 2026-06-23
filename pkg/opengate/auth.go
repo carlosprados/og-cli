@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"net/mail"
 	"strings"
+	"time"
+
+	"github.com/pquerna/otp/totp"
 )
 
 const (
@@ -115,6 +118,23 @@ func Is2FAChallenge(err error) bool {
 		return apiErr.Code == errCode2FARequired || apiErr.Code == errCode2FAInvalid
 	}
 	return false
+}
+
+// GenerateTOTPCode derives the current 6-digit TOTP code from a base32 secret
+// (the seed shown when enabling 2FA in the web UI). It lets og log in
+// non-interactively when the secret is stored in the profile or supplied via
+// OG_2FA_SECRET. Spaces are stripped and the secret is upper-cased to tolerate
+// the way authenticator apps display it.
+func GenerateTOTPCode(secret string) (string, error) {
+	secret = strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(secret), " ", ""))
+	if secret == "" {
+		return "", fmt.Errorf("empty TOTP secret")
+	}
+	code, err := totp.GenerateCode(secret, time.Now())
+	if err != nil {
+		return "", fmt.Errorf("generating TOTP code from secret: %w", err)
+	}
+	return code, nil
 }
 
 // Login authenticates against OpenGate and returns JWT token, API key, and

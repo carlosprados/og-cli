@@ -83,6 +83,68 @@ func TestSaveCredentialsPersistsTLS(t *testing.T) {
 	}
 }
 
+// TestSaveCredentialsPersistsTOTPSecret checks the TOTP seed round-trips and
+// that the config file is locked down to 0600 (it holds a master credential).
+func TestSaveCredentialsPersistsTOTPSecret(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+
+	creds := Credentials{Token: "tok", TOTPSecret: "JBSWY3DPEHPK3PXP"}
+	if err := SaveCredentials("default", creds, cfgPath); err != nil {
+		t.Fatalf("SaveCredentials: %v", err)
+	}
+
+	info, err := os.Stat(cfgPath)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Errorf("config perms = %o, want 600", perm)
+	}
+
+	cfg, err := Load(cfgPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	p, err := cfg.ActiveProfile("default")
+	if err != nil {
+		t.Fatalf("ActiveProfile: %v", err)
+	}
+	if p.TOTPSecret != "JBSWY3DPEHPK3PXP" {
+		t.Errorf("totp_secret = %q, want JBSWY3DPEHPK3PXP", p.TOTPSecret)
+	}
+}
+
+// TestActiveProfileTOTPSecretEnvOverride guards the OG_2FA_SECRET env override.
+func TestActiveProfileTOTPSecretEnvOverride(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+
+	existing := `default_profile: default
+profiles:
+  default:
+    host: https://default.example.com
+    totp_secret: STOREDSECRET
+`
+	if err := os.WriteFile(cfgPath, []byte(existing), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("OG_2FA_SECRET", "ENVSECRET")
+
+	cfg, err := Load(cfgPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	p, err := cfg.ActiveProfile("default")
+	if err != nil {
+		t.Fatalf("ActiveProfile: %v", err)
+	}
+	if p.TOTPSecret != "ENVSECRET" {
+		t.Errorf("OG_2FA_SECRET override = %q, want ENVSECRET", p.TOTPSecret)
+	}
+}
+
 // TestActiveProfileTLSEnvOverride guards the OG_INSECURE / OG_CA_FILE env overrides.
 func TestActiveProfileTLSEnvOverride(t *testing.T) {
 	dir := t.TempDir()
