@@ -68,6 +68,15 @@ When adding a new endpoint:
 5. Ship them in the same PR.
 6. Update the relevant skill under `.claude/skills/` (og-cli / og-workspaces / og-device-ops).
 
+**Authentication parity (non-negotiable):** login and auth features — credentials,
+2FA/TOTP (code, stored secret, challenge-retry), TLS escape hatches — MUST stay in
+lockstep across **all four** surfaces: CLI (`cmd/login.go`), MCP (`internal/mcp/`),
+TUI (`internal/tui/login.go`) **and** SKILLS (`.claude/skills/og-cli`) + README. The
+TUI is part of this set: it is the default `og` (no-args) entry point, so any auth
+capability the CLI offers must be reachable from the TUI too (a field, an auto-derived
+code from the stored secret, or a challenge prompt). When you touch login on one
+surface, update the other three in the same PR — no "use the CLI instead" shortcuts.
+
 **Entity scope (v1.0):** devices have full CRUD across the surfaces. Assets,
 subscribers and subscriptions are provisioned via **provision functions** (`og provision`)
 — direct CRUD for them is intentionally out of v1.0 (revisit post-v1 if demand appears).

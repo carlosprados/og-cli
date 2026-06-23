@@ -251,6 +251,11 @@ factor: anyone who can read `~/.og/config.yaml` can mint codes, so it degrades 2
 effectively single-factor on that machine. Use it on trusted hosts / CI runners only.
 Enabling/resetting 2FA itself is done in the OpenGate web UI, not from `og`.
 
+**2FA everywhere, not just the CLI.** The interactive TUI (`og` with no args) and the
+MCP `login` tool handle 2FA too: the TUI auto-derives the code from a stored
+`--2fa-secret` and reveals a "2FA code" field when the server issues a challenge, and
+the MCP tool accepts `2FaCode` / `2FaSecret` parameters — same behaviour as the CLI.
+
 ### datamodels (alias: dm)
 
 Manage OpenGate data models.

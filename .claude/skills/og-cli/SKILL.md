@@ -54,6 +54,10 @@ og login -e user@example.com --2fa-secret JBSWY3DPEHPK3PXP   # store seed; og ge
   per-run code. `OG_2FA_SECRET` does the same per-run **without** persisting. ⚠️ A stored
   seed is a permanent second factor (anyone reading the config can mint codes) — trusted
   hosts / CI only.
+- **2FA in every surface:** the interactive TUI (`og` no-args) and the MCP `login` tool
+  also handle 2FA. The TUI auto-derives the code from a stored `--2fa-secret`, and
+  reveals a "2FA code" field when the server issues a challenge. MCP `login` takes
+  `2FaCode` / `2FaSecret` params. Same behaviour as the CLI — no surface is left out.
 - Config: `~/.og/config.yaml`, profile-based. Select with `--profile` or `OG_PROFILE`.
 - Env overrides: `OG_HOST`, `OG_TOKEN`, `OG_ORG`, `OG_EMAIL`, `OG_PASSWORD`, `OG_2FA_CODE`, `OG_2FA_SECRET`, `OG_INSECURE`, `OG_CA_FILE`. A `.env` in cwd auto-loads.
 - **Self-signed / private-CA servers**: global `--insecure` skips TLS verification
