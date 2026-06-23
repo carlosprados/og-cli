@@ -29,6 +29,11 @@ type Profile struct {
 	Insecure bool   `mapstructure:"insecure"` // skip TLS certificate verification
 	CAFile   string `mapstructure:"ca_file"`  // extra CA/chain PEM to trust
 
+	// TOTPSecret is the base32 2FA seed. When set, og derives the 6-digit TOTP
+	// code itself on login (no interactive prompt). Stored in clear text, so the
+	// config file is forced to 0600 — treat it as a master credential.
+	TOTPSecret string `mapstructure:"totp_secret"`
+
 	// Fields below are used to refresh the WebToken when it is invalidated
 	// (e.g. when the user logs in via the OpenGate web UI in parallel).
 	Email       string `mapstructure:"email"`
@@ -141,6 +146,11 @@ func (c *Config) ActiveProfile(name string) (*Profile, error) {
 	if cf := os.Getenv(EnvPrefix + "_CA_FILE"); cf != "" {
 		p.CAFile = cf
 	}
+	// OG_2FA_SECRET overrides (but never persists) the stored TOTP seed —
+	// the env-only path for CI where writing the secret to disk is undesirable.
+	if s := os.Getenv(EnvPrefix + "_2FA_SECRET"); s != "" {
+		p.TOTPSecret = s
+	}
 	return &p, nil
 }
 
@@ -160,6 +170,10 @@ type Credentials struct {
 	// (e.g. `og login --insecure` against a self-signed server).
 	Insecure bool
 	CAFile   string
+
+	// TOTPSecret, when set, is persisted so og can generate the 2FA code on
+	// later logins without a prompt. Stored in clear text (file forced to 0600).
+	TOTPSecret string
 }
 
 // SaveCredentials persists login credentials into the named profile.
@@ -224,6 +238,16 @@ func SaveCredentials(profileName string, creds Credentials, configPath string) e
 	if creds.CAFile != "" {
 		v.Set(prefix+".ca_file", creds.CAFile)
 	}
+	if creds.TOTPSecret != "" {
+		v.Set(prefix+".totp_secret", creds.TOTPSecret)
+	}
 
-	return v.WriteConfig()
+	if err := v.WriteConfig(); err != nil {
+		return err
+	}
+	// The config holds tokens (and possibly a TOTP secret) — keep it private.
+	if f := v.ConfigFileUsed(); f != "" {
+		_ = os.Chmod(f, 0o600)
+	}
+	return nil
 }

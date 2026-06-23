@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
+
+	"github.com/pquerna/otp/totp"
 )
 
 func TestCheckResponseParsesErrorListCode(t *testing.T) {
@@ -48,6 +51,36 @@ func TestIs2FAChallenge(t *testing.T) {
 	}
 	if Is2FAChallenge(nil) {
 		t.Error("Is2FAChallenge(nil) should be false")
+	}
+}
+
+func TestGenerateTOTPCode(t *testing.T) {
+	const secret = "JBSWY3DPEHPK3PXP" // base32
+
+	code, err := GenerateTOTPCode(secret)
+	if err != nil {
+		t.Fatalf("GenerateTOTPCode: %v", err)
+	}
+	if len(code) != 6 {
+		t.Errorf("code = %q, want 6 digits", code)
+	}
+	// The generated code must validate against the same secret right now.
+	if !totp.Validate(code, secret) {
+		t.Errorf("generated code %q does not validate against secret", code)
+	}
+
+	// Lower-case and spaced input (as authenticator apps display it) is accepted.
+	spaced, err := GenerateTOTPCode("jbsw y3dp ehpk 3pxp")
+	if err != nil {
+		t.Fatalf("GenerateTOTPCode(spaced): %v", err)
+	}
+	want, _ := totp.GenerateCode(secret, time.Now())
+	if spaced != want {
+		t.Errorf("spaced/lower secret gave %q, want %q", spaced, want)
+	}
+
+	if _, err := GenerateTOTPCode("   "); err == nil {
+		t.Error("expected error for empty secret")
 	}
 }
 

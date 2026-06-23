@@ -19,19 +19,21 @@ var loginCmd = &cobra.Command{
 }
 
 var (
-	loginEmail     string
-	loginPassword  string
-	loginTwoFaCode string
-	loginDomain    string
-	loginWorkgroup string
-	loginProfile   string
-	loginNoWeb     bool
+	loginEmail       string
+	loginPassword    string
+	loginTwoFaCode   string
+	loginTwoFaSecret string
+	loginDomain      string
+	loginWorkgroup   string
+	loginProfile     string
+	loginNoWeb       bool
 )
 
 func init() {
 	loginCmd.Flags().StringVarP(&loginEmail, "email", "e", "", "OpenGate email (or OG_EMAIL env var)")
 	loginCmd.Flags().StringVarP(&loginPassword, "password", "p", "", "OpenGate password (or OG_PASSWORD env var)")
 	loginCmd.Flags().StringVar(&loginTwoFaCode, "2fa-code", "", "6-digit TOTP code for accounts with 2FA enabled (or OG_2FA_CODE env var; prompted if omitted)")
+	loginCmd.Flags().StringVar(&loginTwoFaSecret, "2fa-secret", "", "base32 TOTP secret; stored in the profile so og generates the code itself on every login (or OG_2FA_SECRET env var, which is not persisted)")
 	loginCmd.Flags().StringVar(&loginDomain, "domain", "", "domain for Web API signin (default: from north login response)")
 	loginCmd.Flags().StringVar(&loginWorkgroup, "workgroup", "default", "workgroup for Web API signin")
 	loginCmd.Flags().StringVar(&loginProfile, "user-profile", "", "user profile for Web API signin (default: from north login response)")
@@ -80,6 +82,24 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		twoFaCode = os.Getenv("OG_2FA_CODE")
 	}
 
+	// Resolve the TOTP secret (flag > env > stored profile). With a secret and
+	// no explicit code, og generates the 6-digit code itself — fully
+	// non-interactive 2FA. An explicit --2fa-code always wins.
+	twoFaSecret := loginTwoFaSecret
+	if twoFaSecret == "" {
+		twoFaSecret = os.Getenv("OG_2FA_SECRET")
+	}
+	if twoFaSecret == "" {
+		twoFaSecret = p.TOTPSecret
+	}
+	if twoFaCode == "" && twoFaSecret != "" {
+		code, gerr := opengate.GenerateTOTPCode(twoFaSecret)
+		if gerr != nil {
+			return gerr
+		}
+		twoFaCode = code
+	}
+
 	c := opengate.New(p.Host, "")
 	result, err := c.Login(email, password, twoFaCode)
 	if err != nil && opengate.Is2FAChallenge(err) {
@@ -108,6 +128,9 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		// (e.g. logging in to a self-signed server with --insecure).
 		Insecure: effInsecure,
 		CAFile:   effCAFile,
+		// Persist the TOTP secret only when given explicitly via flag; the
+		// OG_2FA_SECRET env path is intentionally never written to disk.
+		TOTPSecret: loginTwoFaSecret,
 	}
 
 	// Attempt Web API signin (workspaces/dashboards) unless skipped.
