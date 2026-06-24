@@ -343,6 +343,10 @@ var connectorsLogsCmd = &cobra.Command{
 Traces are emitted by logger.trace/debug/info/warn/error calls inside the
 connector function's JavaScript, colourised by severity. Press Ctrl-C to stop.
 
+NOTE: a device only emits logs while its administrativeState is TESTING. With an
+ACTIVE device the connector function still runs and collects data, but no logs are
+streamed. Use --level DEBUG/TRACE to see logger.debug/trace (default is INFO).
+
 Examples:
   og connectors logs <cf-id> --org sensehat
   og connectors logs <cf-id> --level TRACE --org sensehat`,
