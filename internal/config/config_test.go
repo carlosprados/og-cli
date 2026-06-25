@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -98,8 +99,13 @@ func TestSaveCredentialsPersistsTOTPSecret(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stat: %v", err)
 	}
-	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Errorf("config perms = %o, want 600", perm)
+	// Unix permission bits are not enforced on Windows: os.Chmod only toggles the
+	// read-only attribute there, so Stat reports 0666 regardless. Assert the 0600
+	// lock-down only where the OS actually honors it.
+	if runtime.GOOS != "windows" {
+		if perm := info.Mode().Perm(); perm != 0o600 {
+			t.Errorf("config perms = %o, want 600", perm)
+		}
 	}
 
 	cfg, err := Load(cfgPath)
