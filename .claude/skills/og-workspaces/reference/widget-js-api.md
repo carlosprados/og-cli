@@ -103,7 +103,7 @@ platform OpenAPI spec (`ogdoc/` in the og-cli repo). Known-good names:
 | Domain (builder) | Filter fields (prefix) | Response key |
 |---|---|---|
 | `datapointsSearchBuilder` | `datapoints.entityIdentifier`, `datapoints.datastreamId`, `datapoints.feed` | `data.datapoints[]` with `_current` |
-| `devicesSearchBuilder` / `entitiesSearchBuilder` | `provision.device.*`, `provision.administration.*`, plus bare datastream ids (`wt`) | `data.devices[]` / `data.entities[]` (flattened) |
+| `devicesSearchBuilder` / `entitiesSearchBuilder` | `provision.device.*`, `provision.administration.*`, plus bare datastream ids (`wt`) | `data.devices[]` / `data.entities[]` — field shape varies (nested vs flattened); read with the shape-proof accessor (note below) |
 | `alarmsSearchBuilder` | `alarm.name`, `alarm.severity`, `alarm.status`, `alarm.entityIdentifier`, `alarm.openingDate` | `data.alarms[]` |
 | `rulesSearchBuilder` | `rule.name`, `rule.mode`, `rule.active` | `data.rules[]` |
 | `operationsSearchBuilder` (jobs) | `jobs.request.name`, `jobs.report.summary.status` | `data.jobs[]` |
@@ -111,6 +111,45 @@ platform OpenAPI spec (`ogdoc/` in the og-cli repo). Known-good names:
 When in doubt: grep the corresponding `ogdoc/**/*.yaml` for the search request
 examples — a wrong field name is a 400 with
 `{"errors":[{"code":"0x050014","message":"Field in filter unknown"}]}`.
+
+> **Reading device/entity fields — be shape-proof.** OpenGate search returns
+> entity fields in TWO shapes depending on whether `flattened=true` was requested,
+> so do NOT hard-code one — a wrong assumption silently yields `undefined` (e.g. a
+> chart shows "(unknown)"):
+>
+> - **nested**: `dev.provision.device.identifier`; collected datastreams nest by
+>   dots (`dev.probe.available`); leaf wrapped as `._current.value`.
+> - **flattened**: a single dotted key `dev["provision.device.identifier"]`; leaf
+>   wrapped as `._value._current.value`.
+>
+> One accessor handles both shapes and every leaf wrapping (incl. an already-unwrapped
+> primitive). Verified live against device/entity search results:
+>
+> ```js
+> function deepGet(obj, path) {
+>   if (!obj) { return undefined; }
+>   if (obj[path] !== undefined) { return obj[path]; }   // flattened: single dotted key
+>   var parts = path.split('.'), node = obj, i;          // nested: walk the path
+>   for (i = 0; i < parts.length; i++) {
+>     if (node === null || node === undefined) { return undefined; }
+>     node = node[parts[i]];
+>   }
+>   return node;
+> }
+> function unwrap(n) {
+>   if (n === null || n === undefined) { return null; }
+>   if (typeof n !== 'object') { return n; }             // already a primitive
+>   if (n._value && n._value._current) { return n._value._current.value; }
+>   if (n._current) { return n._current.value; }
+>   if (n.value !== undefined) { return n.value; }
+>   return null;
+> }
+> function field(dev, path) { return unwrap(deepGet(dev, path)); }
+> // field(dev, 'provision.device.identifier'); field(dev, 'probe.available');
+> ```
+>
+> (`datapointsSearchBuilder` is simpler — `data.datapoints[]` exposes `_current`
+> directly.)
 
 ### Full `$api` builder catalog (51 factories, opengate-js)
 
