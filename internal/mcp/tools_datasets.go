@@ -9,13 +9,13 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerDatasetTools(s *server.MCPServer, p *provider) {
-	s.AddTool(dsListTool(), dsListHandler(p))
-	s.AddTool(dsGetTool(), dsGetHandler(p))
-	s.AddTool(dsCreateTool(), dsCreateHandler(p))
-	s.AddTool(dsUpdateTool(), dsUpdateHandler(p))
-	s.AddTool(dsDeleteTool(), dsDeleteHandler(p))
-	s.AddTool(dsDataTool(), dsDataHandler(p))
+func registerDatasetTools(r *registrar) {
+	r.tool(tsDatasets, dsListTool(), dsListHandler(r.p))
+	r.tool(tsDatasets, dsGetTool(), dsGetHandler(r.p))
+	r.tool(tsDatasetsWrite, dsCreateTool(), dsCreateHandler(r.p))
+	r.tool(tsDatasetsWrite, dsUpdateTool(), dsUpdateHandler(r.p))
+	r.tool(tsDatasetsWrite, dsDeleteTool(), dsDeleteHandler(r.p))
+	r.tool(tsDatasets, dsDataTool(), dsDataHandler(r.p))
 }
 
 func dsListTool() mcp.Tool {

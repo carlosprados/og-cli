@@ -11,11 +11,11 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerIoTTools(s *server.MCPServer, p *provider) {
-	s.AddTool(iotCollectTool(), iotCollectHandler(p))
-	s.AddTool(iotCollectPayloadTool(), iotCollectPayloadHandler(p))
-	s.AddTool(iotCollectRawTool(), iotCollectRawHandler(p))
-	registerIoTMQTTTools(s, p)
+func registerIoTTools(r *registrar) {
+	r.tool(tsIoT, iotCollectTool(), iotCollectHandler(r.p))
+	r.tool(tsIoT, iotCollectPayloadTool(), iotCollectPayloadHandler(r.p))
+	r.tool(tsIoT, iotCollectRawTool(), iotCollectRawHandler(r.p))
+	registerIoTMQTTTools(r)
 }
 
 // --- collect raw (HTTP connector-function south route) ---

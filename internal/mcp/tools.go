@@ -12,21 +12,18 @@ import (
 
 // registerLoginTool registers the login tool (single-tenant only — it returns a
 // JWT in its result text, which must never reach the LLM in multi-tenant mode).
-func registerLoginTool(s *server.MCPServer, host string) {
-	s.AddTool(loginTool(), loginHandler(host))
+func registerLoginTool(r *registrar) {
+	r.tool(tsLogin, loginTool(), loginHandler(r.host))
 }
 
-// registerDatamodelTools registers datamodel + device tools (parity with the CLI).
-func registerDatamodelTools(s *server.MCPServer, p *provider) {
-	// Datamodels — full CRUD + search
-	s.AddTool(datamodelsSearchTool(), datamodelsSearchHandler(p))
-	s.AddTool(datamodelsGetTool(), datamodelsGetHandler(p))
-	s.AddTool(datamodelsCreateTool(), datamodelsCreateHandler(p))
-	s.AddTool(datamodelsUpdateTool(), datamodelsUpdateHandler(p))
-	s.AddTool(datamodelsDeleteTool(), datamodelsDeleteHandler(p))
-
-	// Devices — full CRUD + search
-	registerDeviceTools(s, p)
+// registerDatamodelTools registers datamodel tools (parity with the CLI).
+// Device tools are registered separately (registerDeviceTools) by newServer.
+func registerDatamodelTools(r *registrar) {
+	r.tool(tsDatamodels, datamodelsSearchTool(), datamodelsSearchHandler(r.p))
+	r.tool(tsDatamodels, datamodelsGetTool(), datamodelsGetHandler(r.p))
+	r.tool(tsDatamodelsWrite, datamodelsCreateTool(), datamodelsCreateHandler(r.p))
+	r.tool(tsDatamodelsWrite, datamodelsUpdateTool(), datamodelsUpdateHandler(r.p))
+	r.tool(tsDatamodelsWrite, datamodelsDeleteTool(), datamodelsDeleteHandler(r.p))
 }
 
 // --- login ---

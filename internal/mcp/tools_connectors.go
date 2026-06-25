@@ -10,15 +10,15 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerConnectorTools(s *server.MCPServer, p *provider) {
-	s.AddTool(connectorsListTool(), connectorsListHandler(p))
-	s.AddTool(connectorsGetTool(), connectorsGetHandler(p))
-	s.AddTool(connectorsCreateTool(), connectorsCreateHandler(p))
-	s.AddTool(connectorsUpdateTool(), connectorsUpdateHandler(p))
-	s.AddTool(connectorsDeleteTool(), connectorsDeleteHandler(p))
-	s.AddTool(connectorsSetStatusTool(), connectorsSetStatusHandler(p))
-	s.AddTool(connectorsCatalogTool(), connectorsCatalogHandler(p))
-	s.AddTool(connectorsLogsTool(), connectorsLogsHandler(p))
+func registerConnectorTools(r *registrar) {
+	r.tool(tsConnectors, connectorsListTool(), connectorsListHandler(r.p))
+	r.tool(tsConnectors, connectorsGetTool(), connectorsGetHandler(r.p))
+	r.tool(tsConnectorsWrite, connectorsCreateTool(), connectorsCreateHandler(r.p))
+	r.tool(tsConnectorsWrite, connectorsUpdateTool(), connectorsUpdateHandler(r.p))
+	r.tool(tsConnectorsWrite, connectorsDeleteTool(), connectorsDeleteHandler(r.p))
+	r.tool(tsConnectorsOps, connectorsSetStatusTool(), connectorsSetStatusHandler(r.p))
+	r.tool(tsConnectors, connectorsCatalogTool(), connectorsCatalogHandler(r.p))
+	r.tool(tsConnectors, connectorsLogsTool(), connectorsLogsHandler(r.p))
 }
 
 // --- catalog ---

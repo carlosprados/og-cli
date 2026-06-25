@@ -12,12 +12,12 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerDeviceTools(s *server.MCPServer, p *provider) {
-	s.AddTool(devicesSearchTool(), devicesSearchHandler(p))
-	s.AddTool(devicesGetTool(), devicesGetHandler(p))
-	s.AddTool(devicesCreateTool(), devicesCreateHandler(p))
-	s.AddTool(devicesUpdateTool(), devicesUpdateHandler(p))
-	s.AddTool(devicesDeleteTool(), devicesDeleteHandler(p))
+func registerDeviceTools(r *registrar) {
+	r.tool(tsDevices, devicesSearchTool(), devicesSearchHandler(r.p))
+	r.tool(tsDevices, devicesGetTool(), devicesGetHandler(r.p))
+	r.tool(tsDevicesWrite, devicesCreateTool(), devicesCreateHandler(r.p))
+	r.tool(tsDevicesWrite, devicesUpdateTool(), devicesUpdateHandler(r.p))
+	r.tool(tsDevicesWrite, devicesDeleteTool(), devicesDeleteHandler(r.p))
 }
 
 // --- search ---

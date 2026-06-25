@@ -879,15 +879,45 @@ Payload format:
 
 ### mcp
 
-Start the MCP (Model Context Protocol) server, exposing all commands as LLM tools.
+Start the MCP (Model Context Protocol) server, exposing og operations to an LLM.
 
 ```bash
-og mcp                            # stdio transport (default)
+og mcp                            # stdio transport (default → lean mode)
 og mcp --http :8080               # HTTP transport (single-tenant: startup profile)
 og mcp --http :8080 --multi-tenant # HTTP, per-request credentials from headers
 ```
 
 **Prerequisites:** run `og login` first to store credentials.
+
+#### Surface modes (context-token footprint)
+
+Every tool definition (name + description + JSON schema) is loaded into the model's
+context on **every** request, used or not. Exposing all ~90 tools costs ~14k tokens
+per turn. og lets you pick how much surface to expose:
+
+| Mode | Flag | Tools | ~tokens | Use |
+|------|------|-------|---------|-----|
+| **lean** | `--lean` | 2 (`og_exec`, `og_help`) | ~440 | shell-capable agents (Claude Code, Cursor); the model drives the whole CLI through two tools and discovers it with `og_help` |
+| **observe** | `--toolsets observe` | ~18 | ~3.7k | curated read core (devices, alarms, datamodels, timeseries, datasets, jobs) — no mutations |
+| **readonly** | `--toolsets readonly` | ~42 | ~7k | every non-mutating tool |
+| **groups** | `--toolsets devices,alarms-ops,…` | varies | — | named groups; read = `<resource>`, mutations = `<resource>-write`/`-ops` |
+| **all** | `--all-tools` | ~90 | ~14k | the full named surface |
+
+**Per-transport defaults** (when no surface flag is given):
+
+- **stdio → `--lean`** — a shell-capable, trusted, single user. Cheapest, and the model
+  has the whole CLI.
+- **HTTP / multi-tenant → `--toolsets observe`** — a curated, read-only, governable
+  surface for a remote (less-trusted) caller. Widen with `--toolsets` only if needed.
+
+Call the **`og_toolsets`** tool at runtime to list which groups are active and which
+can be enabled. In lean mode, destructive subcommands (`delete`/`cancel`) still refuse
+to run without `--yes` — pass it in the `og_exec` command only with explicit consent.
+
+> **Changed in v1.7.0:** the stdio default moved from "all tools" to `--lean`, and HTTP
+> now defaults to `--toolsets observe` instead of all tools — a large drop in per-turn
+> context tokens. To keep the previous behaviour, start the server with `--all-tools`.
+> `og mcp install` now bakes `--lean` into the generated config.
 
 #### Multi-tenant HTTP mode
 
@@ -949,8 +979,8 @@ To make the server available in **every** directory under Claude Code, register 
 at user scope yourself with the Claude CLI (which manages `~/.claude.json` safely):
 
 ```bash
-claude mcp add --scope user opengate -- og mcp --stdio
-# add a profile: ... -- og mcp --stdio --profile production
+claude mcp add --scope user opengate -- og mcp --stdio --lean
+# add a profile: ... -- og mcp --stdio --lean --profile production
 ```
 
 Tip: pass the absolute path of the binary (`$(command -v og)`) if `og` is not on
@@ -966,7 +996,7 @@ to get the exact command/args to reuse.
   "mcpServers": {
     "opengate": {
       "command": "og",
-      "args": ["mcp", "--stdio"]
+      "args": ["mcp", "--stdio", "--lean"]
     }
   }
 }
@@ -979,11 +1009,14 @@ to get the exact command/args to reuse.
   "mcpServers": {
     "opengate": {
       "command": "/path/to/og",
-      "args": ["mcp", "--stdio"]
+      "args": ["mcp", "--stdio", "--lean"]
     }
   }
 }
 ```
+
+To expose named tools instead of the lean exec surface, replace `--lean` with
+`--toolsets observe` (or `--all-tools` for everything).
 
 **Multiple environments** (use `--profile`):
 
@@ -992,11 +1025,11 @@ to get the exact command/args to reuse.
   "mcpServers": {
     "opengate-production": {
       "command": "og",
-      "args": ["mcp", "--stdio", "--profile", "production"]
+      "args": ["mcp", "--stdio", "--lean", "--profile", "production"]
     },
     "opengate-staging": {
       "command": "og",
-      "args": ["mcp", "--stdio", "--profile", "staging"]
+      "args": ["mcp", "--stdio", "--lean", "--profile", "staging"]
     }
   }
 }

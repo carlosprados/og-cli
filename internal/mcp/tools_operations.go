@@ -9,16 +9,16 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerOperationTools(s *server.MCPServer, p *provider) {
-	s.AddTool(jobsSearchTool(), jobsSearchHandler(p))
-	s.AddTool(jobsGetTool(), jobsGetHandler(p))
-	s.AddTool(jobsCreateTool(), jobsCreateHandler(p))
-	s.AddTool(jobsCancelTool(), jobsCancelHandler(p))
-	s.AddTool(jobsOpsTool(), jobsOpsHandler(p))
-	s.AddTool(tasksSearchTool(), tasksSearchHandler(p))
-	s.AddTool(tasksGetTool(), tasksGetHandler(p))
-	s.AddTool(tasksCreateTool(), tasksCreateHandler(p))
-	s.AddTool(tasksCancelTool(), tasksCancelHandler(p))
+func registerOperationTools(r *registrar) {
+	r.tool(tsJobs, jobsSearchTool(), jobsSearchHandler(r.p))
+	r.tool(tsJobs, jobsGetTool(), jobsGetHandler(r.p))
+	r.tool(tsJobsRun, jobsCreateTool(), jobsCreateHandler(r.p))
+	r.tool(tsJobsRun, jobsCancelTool(), jobsCancelHandler(r.p))
+	r.tool(tsJobs, jobsOpsTool(), jobsOpsHandler(r.p))
+	r.tool(tsTasks, tasksSearchTool(), tasksSearchHandler(r.p))
+	r.tool(tsTasks, tasksGetTool(), tasksGetHandler(r.p))
+	r.tool(tsTasksWrite, tasksCreateTool(), tasksCreateHandler(r.p))
+	r.tool(tsTasksWrite, tasksCancelTool(), tasksCancelHandler(r.p))
 }
 
 // --- jobs search ---

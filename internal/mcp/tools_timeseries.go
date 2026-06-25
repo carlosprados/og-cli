@@ -9,14 +9,14 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerTimeSeriesTools(s *server.MCPServer, p *provider) {
-	s.AddTool(tsListTool(), tsListHandler(p))
-	s.AddTool(tsGetTool(), tsGetHandler(p))
-	s.AddTool(tsCreateTool(), tsCreateHandler(p))
-	s.AddTool(tsUpdateTool(), tsUpdateHandler(p))
-	s.AddTool(tsDeleteTool(), tsDeleteHandler(p))
-	s.AddTool(tsDataTool(), tsDataHandler(p))
-	s.AddTool(tsExportTool(), tsExportHandler(p))
+func registerTimeSeriesTools(r *registrar) {
+	r.tool(tsTimeseries, tsListTool(), tsListHandler(r.p))
+	r.tool(tsTimeseries, tsGetTool(), tsGetHandler(r.p))
+	r.tool(tsTimeseriesWrite, tsCreateTool(), tsCreateHandler(r.p))
+	r.tool(tsTimeseriesWrite, tsUpdateTool(), tsUpdateHandler(r.p))
+	r.tool(tsTimeseriesWrite, tsDeleteTool(), tsDeleteHandler(r.p))
+	r.tool(tsTimeseries, tsDataTool(), tsDataHandler(r.p))
+	r.tool(tsTimeseries, tsExportTool(), tsExportHandler(r.p))
 }
 
 // --- list ---

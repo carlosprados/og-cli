@@ -12,15 +12,15 @@ import (
 
 const defaultRulesChannel = "default_channel"
 
-func registerRuleTools(s *server.MCPServer, p *provider) {
-	s.AddTool(rulesSearchTool(), rulesSearchHandler(p))
-	s.AddTool(rulesGetTool(), rulesGetHandler(p))
-	s.AddTool(rulesCreateTool(), rulesCreateHandler(p))
-	s.AddTool(rulesUpdateTool(), rulesUpdateHandler(p))
-	s.AddTool(rulesDeleteTool(), rulesDeleteHandler(p))
-	s.AddTool(rulesSetActiveTool(), rulesSetActiveHandler(p))
-	s.AddTool(rulesCatalogTool(), rulesCatalogHandler(p))
-	s.AddTool(rulesLogsTool(), rulesLogsHandler(p))
+func registerRuleTools(r *registrar) {
+	r.tool(tsRules, rulesSearchTool(), rulesSearchHandler(r.p))
+	r.tool(tsRules, rulesGetTool(), rulesGetHandler(r.p))
+	r.tool(tsRulesWrite, rulesCreateTool(), rulesCreateHandler(r.p))
+	r.tool(tsRulesWrite, rulesUpdateTool(), rulesUpdateHandler(r.p))
+	r.tool(tsRulesWrite, rulesDeleteTool(), rulesDeleteHandler(r.p))
+	r.tool(tsRulesOps, rulesSetActiveTool(), rulesSetActiveHandler(r.p))
+	r.tool(tsRules, rulesCatalogTool(), rulesCatalogHandler(r.p))
+	r.tool(tsRules, rulesLogsTool(), rulesLogsHandler(r.p))
 }
 
 // --- catalog ---
