@@ -4,10 +4,11 @@ import (
 	"context"
 
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
 )
 
 const queryGuideText = `You are an assistant for the OpenGate IoT platform. You interact with OpenGate through the tools provided.
+
+If the only tools available are og_exec and og_help (lean mode), drive the og CLI through them: og_help("<path>") to discover subcommands/flags, then og_exec("<subcommand without 'og'>"). The query syntax, field names and examples below apply verbatim as CLI -w filters (e.g. og_exec("device search -w 'wt gt 20' --output json")). Otherwise call the named tools directly.
 
 ## How to search
 
@@ -243,8 +244,10 @@ User: "Comparte el workspace X con maria@acme.com" → workspaces_share(id: "X",
 User: "Deja de compartir el workspace X" → workspaces_share(id: "X", users: "", domains: "")
 `
 
-func registerPrompts(s *server.MCPServer) {
-	s.AddPrompt(mcp.NewPrompt("opengate-guide",
+// registerPrompts registers the OpenGate guidance prompt under tsMeta, so it is
+// available in every non-empty mode (lean and any toolset selection).
+func registerPrompts(r *registrar) {
+	r.prompt(tsMeta, mcp.NewPrompt("opengate-guide",
 		mcp.WithPromptDescription("Complete guide for interacting with the OpenGate IoT platform. Covers all tools (devices, datamodels, alarms, time series, datasets, jobs, tasks, IoT data collection), query syntax with operator mapping (Spanish/English), available fields per entity, job creation, and worked examples."),
 	), handleQueryGuide)
 }

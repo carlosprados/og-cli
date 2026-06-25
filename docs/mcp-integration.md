@@ -12,6 +12,28 @@ When you run `og mcp --stdio`, the binary starts an MCP server that exposes thre
 | **Prompts** | Pre-built instructions the LLM can load | Loaded at the start of a conversation to understand how to use the tools |
 | **Resources** | Data the LLM can read on demand | Read when the LLM needs to discover dynamic information (e.g. available fields) |
 
+## Surface modes
+
+Each tool definition (name, description, full JSON schema) is loaded into the model's
+context on every request — exposing all ~90 named tools costs ~14k tokens per turn
+whether they are used or not. `og mcp` lets you choose how much surface to expose:
+
+| Mode | Flag | Tools | ~tokens | Use |
+|------|------|-------|---------|-----|
+| **lean** | `--lean` | 2 (`og_exec`, `og_help`) | ~440 | shell-capable agents; the model drives the whole CLI through two tools and discovers it with `og_help`. **Default for stdio.** |
+| **observe** | `--toolsets observe` | ~18 | ~3.7k | curated read core (devices, alarms, datamodels, timeseries, datasets, jobs). **Default for HTTP.** |
+| **readonly** | `--toolsets readonly` | ~42 | ~7k | every non-mutating tool |
+| **groups** | `--toolsets <a,b,…>` | varies | — | named groups: read = `<resource>`, mutations = `<resource>-write` / `<resource>-ops` (e.g. `devices,alarms-ops`) |
+| **all** | `--all-tools` | ~90 | ~14k | the full named surface |
+
+Defaults when no surface flag is given: **stdio → `--lean`** (trusted single user with
+a shell), **HTTP / multi-tenant → `--toolsets observe`** (a curated, read-only,
+governable surface for a remote caller). The `og_toolsets` tool lists active and
+available groups at runtime so a client can request more. In lean mode the model calls
+`og_exec` with a CLI command string (no leading `og`); destructive subcommands
+(`delete`/`cancel`) refuse to run without `--yes` in that string, which the model adds
+only with explicit user consent.
+
 ## Configuration
 
 ### Claude Code / Claude Desktop
@@ -23,7 +45,7 @@ Add to your MCP settings (`~/.claude/settings.json` or project `.mcp.json`):
   "mcpServers": {
     "opengate": {
       "command": "og",
-      "args": ["mcp", "--stdio"]
+      "args": ["mcp", "--stdio", "--lean"]
     }
   }
 }
@@ -38,15 +60,19 @@ In LM Studio's MCP server configuration:
   "mcpServers": {
     "opengate": {
       "command": "/path/to/og",
-      "args": ["mcp", "--stdio"]
+      "args": ["mcp", "--stdio", "--lean"]
     }
   }
 }
 ```
 
+(Replace `--lean` with `--toolsets observe` or `--all-tools` to expose named tools
+instead of the exec surface.)
+
 ### Any MCP-compatible client
 
-The pattern is the same: point the client at the `og` binary with `mcp --stdio` as arguments. The server communicates over stdin/stdout using JSON-RPC.
+The pattern is the same: point the client at the `og` binary with `mcp --stdio --lean`
+as arguments. The server communicates over stdin/stdout using JSON-RPC.
 
 ### Using a specific profile
 
@@ -57,11 +83,11 @@ If you have multiple OpenGate environments, pass `--profile`:
   "mcpServers": {
     "opengate-production": {
       "command": "og",
-      "args": ["mcp", "--stdio", "--profile", "production"]
+      "args": ["mcp", "--stdio", "--lean", "--profile", "production"]
     },
     "opengate-staging": {
       "command": "og",
-      "args": ["mcp", "--stdio", "--profile", "staging"]
+      "args": ["mcp", "--stdio", "--lean", "--profile", "staging"]
     }
   }
 }
@@ -196,7 +222,7 @@ og mcp --stdio
     │
     ├── Prompts    → opengate-guide (query syntax, entity mapping, examples)
     ├── Resources  → opengate://query-syntax, opengate://organizations/{org}/datamodel-fields
-    └── Tools      → 30+ tools calling internal/client methods
+    └── Tools      → lean: og_exec/og_help · named: ~90 tools (gated by --toolsets)
                           │
                           ▼
                     OpenGate REST API

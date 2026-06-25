@@ -11,11 +11,11 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerAlarmTools(s *server.MCPServer, p *provider) {
-	s.AddTool(alarmsSearchTool(), alarmsSearchHandler(p))
-	s.AddTool(alarmsSummaryTool(), alarmsSummaryHandler(p))
-	s.AddTool(alarmsAttendTool(), alarmsAttendHandler(p))
-	s.AddTool(alarmsCloseTool(), alarmsCloseHandler(p))
+func registerAlarmTools(r *registrar) {
+	r.tool(tsAlarms, alarmsSearchTool(), alarmsSearchHandler(r.p))
+	r.tool(tsAlarms, alarmsSummaryTool(), alarmsSummaryHandler(r.p))
+	r.tool(tsAlarmsOps, alarmsAttendTool(), alarmsAttendHandler(r.p))
+	r.tool(tsAlarmsOps, alarmsCloseTool(), alarmsCloseHandler(r.p))
 }
 
 // --- search ---

@@ -10,9 +10,9 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerResources(s *server.MCPServer, p *provider) {
-	// Static resource: query syntax reference
-	s.AddResource(
+func registerResources(r *registrar) {
+	// Static resource: query syntax reference — useful for any search, under meta.
+	r.resource(tsMeta,
 		mcp.NewResource(
 			"opengate://query-syntax",
 			"OpenGate query syntax reference",
@@ -21,17 +21,17 @@ func registerResources(s *server.MCPServer, p *provider) {
 		handleQuerySyntaxResource,
 	)
 
-	// Dynamic resource template: datamodel fields per organization
-	s.AddResourceTemplate(
+	// Dynamic resource template: datamodel fields per organization (devices).
+	r.resourceTemplate(tsDevices,
 		mcp.NewResourceTemplate(
 			"opengate://organizations/{org}/datamodel-fields",
 			"Available datastream fields for an organization's datamodels",
 		),
-		datamodelFieldsHandler(p),
+		datamodelFieldsHandler(r.p),
 	)
 
-	// Static resource: views dictionary (builtin + user + project layers)
-	s.AddResource(
+	// Static resource: views dictionary (builtin + user + project layers).
+	r.resource(tsDevices,
 		mcp.NewResource(
 			"opengate://views",
 			"Named field views usable in devices_search 'view' parameter",

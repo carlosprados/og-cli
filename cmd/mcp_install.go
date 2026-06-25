@@ -104,7 +104,7 @@ func runMCPInstall(cmd *cobra.Command, args []string) error {
 		verb = "Updated"
 	}
 	fmt.Printf("%s MCP server %q → %s\n", verb, mcpInstallName, path)
-	fmt.Printf("  command: %s\n  args:    mcp --stdio%s\n", bin, profileSuffix(profile))
+	fmt.Printf("  command: %s\n  args:    mcp --stdio --lean%s\n", bin, profileSuffix(profile))
 	if mcpInstallClient == clientDesktop {
 		fmt.Println("\nRestart Claude Desktop for the change to take effect.")
 	}
@@ -201,7 +201,10 @@ func ogBinaryPath() (string, error) {
 }
 
 func mcpServerEntry(bin, profile string) map[string]any {
-	args := []string{"mcp", "--stdio"}
+	// --lean is baked in explicitly: it is the smallest token footprint and the
+	// stdio default, but pinning it means a future change to the default does not
+	// silently alter an already-installed server.
+	args := []string{"mcp", "--stdio", "--lean"}
 	if profile != "" {
 		args = append(args, "--profile", profile)
 	}

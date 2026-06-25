@@ -10,13 +10,13 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerDashboardTools(s *server.MCPServer, p *provider) {
-	s.AddTool(dashListTool(), dashListHandler(p))
-	s.AddTool(dashGetTool(), dashGetHandler(p))
-	s.AddTool(dashExportTool(), dashExportHandler(p))
-	s.AddTool(dashImportTool(), dashImportHandler(p))
-	s.AddTool(dashUpdateTool(), dashUpdateHandler(p))
-	s.AddTool(dashDeleteTool(), dashDeleteHandler(p))
+func registerDashboardTools(r *registrar) {
+	r.tool(tsDashboards, dashListTool(), dashListHandler(r.p))
+	r.tool(tsDashboards, dashGetTool(), dashGetHandler(r.p))
+	r.tool(tsDashboards, dashExportTool(), dashExportHandler(r.p))
+	r.tool(tsDashboardsWrite, dashImportTool(), dashImportHandler(r.p))
+	r.tool(tsDashboardsWrite, dashUpdateTool(), dashUpdateHandler(r.p))
+	r.tool(tsDashboardsWrite, dashDeleteTool(), dashDeleteHandler(r.p))
 }
 
 type dashListEntry struct {

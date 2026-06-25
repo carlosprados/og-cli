@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -23,15 +24,22 @@ var assumeYes bool
 //
 // action is a human description, e.g. `delete device "sense-001"`.
 func confirmDestructive(action string) error {
-	if assumeYes {
+	return confirmDestructiveFrom(action, os.Stdin, term.IsTerminal(int(os.Stdin.Fd())), assumeYes)
+}
+
+// confirmDestructiveFrom is the testable core of confirmDestructive: the input
+// reader, TTY status and the assume-yes flag are passed in instead of read from
+// globals.
+func confirmDestructiveFrom(action string, in io.Reader, isTTY, yes bool) error {
+	if yes {
 		return nil
 	}
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
+	if !isTTY {
 		return fmt.Errorf("refusing to %s without confirmation: re-run with --yes (no interactive terminal)", action)
 	}
 	fmt.Fprintf(os.Stderr, "About to %s. This cannot be undone. Continue? [y/N]: ", action)
 	var resp string
-	_, _ = fmt.Scanln(&resp)
+	_, _ = fmt.Fscanln(in, &resp)
 	switch strings.ToLower(strings.TrimSpace(resp)) {
 	case "y", "yes":
 		return nil

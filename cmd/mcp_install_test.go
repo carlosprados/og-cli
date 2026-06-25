@@ -102,12 +102,12 @@ func TestMCPServerEntry(t *testing.T) {
 		t.Fatalf("command = %v", e["command"])
 	}
 	args := e["args"].([]string)
-	if len(args) != 2 || args[0] != "mcp" || args[1] != "--stdio" {
+	if len(args) != 3 || args[0] != "mcp" || args[1] != "--stdio" || args[2] != "--lean" {
 		t.Fatalf("args = %v", args)
 	}
 	e = mcpServerEntry("/usr/bin/og", "prod")
 	args = e["args"].([]string)
-	if len(args) != 4 || args[2] != "--profile" || args[3] != "prod" {
+	if len(args) != 5 || args[3] != "--profile" || args[4] != "prod" {
 		t.Fatalf("args with profile = %v", args)
 	}
 }

@@ -15,10 +15,10 @@ import (
 // registerIoTMQTTTools adds the MQTT south-plane tools. host is the profile host
 // (scheme stripped for the broker); apiKey is the device/user API key used as the
 // MQTT password (username = device id).
-func registerIoTMQTTTools(s *server.MCPServer, p *provider) {
-	s.AddTool(iotMQTTPublishTool(), iotMQTTPublishHandler(p))
-	s.AddTool(iotMQTTSubscribeTool(), iotMQTTSubscribeHandler(p))
-	s.AddTool(iotMQTTDeviceTool(), iotMQTTDeviceHandler(p))
+func registerIoTMQTTTools(r *registrar) {
+	r.tool(tsIoT, iotMQTTPublishTool(), iotMQTTPublishHandler(r.p))
+	r.tool(tsIoT, iotMQTTSubscribeTool(), iotMQTTSubscribeHandler(r.p))
+	r.tool(tsIoT, iotMQTTDeviceTool(), iotMQTTDeviceHandler(r.p))
 }
 
 func mqttArgInt(args map[string]any, key string, def int) int {

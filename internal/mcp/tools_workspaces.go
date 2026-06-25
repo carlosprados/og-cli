@@ -9,13 +9,13 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerWorkspaceTools(s *server.MCPServer, p *provider) {
-	s.AddTool(wsListTool(), wsListHandler(p))
-	s.AddTool(wsGetTool(), wsGetHandler(p))
-	s.AddTool(wsExportTool(), wsExportHandler(p))
-	s.AddTool(wsImportTool(), wsImportHandler(p))
-	s.AddTool(wsUpdateTool(), wsUpdateHandler(p))
-	s.AddTool(wsDeleteTool(), wsDeleteHandler(p))
+func registerWorkspaceTools(r *registrar) {
+	r.tool(tsWorkspaces, wsListTool(), wsListHandler(r.p))
+	r.tool(tsWorkspaces, wsGetTool(), wsGetHandler(r.p))
+	r.tool(tsWorkspaces, wsExportTool(), wsExportHandler(r.p))
+	r.tool(tsWorkspacesWrite, wsImportTool(), wsImportHandler(r.p))
+	r.tool(tsWorkspacesWrite, wsUpdateTool(), wsUpdateHandler(r.p))
+	r.tool(tsWorkspacesWrite, wsDeleteTool(), wsDeleteHandler(r.p))
 }
 
 func wsListTool() mcp.Tool {

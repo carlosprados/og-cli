@@ -10,16 +10,16 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerProvisionTools(s *server.MCPServer, p *provider) {
-	s.AddTool(provisionListTool(), provisionListHandler(p))
-	s.AddTool(provisionGetTool(), provisionGetHandler(p))
-	s.AddTool(provisionCreateTool(), provisionCreateHandler(p))
-	s.AddTool(provisionUpdateTool(), provisionUpdateHandler(p))
-	s.AddTool(provisionDeleteTool(), provisionDeleteHandler(p))
-	s.AddTool(provisionPlanTool(), provisionPlanHandler(p))
-	s.AddTool(provisionBulkTool(), provisionBulkHandler(p))
-	s.AddTool(provisionBulkStatusTool(), provisionBulkStatusHandler(p))
-	s.AddTool(provisionBulkDetailsTool(), provisionBulkDetailsHandler(p))
+func registerProvisionTools(r *registrar) {
+	r.tool(tsProvision, provisionListTool(), provisionListHandler(r.p))
+	r.tool(tsProvision, provisionGetTool(), provisionGetHandler(r.p))
+	r.tool(tsProvisionWrite, provisionCreateTool(), provisionCreateHandler(r.p))
+	r.tool(tsProvisionWrite, provisionUpdateTool(), provisionUpdateHandler(r.p))
+	r.tool(tsProvisionWrite, provisionDeleteTool(), provisionDeleteHandler(r.p))
+	r.tool(tsProvisionBulk, provisionPlanTool(), provisionPlanHandler(r.p))
+	r.tool(tsProvisionBulk, provisionBulkTool(), provisionBulkHandler(r.p))
+	r.tool(tsProvision, provisionBulkStatusTool(), provisionBulkStatusHandler(r.p))
+	r.tool(tsProvision, provisionBulkDetailsTool(), provisionBulkDetailsHandler(r.p))
 }
 
 const provisionScriptContract = `A provision function ("provision processor") is a JavaScript script that turns inbound rows (typically an Excel sheet) into ODM provisioning actions. It MUST implement two functions:

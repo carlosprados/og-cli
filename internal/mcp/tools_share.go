@@ -9,9 +9,9 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerShareTools(s *server.MCPServer, p *provider) {
-	s.AddTool(workspacesShareTool(), workspacesShareHandler(p))
-	s.AddTool(dashboardsShareTool(), dashboardsShareHandler(p))
+func registerShareTools(r *registrar) {
+	r.tool(tsWorkspacesShare, workspacesShareTool(), workspacesShareHandler(r.p))
+	r.tool(tsDashboardsShare, dashboardsShareTool(), dashboardsShareHandler(r.p))
 }
 
 func splitCSV(s string) []string {

@@ -9,13 +9,13 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func registerOpTypeTools(s *server.MCPServer, p *provider) {
-	s.AddTool(optypesCatalogTool(), optypesCatalogHandler(p))
-	s.AddTool(optypesSearchTool(), optypesSearchHandler(p))
-	s.AddTool(optypesGetTool(), optypesGetHandler(p))
-	s.AddTool(optypesCreateTool(), optypesCreateHandler(p))
-	s.AddTool(optypesUpdateTool(), optypesUpdateHandler(p))
-	s.AddTool(optypesDeleteTool(), optypesDeleteHandler(p))
+func registerOpTypeTools(r *registrar) {
+	r.tool(tsOptypes, optypesCatalogTool(), optypesCatalogHandler(r.p))
+	r.tool(tsOptypes, optypesSearchTool(), optypesSearchHandler(r.p))
+	r.tool(tsOptypes, optypesGetTool(), optypesGetHandler(r.p))
+	r.tool(tsOptypesWrite, optypesCreateTool(), optypesCreateHandler(r.p))
+	r.tool(tsOptypesWrite, optypesUpdateTool(), optypesUpdateHandler(r.p))
+	r.tool(tsOptypesWrite, optypesDeleteTool(), optypesDeleteHandler(r.p))
 }
 
 func optypesCatalogTool() mcp.Tool {
