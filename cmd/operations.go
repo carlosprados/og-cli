@@ -126,6 +126,9 @@ var jobsCancelCmd = &cobra.Command{
 	Short: "Cancel a job",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := confirmDestructive(fmt.Sprintf("cancel job %q", args[0])); err != nil {
+			return err
+		}
 		p, err := activeProfile()
 		if err != nil {
 			return err
@@ -267,6 +270,9 @@ var tasksCancelCmd = &cobra.Command{
 	Short: "Cancel a task",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := confirmDestructive(fmt.Sprintf("cancel task %q", args[0])); err != nil {
+			return err
+		}
 		p, err := activeProfile()
 		if err != nil {
 			return err

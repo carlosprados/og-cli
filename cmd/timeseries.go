@@ -204,6 +204,9 @@ var tsDeleteCmd = &cobra.Command{
 }
 
 func runTSDelete(cmd *cobra.Command, args []string) error {
+	if err := confirmDestructive(fmt.Sprintf("delete timeseries %q", args[0])); err != nil {
+		return err
+	}
 	p, err := activeProfile()
 	if err != nil {
 		return err

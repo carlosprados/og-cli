@@ -153,6 +153,9 @@ var rulesDeleteCmd = &cobra.Command{
 	Short: "Delete a rule",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := confirmDestructive(fmt.Sprintf("delete rule %q", args[0])); err != nil {
+			return err
+		}
 		c, orgName, err := rulesClient()
 		if err != nil {
 			return err

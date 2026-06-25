@@ -195,6 +195,14 @@ with a suggestion (`unknown view "sumary" (did you mean "summary"?)`).
 | `--output` | `-o` | Output format: `json` or `table` (default: `table`) |
 | `--insecure` | | Skip TLS certificate verification (HTTP + MQTT) |
 | `--ca-file` | | PEM file with extra CA/chain certs to trust (HTTP + MQTT) |
+| `--yes` | `-y` | Skip confirmation prompts for destructive operations (delete/cancel) |
+
+#### Destructive operations
+
+`delete` / `cancel` commands ask for confirmation: on an interactive terminal they
+prompt `[y/N]`; **without a terminal (scripts, pipelines, agents) they refuse unless
+you pass `--yes`** — so a stray `og dev delete X` cannot silently destroy data. Pass
+`--yes`/`-y` to proceed non-interactively.
 
 #### TLS / self-signed servers
 

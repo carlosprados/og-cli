@@ -165,10 +165,15 @@ og workspace share <ws-id> --unshare
 
 # Direct update / delete
 og workspace update <ws-id> -f ws.json
-og workspace delete <ws-id>
+og workspace delete <ws-id>              # destructive: prompts on a TTY, needs --yes non-interactively
 og dashboard update <dash-id> -f dash.json
-og dashboard delete <dash-id>
+og dashboard delete <dash-id>            # idem
 ```
+
+> **Destructive verbs (delete) need confirmation.** Non-interactively they refuse
+> unless `--yes` is passed. When driving og as an agent, get explicit user
+> confirmation BEFORE running, then pass `--yes` — don't add it reflexively. See the
+> HITL section in the **og-device-ops** skill.
 
 > **CRITICAL deploy rule**: creating a workspace from scratch OR adding NEW
 > dashboards → deploy WITHOUT `--update`. Running `deploy --update` when a

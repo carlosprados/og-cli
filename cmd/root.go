@@ -65,6 +65,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&org, "org", "", "organization name (or OG_ORG env var)")
 	rootCmd.PersistentFlags().BoolVar(&flagInsecure, "insecure", false, "skip TLS certificate verification (escape hatch for self-signed HTTP/MQTT servers)")
 	rootCmd.PersistentFlags().StringVar(&flagCAFile, "ca-file", "", "PEM file with extra CA/chain certs to trust (HTTP and MQTT)")
+	rootCmd.PersistentFlags().BoolVarP(&assumeYes, "yes", "y", false, "skip confirmation prompts for destructive operations (delete/cancel)")
 }
 
 // resolveTLS computes the effective TLS settings (CLI flag overrides the active

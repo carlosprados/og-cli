@@ -175,6 +175,9 @@ var dsDeleteCmd = &cobra.Command{
 }
 
 func runDSDelete(cmd *cobra.Command, args []string) error {
+	if err := confirmDestructive(fmt.Sprintf("delete dataset %q", args[0])); err != nil {
+		return err
+	}
 	p, err := activeProfile()
 	if err != nil {
 		return err

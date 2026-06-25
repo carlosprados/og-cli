@@ -8,6 +8,29 @@ description: "Operate on OpenGate devices with the og CLI: launch operation jobs
 Acting ON devices (vs querying them — that's the **og-cli** skill): operations,
 alarms, and data injection. All commands need a logged-in profile (`og login`).
 
+## Destructive operations — confirm BEFORE running (HITL)
+
+`delete` and `cancel` verbs are irreversible. og guards them: on an interactive
+terminal it prompts `[y/N]`; **non-interactively it REFUSES unless `--yes` is
+passed** (`Error: refusing to delete ... re-run with --yes (no interactive
+terminal)`). You drive og non-interactively, so that terminal prompt never reaches
+the user — the safeguard is YOURS to honor:
+
+1. **STOP** before any destructive command. State exactly what it affects — verb, id,
+   org/channel, and what is lost (e.g. *"delete device `sense-001` in org `acme` —
+   removes the entity and its collected data"*).
+2. **Ask the user** and wait for an explicit yes.
+3. **Only then** run it with `--yes` (required non-interactively).
+
+Never add `--yes` reflexively to silence the "refusing…" error — that error means
+*ask the user first*, not *append a flag*.
+
+Destructive verbs: `dev delete`, `jobs cancel`, `tasks cancel`, `dm delete`,
+`connectors delete`, `rules delete`, `optypes delete`, `provision delete`,
+`timeseries delete`, `datasets delete`, `workspace delete`, `dashboard delete`.
+Treat `deploy --update` (overwrites) and bulk `provision` runs as high-impact too —
+confirm scope first.
+
 ## Jobs — one-shot operations on devices
 
 A job = an operation (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC, ...) targeted at N

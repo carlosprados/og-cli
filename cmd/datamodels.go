@@ -210,6 +210,9 @@ var datamodelsDeleteCmd = &cobra.Command{
 }
 
 func runDatamodelsDelete(cmd *cobra.Command, args []string) error {
+	if err := confirmDestructive(fmt.Sprintf("delete data model %q", args[0])); err != nil {
+		return err
+	}
 	p, err := activeProfile()
 	if err != nil {
 		return err
