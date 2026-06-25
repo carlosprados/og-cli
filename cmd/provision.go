@@ -46,16 +46,16 @@ Examples:
 }
 
 var (
-	ppCreateFile  string
-	ppUpdateFile  string
-	ppPullDir     string
-	ppPullForce   bool
-	ppWrapOut     string
+	ppCreateFile   string
+	ppUpdateFile   string
+	ppPullDir      string
+	ppPullForce    bool
+	ppWrapOut      string
 	ppDeployUpdate bool
-	ppPlanFile    string
-	ppPlanRows    int
-	ppBulkFile    string
-	ppDetailsOut  string
+	ppPlanFile     string
+	ppPlanRows     int
+	ppBulkFile     string
+	ppDetailsOut   string
 )
 
 // --- list ---
