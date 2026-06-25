@@ -994,7 +994,7 @@ to get the exact command/args to reuse.
 }
 ```
 
-For a detailed guide on how prompts, resources, and tools work together, see [doc/mcp-integration.md](doc/mcp-integration.md).
+For a detailed guide on how prompts, resources, and tools work together, see [docs/mcp-integration.md](docs/mcp-integration.md).
 
 #### Tools
 
@@ -1111,7 +1111,7 @@ devices_search(query: "device.powersupply.battery.charge lt 20", view: "summary,
 
 | Prompt | Description |
 |--------|-------------|
-| `opengate-guide` | Complete guide covering all tools, query syntax with operator mapping (ES/EN → eq/like/gt/...), fields per entity, job creation format, IoT data collection, and worked examples. See [doc/mcp-prompts.md](doc/mcp-prompts.md) for full content. |
+| `opengate-guide` | Complete guide covering all tools, query syntax with operator mapping (ES/EN → eq/like/gt/...), fields per entity, job creation format, IoT data collection, and worked examples. See [docs/mcp-prompts.md](docs/mcp-prompts.md) for full content. |
 
 #### Resources
 
@@ -1191,8 +1191,8 @@ copy of the previous version.
 
 | Document | Description |
 |----------|-------------|
-| [doc/mcp-integration.md](doc/mcp-integration.md) | MCP architecture: how prompts, resources, and tools work together |
-| [doc/mcp-prompts.md](doc/mcp-prompts.md) | Full content of MCP prompts with explanation of each section |
+| [docs/mcp-integration.md](docs/mcp-integration.md) | MCP architecture: how prompts, resources, and tools work together |
+| [docs/mcp-prompts.md](docs/mcp-prompts.md) | Full content of MCP prompts with explanation of each section |
 | [INTEGRATION_PLAN.md](INTEGRATION_PLAN.md) | API integration roadmap and progress |
 | [CLAUDE.md](CLAUDE.md) | Instructions for Claude Code when working in this repo |
 
