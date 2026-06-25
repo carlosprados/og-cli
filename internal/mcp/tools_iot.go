@@ -24,7 +24,9 @@ func iotCollectRawTool() mcp.Tool {
 	return mcp.NewTool("iot_collect_raw",
 		mcp.WithDescription(`Trigger a COLLECTION/RESPONSE connector function over its HTTP south route by POSTing a raw body to /south/v80/devices/<device_id>/<route>.
 
-Unlike iot_collect (structured payload to collect/iot, which bypasses connector functions), this hits the CF's HTTP southCriteria path so the CF transforms the body and emits datapoints (verify with devices_search). Uses X-ApiKey auth.`),
+Unlike iot_collect (structured payload to collect/iot, which bypasses connector functions), this hits the CF's HTTP southCriteria path so the CF transforms the body and emits datapoints (verify with devices_search). Uses X-ApiKey auth.
+
+NOTE: if the device does not exist, the South API returns HTTP 401 0x04 "Unauthorized user for this operation" — that wording is misleading, it usually means device-not-found, NOT a credentials problem; verify the device exists with devices_get first. To see the CF's logger output via connectors_logs, the device must be in TESTING administrativeState.`),
 		mcp.WithString("device_id", mcp.Description("Device identifier"), mcp.Required()),
 		mcp.WithString("route", mcp.Description("Connector function HTTP south path (e.g. \"ogcli-demo\")"), mcp.Required()),
 		mcp.WithString("body", mcp.Description("Raw body to POST"), mcp.Required()),
@@ -65,6 +67,8 @@ func iotCollectTool() mcp.Tool {
 	return mcp.NewTool("iot_collect",
 		mcp.WithDescription(`Send a single data point to a device datastream via the OpenGate South API.
 Uses X-ApiKey authentication. The API key is obtained from the login response.
+
+NOTE: collecting to a non-existent device returns HTTP 401 0x04 "Unauthorized user for this operation" — misleading wording that usually means device-not-found, NOT a credentials problem; verify with devices_get. The datastream id must exist in the org datamodel.
 
 Examples:
   iot_collect(device_id: "sense-001", datastream_id: "wt", value: "25.3")

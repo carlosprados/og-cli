@@ -49,7 +49,7 @@ func rulesCatalogHandler(p *provider) server.ToolHandlerFunc {
 
 func rulesLogsTool() mcp.Tool {
 	return mcp.NewTool("rules_logs",
-		mcp.WithDescription("Collect a rule's execution logs (functions-logger), up to 'count' lines or until 'timeout_seconds'. Traces come from logger.trace/debug/info/warn/error in ADVANCED rule JS."),
+		mcp.WithDescription("Collect a rule's execution logs (functions-logger), up to 'count' lines or until 'timeout_seconds'. Traces come from logger.trace/debug/info/warn/error in ADVANCED rule JS. IMPORTANT: device-generated logs are only emitted while the device that triggers the rule has administrativeState TESTING — with ACTIVE devices the rule still runs but emits NO logs. Use level DEBUG/TRACE to see logger.debug/trace (default INFO hides them)."),
 		mcp.WithString("organization", mcp.Description("Organization name"), mcp.Required()),
 		mcp.WithString("id", mcp.Description("Rule identifier"), mcp.Required()),
 		mcp.WithString("channel", mcp.Description("Channel name (default: default_channel)")),

@@ -280,3 +280,28 @@ After any operation, verify the effect rather than assuming success:
 | job created | `og jobs get <id>` until FINISHED, then `og jobs operations <id>` |
 | alarm attended/closed | `og alarms search -w "alarm.entityIdentifier eq <dev>"` |
 | data injected | `og dev search -s <ds>@at -w "provision.device.identifier eq <dev>"` |
+
+## Gotchas (hard-won, verified live)
+
+- **Device logs need `TESTING` state.** A device emits logs — the `logger.*` output of
+  its connector functions AND ADVANCED rules — ONLY while its
+  `provision.device.administrativeState` is `TESTING`. With an `ACTIVE` device the
+  CF/rule still runs and collects/acts normally, but `og connectors logs` /
+  `og rules logs` stream nothing (just the connect header). Flip the device to TESTING
+  to debug, and use `--level DEBUG`/`TRACE` (default INFO hides `logger.debug`).
+- **COLLECTION CF: `return collection` — do NOT `send()` then return.**
+  `collection.send()` flushes and empties the queue, so a trailing `return collection`
+  hands back an empty payload and the south route answers HTTP 400 *"Json is malformed
+  (datastreams: null)"* even though the data was already collected. Use `return collection`
+  with no final `send()` (or `send()` and return nothing).
+- **`og iot collect*` to a non-existent device → HTTP 401 `0x04 "Unauthorized user for
+  this operation"`.** The wording is misleading: it usually means *device not found /
+  not collectable*, NOT a permissions/API-key problem — verify the device exists
+  (`og dev get <id>`) before suspecting your credentials.
+- **Deleted entity identifiers stay reserved.** After `og dev delete`, re-creating the
+  same identifier returns HTTP 400 *"Entity duplicated"*, yet the device is not
+  searchable, gettable or collectable (a ghost). For repeatable demos/scripts,
+  parameterise device ids per run (e.g. a timestamp suffix) — don't reuse them.
+- **`og connectors deploy --update` needs the `identifier` in connectorfunction.json**
+  (pull first). For repeatable, environment-portable assets prefer **delete-then-create
+  by name** over update — the identifier is environment-specific.

@@ -47,7 +47,7 @@ func connectorsCatalogHandler(p *provider) server.ToolHandlerFunc {
 
 func connectorsLogsTool() mcp.Tool {
 	return mcp.NewTool("connectors_logs",
-		mcp.WithDescription("Collect a connector function's execution logs (functions-logger), up to 'count' lines or until 'timeout_seconds'. Traces come from logger.trace/debug/info/warn/error in the connector function JS."),
+		mcp.WithDescription("Collect a connector function's execution logs (functions-logger), up to 'count' lines or until 'timeout_seconds'. Traces come from logger.trace/debug/info/warn/error in the connector function JS. IMPORTANT: device-generated logs are only emitted while the TARGET device's administrativeState is TESTING — with an ACTIVE device the CF still runs and collects data but emits NO logs, so set the device to TESTING first. Use level DEBUG/TRACE to see logger.debug/trace (default INFO hides them)."),
 		mcp.WithString("organization", mcp.Description("Organization name"), mcp.Required()),
 		mcp.WithString("id", mcp.Description("Connector function identifier"), mcp.Required()),
 		mcp.WithString("channel", mcp.Description("Channel name (default: default_channel)")),

@@ -341,6 +341,10 @@ var rulesLogsCmd = &cobra.Command{
 Traces are emitted by logger.trace/debug/info/warn/error calls inside the rule's
 JavaScript, colourised by severity. Press Ctrl-C to stop.
 
+NOTE: a device only emits logs while its administrativeState is TESTING. With an
+ACTIVE device the rule still runs but no logs are streamed. Use --level DEBUG/TRACE
+to see logger.debug/trace (default is INFO).
+
 Examples:
   og rules logs <rule-id> --org sensehat
   og rules logs <rule-id> --level TRACE --org sensehat`,
