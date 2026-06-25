@@ -282,6 +282,9 @@ var devicesDeleteCmd = &cobra.Command{
 }
 
 func runDevicesDelete(cmd *cobra.Command, args []string) error {
+	if err := confirmDestructive(fmt.Sprintf("delete device %q", args[0])); err != nil {
+		return err
+	}
 	p, err := activeProfile()
 	if err != nil {
 		return err

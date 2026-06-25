@@ -722,6 +722,9 @@ var dashboardDeleteCmd = &cobra.Command{
 }
 
 func runDashboardDelete(cmd *cobra.Command, args []string) error {
+	if err := confirmDestructive(fmt.Sprintf("delete dashboard %q", args[0])); err != nil {
+		return err
+	}
 	p, err := activeProfile()
 	if err != nil {
 		return err

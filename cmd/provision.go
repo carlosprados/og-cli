@@ -155,6 +155,9 @@ var provisionDeleteCmd = &cobra.Command{
 	Short: "Delete a provision function",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := confirmDestructive(fmt.Sprintf("delete provision function %q", args[0])); err != nil {
+			return err
+		}
 		c, orgName, err := provisionClient()
 		if err != nil {
 			return err
