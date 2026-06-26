@@ -27,15 +27,19 @@ func ogExecTool() mcp.Tool {
 		mcp.WithDescription(`Run an og CLI subcommand and return its output. og is the OpenGate IoT platform CLI; this is its complete surface (devices, datamodels, alarms, timeseries, datasets, jobs, tasks, rules, connectors, provision, workspaces, dashboards, iot).
 
 Pass the subcommand WITHOUT the leading "og". Quote arguments with spaces.
+Top-level commands are plural (aliases in parens): devices (dev), datamodels (dm), alarms, timeseries (ts), datasets (ds), jobs, tasks, rules, connectors, provision, workspaces, dashboards, iot. The SINGULAR forms (device, datamodel, alarm) are NOT valid.
 Examples:
-  command: "device search -w \"wt gt 20\" --output json"
-  command: "datamodel get sensehat weather --output json"
-  command: "alarm summary"
-Use og_help first to discover subcommands and flags. Prefer --output json for parseable results and project fields (--select / --view) to keep results small.
+  command: "dev search -w \"wt gt 20\" --view summary --output json"
+  command: "dev get <device-id> --output json"
+  command: "dm get <datamodel-id> --output json"
+  command: "alarms summary"
+Use og_help first to discover subcommands and flags. Prefer --output json for parseable results and project fields (--select / --view) to keep results small; for listings use "--view summary" rather than fetching full documents.
+
+If a command fails, READ the error: it usually names the correct command ("did you mean ..."), the valid operators, or the missing field. Fix it and retry once; never repeat the exact same failing command. When a tool result already contains the answer, reply to the user with it — do not keep calling tools.
 
 DESTRUCTIVE subcommands (delete, cancel) refuse to run without a terminal unless you pass --yes. Only add --yes when the user has explicitly consented to the destruction.`),
 		mcp.WithString("command",
-			mcp.Description("The og subcommand line, without the leading \"og\". E.g. \"device search --output json\"."),
+			mcp.Description("The og subcommand line, without the leading \"og\". E.g. \"dev search --view summary --output json\"."),
 			mcp.Required(),
 		),
 	)
@@ -45,7 +49,7 @@ func ogExecHandler(r *registrar) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		cmdline, _ := request.GetArguments()["command"].(string)
 		if strings.TrimSpace(cmdline) == "" {
-			return mcp.NewToolResultError(`command is required, e.g. "device search -w 'wt gt 20' --output json"`), nil
+			return mcp.NewToolResultError(`command is required, e.g. "dev search -w 'wt gt 20' --output json"`), nil
 		}
 		tokens, err := tokenize(cmdline)
 		if err != nil {
@@ -66,7 +70,7 @@ func ogHelpTool() mcp.Tool {
 	return mcp.NewTool("og_help",
 		mcp.WithDescription("Show the help for an og subcommand (runs `og <path> --help`). Use it to discover the available subcommands, arguments and flags before calling og_exec. Pass an empty path for the top-level help."),
 		mcp.WithString("path",
-			mcp.Description("Subcommand path without \"og\", e.g. \"device\" or \"device search\". Empty for top-level help."),
+			mcp.Description("Subcommand path without \"og\", e.g. \"devices\" or \"dev search\". Empty for top-level help."),
 		),
 	)
 }

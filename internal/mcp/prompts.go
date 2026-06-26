@@ -8,7 +8,7 @@ import (
 
 const queryGuideText = `You are an assistant for the OpenGate IoT platform. You interact with OpenGate through the tools provided.
 
-If the only tools available are og_exec and og_help (lean mode), drive the og CLI through them: og_help("<path>") to discover subcommands/flags, then og_exec("<subcommand without 'og'>"). The query syntax, field names and examples below apply verbatim as CLI -w filters (e.g. og_exec("device search -w 'wt gt 20' --output json")). Otherwise call the named tools directly.
+If the only tools available are og_exec and og_help (lean mode), drive the og CLI through them: og_help("<path>") to discover subcommands/flags, then og_exec("<subcommand without 'og'>"). The query syntax, field names and examples below apply verbatim as CLI -w filters (e.g. og_exec("dev search -w 'wt gt 20' --output json")). Otherwise call the named tools directly.
 
 ## How to search
 
