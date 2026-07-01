@@ -309,10 +309,15 @@ type APIError struct {
 	StatusCode int
 	Code       string // OpenGate error code (e.g. "0x000065"), when present
 	Message    string
+	Fields     []string // offending field names from the error context, when present
 }
 
 func (e *APIError) Error() string {
-	return fmt.Sprintf("OpenGate API error (HTTP %d): %s", e.StatusCode, e.Message)
+	msg := fmt.Sprintf("OpenGate API error (HTTP %d): %s", e.StatusCode, e.Message)
+	if len(e.Fields) > 0 {
+		msg += fmt.Sprintf(" (fields: %s)", strings.Join(e.Fields, ", "))
+	}
+	return msg
 }
 
 // CheckResponse returns an APIError if the status code indicates failure.
@@ -322,19 +327,30 @@ func CheckResponse(data []byte, statusCode int) error {
 	}
 	msg := string(data)
 	code := ""
+	var fields []string
 	// OpenGate error bodies come in two shapes:
-	//   {"message":"..."}                                (simple)
-	//   {"errors":[{"code":"0x..","message":"..."}]}     (ErrorList)
+	//   {"message":"..."}                                                    (simple)
+	//   {"errors":[{"code":"0x..","message":"...","context":[{"name":".."}]}]} (ErrorList)
+	// The context carries the offending field(s) — e.g. a 400 "Forbidden field."
+	// on a datamodel PUT names allowedResourceTypes there, which is otherwise invisible.
 	var errList struct {
 		Errors []struct {
 			Code    string `json:"code"`
 			Message string `json:"message"`
+			Context []struct {
+				Name string `json:"name"`
+			} `json:"context"`
 		} `json:"errors"`
 	}
 	if json.Unmarshal(data, &errList) == nil && len(errList.Errors) > 0 {
 		code = errList.Errors[0].Code
 		if errList.Errors[0].Message != "" {
 			msg = errList.Errors[0].Message
+		}
+		for _, ctx := range errList.Errors[0].Context {
+			if ctx.Name != "" {
+				fields = append(fields, ctx.Name)
+			}
 		}
 	} else {
 		var errBody struct {
@@ -344,7 +360,7 @@ func CheckResponse(data []byte, statusCode int) error {
 			msg = errBody.Message
 		}
 	}
-	return &APIError{StatusCode: statusCode, Code: code, Message: msg}
+	return &APIError{StatusCode: statusCode, Code: code, Message: msg, Fields: fields}
 }
 
 // IsEmptyResponse returns true when the API returned no content (204 or empty body).
