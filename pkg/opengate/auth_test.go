@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +33,24 @@ func TestCheckResponseSimpleMessageShape(t *testing.T) {
 	apiErr := err.(*APIError)
 	if apiErr.Code != "" || apiErr.Message != "boom" {
 		t.Errorf("got code=%q msg=%q", apiErr.Code, apiErr.Message)
+	}
+}
+
+func TestCheckResponseExtractsContextFields(t *testing.T) {
+	// A "Forbidden field." error names the offending field(s) in context; those
+	// must surface in APIError.Fields and in the Error() string. Without this,
+	// e.g. a datamodel PUT round-trip fails with an unactionable "Forbidden field.".
+	body := []byte(`{"errors":[{"code":"0x010003","message":"Forbidden field.","context":[{"name":"datamodel.allowedResourceTypes","value":["entity.device"]}]}]}`)
+	err := CheckResponse(body, http.StatusBadRequest)
+	apiErr, ok := err.(*APIError)
+	if !ok {
+		t.Fatalf("expected *APIError, got %T", err)
+	}
+	if len(apiErr.Fields) != 1 || apiErr.Fields[0] != "datamodel.allowedResourceTypes" {
+		t.Errorf("Fields = %v, want [datamodel.allowedResourceTypes]", apiErr.Fields)
+	}
+	if want := "(fields: datamodel.allowedResourceTypes)"; !strings.Contains(apiErr.Error(), want) {
+		t.Errorf("Error() = %q, want it to contain %q", apiErr.Error(), want)
 	}
 }
 
