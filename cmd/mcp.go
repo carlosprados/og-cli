@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	ogmcp "github.com/carlosprados/og-cli/internal/mcp"
+	ogmcp "github.com/carlosprados/og-cli/v2/internal/mcp"
 	"github.com/spf13/cobra"
 )
 

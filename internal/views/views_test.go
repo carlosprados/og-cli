@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/carlosprados/og-cli/pkg/query"
+	"github.com/carlosprados/og-cli/v2/pkg/query"
 )
 
 func builtinRegistry(t *testing.T) *Registry {

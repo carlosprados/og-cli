@@ -1,6 +1,6 @@
 package config
 
-import "github.com/carlosprados/og-cli/pkg/opengate"
+import "github.com/carlosprados/og-cli/v2/pkg/opengate"
 
 // ClientOptions turns a resolved profile into the options every og surface
 // passes to opengate.New, so the CLI, the TUI and the MCP server configure their

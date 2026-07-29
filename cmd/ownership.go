@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/config"
+	"github.com/carlosprados/og-cli/v2/internal/config"
 )
 
 // isOwnedByProfile reports whether the given resource owner (email string from

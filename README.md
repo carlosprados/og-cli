@@ -31,7 +31,7 @@ task clean      # remove build artifacts
 Or install directly:
 
 ```bash
-go install github.com/carlosprados/og-cli@latest
+go install github.com/carlosprados/og-cli/v2@latest
 ```
 
 ## Configuration
@@ -1307,13 +1307,18 @@ importable library. `pkg/opengate` is the API client and `pkg/query` the search
 filter builder; everything under `internal/` is CLI-private.
 
 ```bash
-go get github.com/carlosprados/og-cli/pkg/opengate
+go get github.com/carlosprados/og-cli/v2/pkg/opengate
 ```
+
+> The module path carries `/v2`. Version 2 broke the library API deliberately — every
+> I/O method now takes a `context.Context` first, `New` accepts options, and the South
+> API calls became client methods. Code on v1 keeps working on v1; it does not compile
+> against v2 without those changes.
 
 ```go
 import (
-    "github.com/carlosprados/og-cli/pkg/opengate"
-    "github.com/carlosprados/og-cli/pkg/query"
+    "github.com/carlosprados/og-cli/v2/pkg/opengate"
+    "github.com/carlosprados/og-cli/v2/pkg/query"
 )
 
 // Options configure this client only — nothing is process-wide.

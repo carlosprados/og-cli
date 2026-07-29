@@ -3,7 +3,7 @@ package mcp
 import (
 	"testing"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 )
 
 func TestCollectDashEntries_FullDashboards(t *testing.T) {

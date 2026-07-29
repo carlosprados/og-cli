@@ -2,7 +2,7 @@ package mcp
 
 import (
 	"context"
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"net/http"
 
 	"github.com/mark3labs/mcp-go/server"

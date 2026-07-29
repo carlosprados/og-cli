@@ -9,9 +9,9 @@ builds:
       - CGO_ENABLED=0
     ldflags:
       - -s -w
-      - -X github.com/carlosprados/og-cli/cmd.version={{.Version}}
-      - -X github.com/carlosprados/og-cli/cmd.commit={{.ShortCommit}}
-      - -X github.com/carlosprados/og-cli/cmd.date={{.Date}}
+      - -X github.com/carlosprados/og-cli/v2/cmd.version={{.Version}}
+      - -X github.com/carlosprados/og-cli/v2/cmd.commit={{.ShortCommit}}
+      - -X github.com/carlosprados/og-cli/v2/cmd.date={{.Date}}
     goos:
       - linux
       - darwin

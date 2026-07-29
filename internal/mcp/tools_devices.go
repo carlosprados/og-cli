@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/views"
-	"github.com/carlosprados/og-cli/pkg/opengate"
-	"github.com/carlosprados/og-cli/pkg/query"
+	"github.com/carlosprados/og-cli/v2/internal/views"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/query"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )

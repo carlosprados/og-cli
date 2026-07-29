@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/config"
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/internal/config"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

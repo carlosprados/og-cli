@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/carlosprados/og-cli/internal/output"
-	"github.com/carlosprados/og-cli/internal/views"
+	"github.com/carlosprados/og-cli/v2/internal/output"
+	"github.com/carlosprados/og-cli/v2/internal/views"
 	"github.com/spf13/cobra"
 )
 

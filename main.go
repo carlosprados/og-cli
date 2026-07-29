@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/carlosprados/og-cli/cmd"
+	"github.com/carlosprados/og-cli/v2/cmd"
 )
 
 func main() {

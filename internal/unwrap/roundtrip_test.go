@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 )
 
 // TestRoundtrip_DashboardFull verifies that UnwrapDashboardFull → WrapDashboard
