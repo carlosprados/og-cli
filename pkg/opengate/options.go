@@ -23,6 +23,8 @@ type clientOptions struct {
 	tlsSet     bool
 	apiVersion string
 	apiKey     string
+	retry      RetryPolicy
+	retrySet   bool
 }
 
 // WithHTTPClient makes the client use hc for every HTTP call. Use it to control
@@ -64,6 +66,31 @@ func WithAPIKey(key string) Option {
 	return func(o *clientOptions) { o.apiKey = key }
 }
 
+// WithRetry retries rate-limited and failing requests with exponential backoff
+// and jitter, honouring a Retry-After header when the server sends one.
+//
+// Pass DefaultRetryPolicy() for the recommended settings. Only requests that
+// cannot gain an effect by being repeated are retried after a 5xx — see
+// RetryPolicy, which explains why creating a job is not one of them.
+//
+// Retrying is OFF unless this option is given: a library must not silently
+// multiply a caller's write.
+func WithRetry(p RetryPolicy) Option {
+	return func(o *clientOptions) {
+		o.retry = p
+		o.retrySet = true
+	}
+}
+
+// WithoutRetry disables retrying explicitly. It is the default, and exists so a
+// caller can be unambiguous about it.
+func WithoutRetry() Option {
+	return func(o *clientOptions) {
+		o.retry = RetryPolicy{}
+		o.retrySet = true
+	}
+}
+
 // apply resolves the accumulated options onto c, returning the first
 // configuration error found.
 func (o *clientOptions) apply(c *Client) error {
@@ -72,6 +99,9 @@ func (o *clientOptions) apply(c *Client) error {
 		c.apiVersion = o.apiVersion
 	}
 	c.APIKey = o.apiKey
+	if o.retrySet {
+		c.retry = o.retry.normalized()
+	}
 
 	switch {
 	case o.httpClient != nil:

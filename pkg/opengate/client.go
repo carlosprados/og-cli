@@ -36,6 +36,7 @@ type Client struct {
 	HTTPClient *http.Client
 
 	apiVersion string
+	retry      RetryPolicy
 	initErr    error
 
 	webRefreshMu      sync.Mutex
@@ -217,15 +218,62 @@ func (c *Client) refreshWebToken(ctx context.Context) error {
 // doRequestWithAuth issues a request with the given credential. accept, when
 // non-empty, sets the Accept header — needed by endpoints that can serve more
 // than one representation, or that reject a mismatched Accept with HTTP 409.
+//
+// When a retry policy is configured, a rate-limited or failing request is
+// retried with exponential backoff; see RetryPolicy for which requests qualify.
 func (c *Client) doRequestWithAuth(ctx context.Context, method, path string, body io.Reader, auth authHeader, accept string) ([]byte, int, error) {
 	if c.initErr != nil {
 		return nil, 0, c.initErr
 	}
 	url := c.BaseURL + c.resolvePath(path)
 
+	// Buffer the body so it can be replayed: an io.Reader is consumed by the
+	// first attempt.
+	var bodyBytes []byte
+	if body != nil && c.retry.enabled() {
+		var err error
+		bodyBytes, err = io.ReadAll(body)
+		if err != nil {
+			return nil, 0, fmt.Errorf("buffering request body: %w", err)
+		}
+		body = bytes.NewReader(bodyBytes)
+	}
+
+	attempts := 1
+	if c.retry.enabled() {
+		attempts = c.retry.Attempts
+	}
+
+	var data []byte
+	var status int
+	var err error
+
+	for n := 1; ; n++ {
+		var header http.Header
+		data, status, header, err = c.attempt(ctx, method, url, body, auth, accept)
+
+		if n >= attempts || !c.retry.shouldRetry(method, path, status, err) {
+			break
+		}
+		if werr := wait(ctx, c.retry.backoff(n, header)); werr != nil {
+			// The context ended while backing off: report that, not the
+			// server's last complaint, so the caller can tell them apart.
+			return data, status, werr
+		}
+		body = bytes.NewReader(bodyBytes)
+		if bodyBytes == nil {
+			body = nil
+		}
+	}
+
+	return data, status, err
+}
+
+// attempt performs a single HTTP round trip.
+func (c *Client) attempt(ctx context.Context, method, url string, body io.Reader, auth authHeader, accept string) ([]byte, int, http.Header, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
-		return nil, 0, fmt.Errorf("creating request: %w", err)
+		return nil, 0, nil, fmt.Errorf("creating request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -236,16 +284,16 @@ func (c *Client) doRequestWithAuth(ctx context.Context, method, path string, bod
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("executing request: %w", err)
+		return nil, 0, nil, fmt.Errorf("executing request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("reading response: %w", err)
+		return nil, resp.StatusCode, resp.Header, fmt.Errorf("reading response: %w", err)
 	}
 
-	return data, resp.StatusCode, nil
+	return data, resp.StatusCode, resp.Header, nil
 }
 
 // WebGet performs a GET against the Web API (uses WebToken).

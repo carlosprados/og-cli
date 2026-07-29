@@ -1376,6 +1376,34 @@ the last operations would be launched exactly as the window expires and never ru
 the platform does not measure durations to reserve that margin. The library refuses
 anything above `MaxScatteringSpread` (90); `DefaultScattering()` uses 80.
 
+For a service making thousands of calls against someone else's instance, enable
+retries — they are **off by default**, because a library must not silently multiply
+a caller's writes:
+
+```go
+c := opengate.New(host, "", 
+    opengate.WithAPIKey(key),
+    opengate.WithRetry(opengate.DefaultRetryPolicy()), // 3 attempts, backoff + jitter
+)
+```
+
+The policy honours `Retry-After` when the server sends one, and applies full jitter
+so a fleet of throttled clients does not come back in lockstep. What it retries:
+
+| Outcome | Retried? |
+|---|---|
+| HTTP 429 | always — a rate-limited request was never processed |
+| 5xx or a transport error, on `GET`/`PUT`/`DELETE` | yes |
+| 5xx on a **search** `POST` (`/search/…`, history, summaries) | yes — those change nothing |
+| 5xx on a mutating `POST` (create job, create task, login, alarm action) | **no** |
+| any other 4xx | no |
+
+That last distinction is the point: a 500 does not tell you whether the server acted
+before failing, so repeating a job creation can launch the operation twice, and an
+operation already sent to a device cannot be recalled. Set
+`RetryPolicy.RetryNonIdempotent` if you accept that risk. Bulk provisioning uploads
+are never retried.
+
 Two more things worth knowing for long-running services:
 
 - **Every I/O method takes a `context.Context` first**, propagated down to the
