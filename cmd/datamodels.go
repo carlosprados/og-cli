@@ -41,7 +41,7 @@ func runDatamodelsSearch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	filter, err := buildSearchFilter(dmSearchWhere, dmSearchLimit, nil, dmSearchFilter)
 	if err != nil {
@@ -84,7 +84,7 @@ func runDatamodelsGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	dm, err := c.GetDatamodel(cmd.Context(), orgName, args[0])
 	if err != nil {
@@ -156,7 +156,7 @@ func runDatamodelsCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	if err := c.CreateDatamodel(cmd.Context(), orgName, body); err != nil {
 		return err
 	}
@@ -191,7 +191,7 @@ func runDatamodelsUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	if err := c.UpdateDatamodel(cmd.Context(), orgName, args[0], body); err != nil {
 		return err
 	}
@@ -222,7 +222,7 @@ func runDatamodelsDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	if err := c.DeleteDatamodel(cmd.Context(), orgName, args[0]); err != nil {
 		return err
 	}

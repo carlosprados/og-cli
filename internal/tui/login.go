@@ -78,7 +78,7 @@ func (m model) updateLogin(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.profile.Organization == "" {
 			m.profile.Organization = msg.result.Domain
 		}
-		m.client = opengate.New(m.profile.Host, msg.result.JWT)
+		m.client = opengate.New(m.profile.Host, msg.result.JWT, m.profile.ClientOptions()...)
 
 		// Preserve Email and the stored TOTP secret so token refresh and
 		// non-interactive re-login keep working (parity with `og login`).
@@ -164,7 +164,7 @@ func (m model) doLogin(email, password, twoFaCode string) tea.Cmd {
 				twoFaCode = code
 			}
 		}
-		c := opengate.New(m.profile.Host, "")
+		c := opengate.New(m.profile.Host, "", m.profile.ClientOptions()...)
 		result, err := c.Login(m.ctx, email, password, twoFaCode)
 		if err != nil && opengate.Is2FAChallenge(err) {
 			return loginResultMsg{err: err, challenge: true}

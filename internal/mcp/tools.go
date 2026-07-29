@@ -13,7 +13,7 @@ import (
 // registerLoginTool registers the login tool (single-tenant only — it returns a
 // JWT in its result text, which must never reach the LLM in multi-tenant mode).
 func registerLoginTool(r *registrar) {
-	r.tool(tsLogin, loginTool(), loginHandler(r.host))
+	r.tool(tsLogin, loginTool(), loginHandler(r.host, r.p.clientOpts))
 }
 
 // registerDatamodelTools registers datamodel tools (parity with the CLI).
@@ -51,7 +51,7 @@ func loginTool() mcp.Tool {
 	)
 }
 
-func loginHandler(defaultHost string) server.ToolHandlerFunc {
+func loginHandler(defaultHost string, clientOpts []opengate.Option) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 
@@ -77,7 +77,7 @@ func loginHandler(defaultHost string) server.ToolHandlerFunc {
 			host = h
 		}
 
-		c := opengate.New(host, "")
+		c := opengate.New(host, "", clientOpts...)
 		result, err := c.Login(ctx, email, password, twoFaCode)
 		if err != nil {
 			if opengate.Is2FAChallenge(err) {

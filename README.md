@@ -48,7 +48,15 @@ profiles:
   staging:
     host: https://staging-api.opengate.es
     organization: my-org-staging
+  on-prem:
+    host: https://opengate.customer.local
+    api_version: v79        # instance pinned to another API version
+    retries: 3              # retry 429/5xx with exponential backoff
+    ca_file: /etc/ssl/customer-ca.pem
 ```
+
+Global flags override the profile: `--api-version`, `--retry N`, `--insecure`,
+`--ca-file`. `--api-version` applies to both REST planes (North and South).
 
 Environment variables (prefix `OG_`) override config values:
 
@@ -64,6 +72,8 @@ Environment variables (prefix `OG_`) override config values:
 | `OG_2FA_SECRET` | base32 TOTP secret; og derives the code itself (not persisted) |
 | `OG_INSECURE` | Skip TLS verification (`true`/`false`) |
 | `OG_CA_FILE` | Path to an extra CA/chain PEM to trust |
+| `OG_API_VERSION` | API version segment (default `v80`; for on-premises instances) |
+| `OG_RETRIES` | Attempts per request; retries HTTP 429 and 5xx with backoff |
 
 A `.env` file in the current directory is also loaded automatically.
 

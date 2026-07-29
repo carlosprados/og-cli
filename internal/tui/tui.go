@@ -89,7 +89,7 @@ type model struct {
 // Run starts the interactive TUI. profileName is the selected profile (from
 // --profile); empty means the config's default profile.
 func Run(ctx context.Context, cfg *config.Config, profile *config.Profile, profileName, cfgPath string) error {
-	c := opengate.New(profile.Host, profile.Token).WithWebToken(profile.WebToken)
+	c := opengate.New(profile.Host, profile.Token, profile.ClientOptions()...).WithWebToken(profile.WebToken)
 
 	if profileName == "" {
 		profileName = cfg.DefaultProfile

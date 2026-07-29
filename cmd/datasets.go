@@ -32,7 +32,7 @@ func runDSList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	resp, err := c.ListDatasets(cmd.Context(), orgName)
 	if err != nil {
@@ -70,7 +70,7 @@ func runDSGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	ds, err := c.GetDataset(cmd.Context(), orgName, args[0])
 	if err != nil {
@@ -121,7 +121,7 @@ func runDSCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	if err := c.CreateDataset(cmd.Context(), orgName, body); err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func runDSUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	if err := c.UpdateDataset(cmd.Context(), orgName, args[0], body); err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func runDSDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	if err := c.DeleteDataset(cmd.Context(), orgName, args[0]); err != nil {
 		return err
 	}
@@ -226,7 +226,7 @@ func runDSData(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	filter, err := buildSearchFilter(dsDataWhere, dsDataLimit, nil, dsDataFilter)
 	if err != nil {

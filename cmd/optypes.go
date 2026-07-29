@@ -41,7 +41,7 @@ var optypesCatalogCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 		data, err := c.OpTypesCatalog(cmd.Context())
 		if err != nil {
 			return err
@@ -58,7 +58,7 @@ var optypesSearchCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 		data, err := c.SearchOpTypes(cmd.Context(), nil)
 		if err != nil {
 			return err

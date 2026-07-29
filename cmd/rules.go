@@ -60,7 +60,7 @@ var rulesSearchCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 		filter, err := buildSearchFilter(rulesSearchWhere, rulesSearchLimit, nil, rulesSearchFilter)
 		if err != nil {
@@ -211,7 +211,7 @@ var rulesCatalogCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 		data, err := c.RulesCatalog(cmd.Context())
 		if err != nil {
 			return err
@@ -254,7 +254,7 @@ var rulesPullAllCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 		resp, err := c.SearchRules(cmd.Context(), nil)
 		if err != nil {
@@ -369,7 +369,7 @@ func rulesClient() (*opengate.Client, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	return opengate.New(p.Host, p.Token), orgName, nil
+	return opengate.New(p.Host, p.Token, p.ClientOptions()...), orgName, nil
 }
 
 func unwrapRuleTo(raw json.RawMessage, dir string) (string, error) {

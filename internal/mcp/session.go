@@ -58,13 +58,15 @@ type provider struct {
 	multiTenant bool
 	fixed       credentials
 	httpClient  *http.Client // shared across per-request clients to reuse connections
+	clientOpts  []opengate.Option
 }
 
-func newProvider(host string, fixed credentials, multiTenant bool) *provider {
+func newProvider(host string, fixed credentials, multiTenant bool, clientOpts ...opengate.Option) *provider {
 	return &provider{
 		host:        host,
 		multiTenant: multiTenant,
 		fixed:       fixed,
+		clientOpts:  clientOpts,
 		// The MCP server serves one host per process, so the process-wide TLS
 		// settings resolved at startup are the right ones for every session.
 		httpClient: opengate.NewHTTPClient(), //nolint:staticcheck // SA1019: intentional, see above
@@ -92,7 +94,7 @@ func (p *provider) clientErr(ctx context.Context) (*opengate.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := opengate.New(p.host, creds.token).WithWebToken(creds.webToken)
+	c := opengate.New(p.host, creds.token, p.clientOpts...).WithWebToken(creds.webToken)
 	c.HTTPClient = p.httpClient
 	return c, nil
 }

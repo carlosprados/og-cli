@@ -378,7 +378,7 @@ func provisionClient() (*opengate.Client, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	return opengate.New(p.Host, p.Token), orgName, nil
+	return opengate.New(p.Host, p.Token, p.ClientOptions()...), orgName, nil
 }
 
 func unwrapProvisionTo(raw json.RawMessage, dir string) (string, error) {

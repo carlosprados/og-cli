@@ -33,7 +33,7 @@ func runTSList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	resp, err := c.ListTimeSeries(cmd.Context(), orgName)
 	if err != nil {
@@ -77,7 +77,7 @@ func runTSGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	ts, err := c.GetTimeSeries(cmd.Context(), orgName, args[0])
 	if err != nil {
@@ -150,7 +150,7 @@ func runTSCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	if err := c.CreateTimeSeries(cmd.Context(), orgName, body); err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func runTSUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	if err := c.UpdateTimeSeries(cmd.Context(), orgName, args[0], body); err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func runTSDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	if err := c.DeleteTimeSeries(cmd.Context(), orgName, args[0]); err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func runTSData(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	filter, err := buildSearchFilter(tsDataWhere, tsDataLimit, nil, tsDataFilter)
 	if err != nil {
@@ -321,7 +321,7 @@ func runTSExport(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	if err := c.ExportTimeSeries(cmd.Context(), orgName, args[0], nil); err != nil {
 		return err
 	}

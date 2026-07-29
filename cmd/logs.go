@@ -58,7 +58,7 @@ func streamFunctionLogs(ctx context.Context, kind, channel, id string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	stop := make(chan struct{})
 	sig := make(chan os.Signal, 1)

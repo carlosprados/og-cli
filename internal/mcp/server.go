@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"net/http"
 
 	"github.com/mark3labs/mcp-go/server"
@@ -31,6 +32,10 @@ type Options struct {
 	// Toolsets is the resolved active set (from resolveToolsets); it alone decides
 	// which named tools/prompts/resources are exposed. Ignored when Lean is true.
 	Toolsets map[toolset]bool
+
+	// ClientOptions configures every client the server builds — API version and
+	// retry policy — so an MCP session behaves like the CLI it was launched from.
+	ClientOptions []opengate.Option
 }
 
 // newServer creates a configured MCP server. The exposed surface is governed by
@@ -45,7 +50,7 @@ func newServer(opts Options) *server.MCPServer {
 		server.WithResourceCapabilities(true, false),
 	)
 
-	p := newProvider(opts.Host, credentials{token: opts.Token, webToken: opts.WebToken, apiKey: opts.APIKey}, opts.MultiTenant)
+	p := newProvider(opts.Host, credentials{token: opts.Token, webToken: opts.WebToken, apiKey: opts.APIKey}, opts.MultiTenant, opts.ClientOptions...)
 
 	// Lean mode: a tiny exec-over-CLI surface. The guidance prompt still helps.
 	if opts.Lean {

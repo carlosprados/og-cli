@@ -100,7 +100,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		twoFaCode = code
 	}
 
-	c := opengate.New(p.Host, "")
+	c := opengate.New(p.Host, "", p.ClientOptions()...)
 	result, err := c.Login(cmd.Context(), email, password, twoFaCode)
 	if err != nil && opengate.Is2FAChallenge(err) {
 		// The account has 2FA enabled and we need a (fresh) TOTP code.

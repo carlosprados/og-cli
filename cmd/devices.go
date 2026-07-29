@@ -59,7 +59,7 @@ func runDevicesSearch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	selectClauses := query.SelectFromFields(devSearchSelect, devSearchAt)
 	if len(devSearchView) > 0 {
@@ -202,7 +202,7 @@ func runDevicesGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	data, err := c.GetDevice(cmd.Context(), orgName, args[0])
 	if err != nil {
@@ -254,7 +254,7 @@ func runDevicesCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	if err := c.CreateDevice(cmd.Context(), orgName, body); err != nil {
 		return err
 	}
@@ -289,7 +289,7 @@ func runDevicesUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	if err := c.UpdateDevice(cmd.Context(), orgName, args[0], body); err != nil {
 		return err
 	}
@@ -320,7 +320,7 @@ func runDevicesDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	if err := c.DeleteDevice(cmd.Context(), orgName, args[0]); err != nil {
 		return err
 	}

@@ -36,7 +36,7 @@ func runJobsSearch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	filter, err := buildSearchFilter(jobSearchWhere, jobSearchLimit, nil, jobSearchFilter)
 	if err != nil {
@@ -83,7 +83,7 @@ var jobsGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 		data, err := c.GetJob(cmd.Context(), args[0])
 		if err != nil {
@@ -113,7 +113,7 @@ func runJobsCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	resp, err := c.CreateJob(cmd.Context(), body)
 	if err != nil {
 		return err
@@ -191,7 +191,7 @@ func runJobsLaunch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	res, err := c.LaunchJob(cmd.Context(), req, entities, opengate.LaunchOptions{
 		BatchSize: jobLaunchBatch,
 		OnProgress: func(pr opengate.LaunchProgress) {
@@ -263,7 +263,7 @@ var jobsCancelCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 		if err := c.CancelJob(cmd.Context(), args[0]); err != nil {
 			return err
 		}
@@ -296,7 +296,7 @@ Examples:
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 		if jobOpsAll && jobOpsPage > 0 {
 			return fmt.Errorf("--all walks every page; it cannot be combined with --page")
@@ -371,7 +371,7 @@ Examples:
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 		if opsHistoryAll && opsHistoryPage > 0 {
 			return fmt.Errorf("--all walks every page; it cannot be combined with --page")
@@ -493,7 +493,7 @@ func runTasksSearch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	filter, err := buildSearchFilter(taskSearchWhere, taskSearchLimit, nil, taskSearchFilter)
 	if err != nil {
@@ -532,7 +532,7 @@ var tasksGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 		data, err := c.GetTask(cmd.Context(), args[0])
 		if err != nil {
@@ -562,7 +562,7 @@ func runTasksCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 	resp, err := c.CreateTask(cmd.Context(), body)
 	if err != nil {
 		return err
@@ -583,7 +583,7 @@ var tasksCancelCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 		if err := c.CancelTask(cmd.Context(), args[0]); err != nil {
 			return err
 		}
@@ -601,7 +601,7 @@ var tasksJobsCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 		resp, err := c.GetTaskJobs(cmd.Context(), args[0])
 		if err != nil {

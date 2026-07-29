@@ -219,7 +219,7 @@ var connectorsCatalogCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 		data, err := c.ConnectorFunctionsCatalog(cmd.Context())
 		if err != nil {
 			return err
@@ -375,7 +375,7 @@ func connectorsClient() (*opengate.Client, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	return opengate.New(p.Host, p.Token), orgName, nil
+	return opengate.New(p.Host, p.Token, p.ClientOptions()...), orgName, nil
 }
 
 func unwrapConnectorTo(raw json.RawMessage, dir string) (string, error) {

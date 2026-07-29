@@ -41,7 +41,7 @@ func runAlarmsSearch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	filter, err := buildSearchFilter(alSearchWhere, alSearchLimit, nil, alSearchFilter)
 	if err != nil {
@@ -89,7 +89,7 @@ func runAlarmsSummary(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	filter, err := buildSearchFilter(alSummaryWhere, 0, nil, alSummaryFilter)
 	if err != nil {
@@ -134,7 +134,7 @@ func runAlarmsAttend(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	resp, err := c.AttendAlarms(cmd.Context(), args, attendNotes)
 	if err != nil {
@@ -161,7 +161,7 @@ func runAlarmsClose(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	resp, err := c.CloseAlarms(cmd.Context(), args, closeNotes)
 	if err != nil {

@@ -20,8 +20,10 @@ var (
 	outputFlag string
 	org        string
 
-	flagInsecure bool
-	flagCAFile   string
+	flagInsecure   bool
+	flagCAFile     string
+	flagAPIVersion string
+	flagRetries    int
 
 	cfg    *config.Config
 	outFmt output.Format
@@ -68,6 +70,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&org, "org", "", "organization name (or OG_ORG env var)")
 	rootCmd.PersistentFlags().BoolVar(&flagInsecure, "insecure", false, "skip TLS certificate verification (escape hatch for self-signed HTTP/MQTT servers)")
 	rootCmd.PersistentFlags().StringVar(&flagCAFile, "ca-file", "", "PEM file with extra CA/chain certs to trust (HTTP and MQTT)")
+	rootCmd.PersistentFlags().StringVar(&flagAPIVersion, "api-version", "", "API version segment to target (default v80; for on-premises instances)")
+	rootCmd.PersistentFlags().IntVar(&flagRetries, "retry", 0, "attempts per request; retries HTTP 429 and 5xx with backoff (0/1 = no retry)")
 	rootCmd.PersistentFlags().BoolVarP(&assumeYes, "yes", "y", false, "skip confirmation prompts for destructive operations (delete/cancel)")
 }
 
@@ -146,9 +150,25 @@ func addHelpSubcommand(parent *cobra.Command) {
 	})
 }
 
-// activeProfile returns the resolved profile from config.
+// activeProfile returns the resolved profile from config, with the global CLI
+// flags applied on top.
+//
+// Resolution order is flag > env > profile, matching --insecure/--ca-file. The
+// overrides land on the profile rather than in package variables so that every
+// surface reached from here — including the TUI and the MCP server, which are
+// handed this profile — configures its client the same way.
 func activeProfile() (*config.Profile, error) {
-	return cfg.ActiveProfile(profile)
+	p, err := cfg.ActiveProfile(profile)
+	if err != nil {
+		return nil, err
+	}
+	if flagAPIVersion != "" {
+		p.APIVersion = flagAPIVersion
+	}
+	if flagRetries > 0 {
+		p.Retries = flagRetries
+	}
+	return p, nil
 }
 
 // resolveOrg returns the organization from --org flag, profile config, or error.
@@ -166,7 +186,7 @@ func resolveOrg(p *config.Profile) (string, error) {
 // auto-refresh: if a 401 is received, the client re-signs in and retries once.
 // The refreshed token is persisted back to the active profile.
 func newWebClient(p *config.Profile) *opengate.Client {
-	c := opengate.New(p.Host, p.Token).WithWebToken(p.WebToken)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...).WithWebToken(p.WebToken)
 
 	if p.Email == "" || p.Domain == "" || p.UserProfile == "" || p.Workgroup == "" {
 		return c

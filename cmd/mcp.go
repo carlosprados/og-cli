@@ -82,6 +82,8 @@ func runMCP(cmd *cobra.Command, args []string) error {
 		WebToken:    p.WebToken,
 		APIKey:      p.APIKey,
 		MultiTenant: mcpMultiTenant,
+
+		ClientOptions: p.ClientOptions(),
 	}, lean, toolsetNames)
 	if err != nil {
 		return err

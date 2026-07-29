@@ -222,6 +222,13 @@ func (c *Client) refreshWebToken(ctx context.Context) error {
 // When a retry policy is configured, a rate-limited or failing request is
 // retried with exponential backoff; see RetryPolicy for which requests qualify.
 func (c *Client) doRequestWithAuth(ctx context.Context, method, path string, body io.Reader, auth authHeader, accept string) ([]byte, int, error) {
+	return c.doRequestFull(ctx, method, path, body, auth, accept, "")
+}
+
+// doRequestFull is doRequestWithAuth with an explicit request Content-Type, for
+// the South routes that forward an arbitrary body to a connector function.
+// An empty contentType means application/json.
+func (c *Client) doRequestFull(ctx context.Context, method, path string, body io.Reader, auth authHeader, accept, contentType string) ([]byte, int, error) {
 	if c.initErr != nil {
 		return nil, 0, c.initErr
 	}
@@ -250,7 +257,7 @@ func (c *Client) doRequestWithAuth(ctx context.Context, method, path string, bod
 
 	for n := 1; ; n++ {
 		var header http.Header
-		data, status, header, err = c.attempt(ctx, method, url, body, auth, accept)
+		data, status, header, err = c.attempt(ctx, method, url, body, auth, accept, contentType)
 
 		if n >= attempts || !c.retry.shouldRetry(method, path, status, err) {
 			break
@@ -270,13 +277,16 @@ func (c *Client) doRequestWithAuth(ctx context.Context, method, path string, bod
 }
 
 // attempt performs a single HTTP round trip.
-func (c *Client) attempt(ctx context.Context, method, url string, body io.Reader, auth authHeader, accept string) ([]byte, int, http.Header, error) {
+func (c *Client) attempt(ctx context.Context, method, url string, body io.Reader, auth authHeader, accept, contentType string) ([]byte, int, http.Header, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, 0, nil, fmt.Errorf("creating request: %w", err)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	if contentType == "" {
+		contentType = "application/json"
+	}
+	req.Header.Set("Content-Type", contentType)
 	if accept != "" {
 		req.Header.Set("Accept", accept)
 	}
