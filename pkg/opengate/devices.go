@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"strings"
 )
 
@@ -110,6 +111,52 @@ func (c *Client) SearchDevices(ctx context.Context, filter json.RawMessage) (*Se
 		return nil, fmt.Errorf("parsing search response: %w", err)
 	}
 	return &resp, nil
+}
+
+// SearchDevicesPage searches for devices restricted to one page, overriding any
+// limit already present in filter. page is 1-based; size is capped at
+// MaxPageSize. Use it when you want to drive paging yourself; use
+// SearchDevicesAll to walk every page.
+func (c *Client) SearchDevicesPage(ctx context.Context, filter json.RawMessage, page, size int) (*SearchDevicesResponse, error) {
+	if page < 1 {
+		page = 1
+	}
+	if size <= 0 {
+		size = DefaultPageSize
+	}
+	if size > MaxPageSize {
+		size = MaxPageSize
+	}
+
+	paged, err := withPage(filter, page, size)
+	if err != nil {
+		return nil, err
+	}
+	return c.SearchDevices(ctx, paged)
+}
+
+// SearchDevicesAll walks every page of a device search and yields devices one by
+// one, so a caller never has to know how many pages there are — nor request
+// them all at once, which is how a large fleet turns into an unbounded response.
+//
+// The page size comes from filter's limit.size when set, otherwise
+// DefaultPageSize. Cancelling ctx stops the walk and yields the context error,
+// so a truncated iteration is distinguishable from a complete one:
+//
+//	for dev, err := range c.SearchDevicesAll(ctx, filter) {
+//	    if err != nil {
+//	        return err
+//	    }
+//	    ...
+//	}
+func (c *Client) SearchDevicesAll(ctx context.Context, filter json.RawMessage) iter.Seq2[json.RawMessage, error] {
+	return paginate(ctx, filter, func(ctx context.Context, f json.RawMessage) ([]json.RawMessage, *Page, error) {
+		resp, err := c.SearchDevices(ctx, f)
+		if err != nil {
+			return nil, nil, err
+		}
+		return resp.Devices, resp.Page, nil
+	})
 }
 
 // GetDevice retrieves a single device by organization and identifier (flattened format).

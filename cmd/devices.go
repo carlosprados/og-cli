@@ -47,6 +47,8 @@ var (
 	devSearchFilter string
 	devSearchWhere  []string
 	devSearchLimit  int
+	devSearchPage   int
+	devSearchAll    bool
 	devSearchSelect []string
 	devSearchView   []string
 	devSearchAt     bool
@@ -71,21 +73,38 @@ func runDevicesSearch(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	filter, err := buildSearchFilter(devSearchWhere, devSearchLimit, selectClauses, devSearchFilter)
+	if devSearchAll && devSearchPage > 0 {
+		return fmt.Errorf("--all walks every page; it cannot be combined with --page")
+	}
+
+	filter, err := buildSearchFilterPaged(devSearchWhere, devSearchLimit, devSearchPage, selectClauses, devSearchFilter)
 	if err != nil {
 		return err
 	}
 
-	resp, err := c.SearchDevices(cmd.Context(), filter)
-	if err != nil {
-		return err
+	var devices []json.RawMessage
+	if devSearchAll {
+		// Walk every page instead of returning whatever the platform's default
+		// page happens to hold — otherwise a large fleet is truncated silently.
+		for dev, err := range c.SearchDevicesAll(cmd.Context(), filter) {
+			if err != nil {
+				return err
+			}
+			devices = append(devices, dev)
+		}
+	} else {
+		resp, err := c.SearchDevices(cmd.Context(), filter)
+		if err != nil {
+			return err
+		}
+		devices = resp.Devices
 	}
 
 	if len(selectClauses) > 0 {
-		return printSelectedDevices(resp.Devices, selectClauses)
+		return printSelectedDevices(devices, selectClauses)
 	}
 
-	return output.Print(outFmt, resp.Devices,
+	return output.Print(outFmt, devices,
 		[]string{"Identifier", "Name", "Organization", "State"},
 		func(data any) [][]string {
 			devices := data.([]json.RawMessage)
@@ -101,6 +120,12 @@ func runDevicesSearch(cmd *cobra.Command, args []string) error {
 
 // buildSearchFilter is shared by all search commands.
 func buildSearchFilter(where []string, limit int, sel []query.SelectClause, rawFilter string) (json.RawMessage, error) {
+	return buildSearchFilterPaged(where, limit, 0, sel, rawFilter)
+}
+
+// buildSearchFilterPaged is buildSearchFilter with an explicit page number.
+// start is a 1-based page index (limit.start), not an element offset.
+func buildSearchFilterPaged(where []string, limit, start int, sel []query.SelectClause, rawFilter string) (json.RawMessage, error) {
 	var conditions []query.Condition
 	for _, w := range where {
 		// ParseQuery supports "cond AND cond" inside one -w, matching the
@@ -114,6 +139,7 @@ func buildSearchFilter(where []string, limit int, sel []query.SelectClause, rawF
 	return query.MergeWithRaw(query.SearchParams{
 		Conditions: conditions,
 		Limit:      limit,
+		Start:      start,
 		Select:     sel,
 	}, rawFilter)
 }
@@ -310,7 +336,9 @@ func init() {
 	devicesSearchCmd.Flags().StringArrayVarP(&devSearchSelect, "select", "s", nil, "fields to return (repeatable; append @at/@date/@source for sub-fields, e.g. -s wt@at@date)")
 	devicesSearchCmd.Flags().BoolVar(&devSearchAt, "at", false, "include the at timestamp for every selected field")
 	devicesSearchCmd.Flags().StringSliceVar(&devSearchView, "view", nil, "named views to project (comma-separated or repeatable, e.g. --view summary,power); see 'og views list'")
-	devicesSearchCmd.Flags().IntVar(&devSearchLimit, "limit", 0, "max number of results")
+	devicesSearchCmd.Flags().IntVar(&devSearchLimit, "limit", 0, "page size (max number of results per request; platform max 2000)")
+	devicesSearchCmd.Flags().IntVar(&devSearchPage, "page", 0, "page number to fetch, counting from 1 (default: first page)")
+	devicesSearchCmd.Flags().BoolVar(&devSearchAll, "all", false, "fetch every page instead of just the first (uses --limit as the page size)")
 	devicesSearchCmd.Flags().StringVar(&devSearchFilter, "filter", "", "raw search filter as JSON (overrides -w)")
 
 	devicesCreateCmd.Flags().StringVarP(&devCreateFile, "file", "f", "", "path to JSON file with device definition")

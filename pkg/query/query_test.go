@@ -303,3 +303,76 @@ func TestCastValue(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildFilterPagination(t *testing.T) {
+	tests := []struct {
+		name  string
+		limit int
+		start int
+		want  string // the limit block, or "" when absent
+	}{
+		{name: "size only", limit: 100, want: `{"size":100}`},
+		{name: "start only", start: 3, want: `{"start":3}`},
+		{name: "size and start", limit: 50, start: 2, want: `{"size":50,"start":2}`},
+		{name: "neither", want: ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := BuildFilter(SearchParams{
+				Conditions: []Condition{{Field: "a", Op: "eq", Value: "1"}},
+				Limit:      tc.limit,
+				Start:      tc.start,
+			})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			var result map[string]any
+			if err := json.Unmarshal(data, &result); err != nil {
+				t.Fatal(err)
+			}
+
+			raw, present := result["limit"]
+			if tc.want == "" {
+				if present {
+					t.Errorf("limit should be absent, got %v", raw)
+				}
+				return
+			}
+			if !present {
+				t.Fatalf("limit missing from %s", data)
+			}
+
+			var want map[string]any
+			if err := json.Unmarshal([]byte(tc.want), &want); err != nil {
+				t.Fatal(err)
+			}
+			got, _ := json.Marshal(raw)
+			wantJSON, _ := json.Marshal(want)
+			if string(got) != string(wantJSON) {
+				t.Errorf("limit = %s, want %s", got, wantJSON)
+			}
+		})
+	}
+}
+
+// TestBuildFilterStartAloneIsNotDroppedFromEmptyParams guards the early-return
+// shortcut: asking for page 3 with no other criterion must still emit a limit.
+func TestBuildFilterStartAloneIsNotDroppedFromEmptyParams(t *testing.T) {
+	data, err := BuildFilter(SearchParams{Start: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatal(err)
+	}
+	limit, ok := result["limit"].(map[string]any)
+	if !ok {
+		t.Fatalf("limit missing from %s", data)
+	}
+	if limit["start"] != float64(3) {
+		t.Errorf("limit.start = %v, want 3", limit["start"])
+	}
+}

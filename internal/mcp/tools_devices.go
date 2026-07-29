@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/carlosprados/og-cli/internal/views"
+	"github.com/carlosprados/og-cli/pkg/opengate"
 	"github.com/carlosprados/og-cli/pkg/query"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -81,7 +82,10 @@ Examples:
 			mcp.Description("Comma-separated named views that expand into field sets — USE THIS instead of guessing field paths. Built-in views: summary (id, type, name, org, status), identifier, name, type, location, organization, topology, status, hardware, software, relations, temperature, power, resources. Collected fields include their at timestamp automatically. Combinable with 'select' (explicit fields win). Read the opengate://views resource for the full dictionary. Example: \"summary,power\""),
 		),
 		mcp.WithNumber("limit",
-			mcp.Description("Max number of results"),
+			mcp.Description("Page size: max number of results per request (platform maximum 2000)."),
+		),
+		mcp.WithNumber("page",
+			mcp.Description("Page number to fetch, counting from 1. Use it with 'limit' to walk a large result set one page at a time; the response's page.of tells you how many pages there are. Omit for the first page."),
 		),
 		mcp.WithString("filter",
 			mcp.Description("Advanced: raw OpenGate JSON filter. Only use for OR/nested queries that 'query' cannot express. Overrides 'query'."),
@@ -107,7 +111,14 @@ func devicesSearchHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
 		}
 
-		result, err := json.Marshal(resp.Devices)
+		// The page block is part of the result: without it a caller cannot tell
+		// a complete answer from the first page of a larger one.
+		payload := struct {
+			Devices []json.RawMessage `json:"devices"`
+			Page    *opengate.Page    `json:"page,omitempty"`
+		}{Devices: resp.Devices, Page: resp.Page}
+
+		result, err := json.Marshal(payload)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("marshaling result: %v", err)), nil
 		}
@@ -134,6 +145,12 @@ func mcpBuildFilter(args map[string]any) (json.RawMessage, error) {
 	var limit int
 	if l, ok := args["limit"].(float64); ok && l > 0 {
 		limit = int(l)
+	}
+
+	// page is a 1-based page number (limit.start), not an element offset.
+	var page int
+	if s, ok := args["page"].(float64); ok && s > 0 {
+		page = int(s)
 	}
 
 	var selectFields []string
@@ -166,6 +183,7 @@ func mcpBuildFilter(args map[string]any) (json.RawMessage, error) {
 	p := query.SearchParams{
 		Conditions: conditions,
 		Limit:      limit,
+		Start:      page,
 		Select:     selectClauses,
 	}
 

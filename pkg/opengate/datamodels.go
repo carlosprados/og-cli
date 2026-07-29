@@ -70,11 +70,6 @@ type SearchDatamodelsResponse struct {
 	Page       *Page       `json:"page,omitempty"`
 }
 
-// Page holds pagination info.
-type Page struct {
-	Number int `json:"number,omitempty"`
-}
-
 // SearchDatamodels searches for datamodels using a filter body.
 // If filter is nil, all datamodels are returned.
 func (c *Client) SearchDatamodels(ctx context.Context, filter json.RawMessage) (*SearchDatamodelsResponse, error) {

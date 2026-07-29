@@ -108,13 +108,35 @@ og dev search -w "provision.device.administrativeState eq ACTIVE"
 # Multiple conditions (AND)
 og dev search -w "provision.device.identifier like sense" -w "provision.device.administrativeState eq TESTING"
 
-# With limit
+# With a page size
 og dev search -w "provision.device.identifier like sense" --limit 10
 ```
 
 **Operators:** `eq`, `neq`, `like`, `gt`, `lt`, `gte`, `lte`, `in`, `exists`
 
 Multiple `-w` flags are combined with AND. For OR or nested queries, use `--filter` with raw JSON.
+
+### Pagination
+
+OpenGate searches are paged, so **the first page is not necessarily the whole
+answer**. Responses carry a `page` block with `number` (the 1-based page you got)
+and, on most endpoints, `of` (total pages).
+
+```bash
+# Page size (limit.size) — the platform maximum is 2000
+og dev search --limit 500
+
+# A specific page. --page is a PAGE NUMBER counting from 1, not an element offset
+og dev search --limit 500 --page 3
+
+# Every page, combined into one result — use this whenever completeness matters
+og dev search --all
+og dev search --all --limit 500        # --limit becomes the page size
+```
+
+`--all` and `--page` are mutually exclusive. Any question of the form "how many
+devices…" needs `--all`, otherwise the answer is silently "as many as fit in one
+page".
 
 ## Views — project fields by intent
 
@@ -314,6 +336,11 @@ og dev search -s provision.device.identifier -s wt@at -s wp \
 # Named views — common field sets without memorizing paths (see "Views" above)
 og dev search --view summary
 og dev search --view summary,power -s wt
+
+# Pagination (see "Pagination" above): one page, a given page, or all of them
+og dev search --limit 500
+og dev search --limit 500 --page 2
+og dev search --all --view summary
 
 # Get
 og dev get sense-001
@@ -1264,7 +1291,24 @@ defer cancel()
 devices, err := c.SearchDevices(ctx, filter)
 ```
 
-Two things worth knowing for long-running services:
+Searches are paged. Walk them with the iterator rather than asking for
+everything at once:
+
+```go
+for dev, err := range c.SearchDevicesAll(ctx, filter) {
+    if err != nil {
+        return err // includes ctx cancellation, so a partial walk is never silent
+    }
+    process(dev)
+}
+```
+
+`SearchDevicesAll` requests `limit.size` from your filter (or
+`opengate.DefaultPageSize`) and stops at the last page. For manual control use
+`SearchDevicesPage(ctx, filter, page, size)`; `page` counts from **1** and is a
+page number, not an element offset.
+
+Two more things worth knowing for long-running services:
 
 - **Every I/O method takes a `context.Context` first**, propagated down to the
   HTTP request, so cancellation and per-request deadlines work end to end.
