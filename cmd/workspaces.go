@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -41,7 +42,7 @@ func runWorkspaceList(cmd *cobra.Command, args []string) error {
 	}
 	c := newWebClient(p)
 
-	wss, err := c.ListWorkspaces(workspaceListFull)
+	wss, err := c.ListWorkspaces(cmd.Context(), workspaceListFull)
 	if err != nil {
 		return err
 	}
@@ -83,7 +84,7 @@ func runWorkspaceGet(cmd *cobra.Command, args []string) error {
 	}
 	c := newWebClient(p)
 
-	w, err := c.GetWorkspace(args[0], workspaceGetFull)
+	w, err := c.GetWorkspace(cmd.Context(), args[0], workspaceGetFull)
 	if err != nil {
 		return err
 	}
@@ -138,7 +139,7 @@ func runWorkspaceExport(cmd *cobra.Command, args []string) error {
 	}
 	c := newWebClient(p)
 
-	data, err := fetchWorkspaceExportData(c, args[0], workspaceExportFull)
+	data, err := fetchWorkspaceExportData(cmd.Context(), c, args[0], workspaceExportFull)
 	if err != nil {
 		return err
 	}
@@ -159,9 +160,9 @@ func runWorkspaceExport(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func fetchWorkspaceExportData(c *opengate.Client, id string, full bool) ([]byte, error) {
+func fetchWorkspaceExportData(ctx context.Context, c *opengate.Client, id string, full bool) ([]byte, error) {
 	if full {
-		w, err := c.GetWorkspace(id, true)
+		w, err := c.GetWorkspace(ctx, id, true)
 		if err != nil {
 			return nil, err
 		}
@@ -171,7 +172,7 @@ func fetchWorkspaceExportData(c *opengate.Client, id string, full bool) ([]byte,
 		}
 		return data, nil
 	}
-	return c.ExportWorkspace(id)
+	return c.ExportWorkspace(ctx, id)
 }
 
 // resolveOutputPath picks the destination file given --out and --dir.
@@ -224,14 +225,14 @@ func runWorkspaceExportAll(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("creating directory %s: %w", workspaceExportAllDir, err)
 	}
 
-	wss, err := c.ListWorkspaces(false)
+	wss, err := c.ListWorkspaces(cmd.Context(), false)
 	if err != nil {
 		return err
 	}
 
 	var exported, failed int
 	for _, w := range wss {
-		data, err := fetchWorkspaceExportData(c, w.ID, workspaceExportAllFull)
+		data, err := fetchWorkspaceExportData(cmd.Context(), c, w.ID, workspaceExportAllFull)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", w.ID, err)
 			failed++
@@ -296,14 +297,14 @@ func runWorkspaceDeploy(cmd *cobra.Command, args []string) error {
 	c := newWebClient(p)
 
 	if workspaceDeployUpdate {
-		if err := c.UpdateWorkspaceDeep(w); err != nil {
+		if err := c.UpdateWorkspaceDeep(cmd.Context(), w); err != nil {
 			return err
 		}
 		fmt.Printf("Workspace %s deployed (updated workspace + %d dashboard(s)).\n", w.ID, countEmbeddedDashboards(w))
 		return nil
 	}
 
-	if err := c.ImportWorkspaceDeep(w); err != nil {
+	if err := c.ImportWorkspaceDeep(cmd.Context(), w); err != nil {
 		if isDuplicateKeyError(err) {
 			return fmt.Errorf("%w\n\nThe workspace _id already exists. Re-run with --update to overwrite it (and its dashboards) via PUT", err)
 		}
@@ -390,7 +391,7 @@ func runWorkspaceUnwrap(cmd *cobra.Command, args []string) error {
 	}
 	c := newWebClient(p)
 
-	w, err := c.GetWorkspace(args[0], true)
+	w, err := c.GetWorkspace(cmd.Context(), args[0], true)
 	if err != nil {
 		return err
 	}
@@ -406,7 +407,7 @@ func runWorkspaceUnwrap(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return unwrapOneWorkspace(c, w, wsDir, p, workspaceUnwrapForceOwner)
+	return unwrapOneWorkspace(cmd.Context(), c, w, wsDir, p, workspaceUnwrapForceOwner)
 }
 
 // unwrapOneWorkspace performs the full unwrap including fetching each
@@ -419,7 +420,7 @@ func runWorkspaceUnwrap(cmd *cobra.Command, args []string) error {
 // skipped with a warning — see the ownership filter for the rationale. When
 // forceOwner is true the ownership check is bypassed, matching the top-level
 // workspace override.
-func unwrapOneWorkspace(c *opengate.Client, w *opengate.Workspace, wsDir string, p *config.Profile, forceOwner bool) error {
+func unwrapOneWorkspace(ctx context.Context, c *opengate.Client, w *opengate.Workspace, wsDir string, p *config.Profile, forceOwner bool) error {
 	if _, err := unwrap.Unwrap(w, wsDir); err != nil {
 		return err
 	}
@@ -439,7 +440,7 @@ func unwrapOneWorkspace(c *opengate.Client, w *opengate.Workspace, wsDir string,
 		dashSlug := indexedDashSlug(i, width, wd.Dashboard.Title, wd.Dashboard.ID, dashSlugs)
 		dashDir := filepath.Join(wsDir, dashSlug)
 
-		fullDash, err := c.GetDashboard(wd.Dashboard.ID)
+		fullDash, err := c.GetDashboard(ctx, wd.Dashboard.ID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "    ✗ dashboard %s: %v\n", wd.Dashboard.ID, err)
 			continue
@@ -490,7 +491,7 @@ func runWorkspaceUnwrapAll(cmd *cobra.Command, args []string) error {
 	}
 	c := newWebClient(p)
 
-	wss, err := c.ListWorkspaces(true)
+	wss, err := c.ListWorkspaces(cmd.Context(), true)
 	if err != nil {
 		return err
 	}
@@ -511,7 +512,7 @@ func runWorkspaceUnwrapAll(cmd *cobra.Command, args []string) error {
 			failed++
 			continue
 		}
-		if err := unwrapOneWorkspace(c, w, wsDir, p, false); err != nil {
+		if err := unwrapOneWorkspace(cmd.Context(), c, w, wsDir, p, false); err != nil {
 			fmt.Fprintf(os.Stderr, "  ✗ workspace %s: %v\n", w.ID, err)
 			failed++
 			continue
@@ -734,14 +735,14 @@ func runWorkspaceImport(cmd *cobra.Command, args []string) error {
 	c := newWebClient(p)
 
 	if workspaceImportUpdate {
-		if err := c.UpdateWorkspaceDeep(&w); err != nil {
+		if err := c.UpdateWorkspaceDeep(cmd.Context(), &w); err != nil {
 			return err
 		}
 		fmt.Printf("Workspace %s updated successfully (workspace + %d dashboard(s)).\n", w.ID, countEmbeddedDashboards(&w))
 		return nil
 	}
 
-	if err := c.ImportWorkspaceDeep(&w); err != nil {
+	if err := c.ImportWorkspaceDeep(cmd.Context(), &w); err != nil {
 		if isDuplicateKeyError(err) {
 			return fmt.Errorf("%w\n\nThe workspace _id already exists. Re-run with --update to overwrite it (and its dashboards) via PUT", err)
 		}
@@ -812,7 +813,7 @@ func runWorkspaceUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	c := newWebClient(p)
-	if err := c.UpdateWorkspace(args[0], body); err != nil {
+	if err := c.UpdateWorkspace(cmd.Context(), args[0], body); err != nil {
 		return err
 	}
 
@@ -839,7 +840,7 @@ func runWorkspaceDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	c := newWebClient(p)
-	if err := c.DeleteWorkspace(args[0]); err != nil {
+	if err := c.DeleteWorkspace(cmd.Context(), args[0]); err != nil {
 		return err
 	}
 

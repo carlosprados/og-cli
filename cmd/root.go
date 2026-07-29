@@ -1,8 +1,11 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/carlosprados/og-cli/internal/config"
 	"github.com/carlosprados/og-cli/internal/output"
@@ -53,7 +56,7 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return tui.Run(cfg, p, profile, cfgFile)
+		return tui.Run(cmd.Context(), cfg, p, profile, cfgFile)
 	},
 	SilenceUsage: true,
 }
@@ -85,7 +88,9 @@ func resolveTLS(cmd *cobra.Command) error {
 		}
 	}
 
-	if err := opengate.ConfigureTLS(effInsecure, effCAFile); err != nil {
+	// The CLI talks to exactly one endpoint per invocation, which is the one case
+	// the process-wide setting models correctly. Library consumers use WithTLS.
+	if err := opengate.ConfigureTLS(effInsecure, effCAFile); err != nil { //nolint:staticcheck // SA1019: intentional, see above
 		return err
 	}
 	if effInsecure {
@@ -94,10 +99,15 @@ func resolveTLS(cmd *cobra.Command) error {
 	return nil
 }
 
-// Execute runs the root command.
+// Execute runs the root command with a context cancelled by SIGINT/SIGTERM, so
+// every in-flight request aborts on Ctrl-C instead of running to completion.
+// Commands reach it via cmd.Context().
 func Execute() error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	enableRecursiveHelp(rootCmd)
-	return rootCmd.Execute()
+	return rootCmd.ExecuteContext(ctx)
 }
 
 // enableRecursiveHelp walks the command tree and installs a 'help [subcmd]'

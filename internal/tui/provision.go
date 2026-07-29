@@ -34,7 +34,7 @@ func (m model) fetchProvision() tea.Cmd {
 		if org == "" {
 			return provisionFetchedMsg{err: fmt.Errorf("organization required (set it in the profile)")}
 		}
-		items, err := m.client.ListProvisionProcessors(org)
+		items, err := m.client.ListProvisionProcessors(m.ctx, org)
 		if err != nil {
 			return provisionFetchedMsg{err: err}
 		}

@@ -48,7 +48,7 @@ func runDatamodelsSearch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	resp, err := c.SearchDatamodels(filter)
+	resp, err := c.SearchDatamodels(cmd.Context(), filter)
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func runDatamodelsGet(cmd *cobra.Command, args []string) error {
 	}
 	c := opengate.New(p.Host, p.Token)
 
-	dm, err := c.GetDatamodel(orgName, args[0])
+	dm, err := c.GetDatamodel(cmd.Context(), orgName, args[0])
 	if err != nil {
 		return err
 	}
@@ -157,7 +157,7 @@ func runDatamodelsCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	c := opengate.New(p.Host, p.Token)
-	if err := c.CreateDatamodel(orgName, body); err != nil {
+	if err := c.CreateDatamodel(cmd.Context(), orgName, body); err != nil {
 		return err
 	}
 
@@ -192,7 +192,7 @@ func runDatamodelsUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	c := opengate.New(p.Host, p.Token)
-	if err := c.UpdateDatamodel(orgName, args[0], body); err != nil {
+	if err := c.UpdateDatamodel(cmd.Context(), orgName, args[0], body); err != nil {
 		return err
 	}
 
@@ -223,7 +223,7 @@ func runDatamodelsDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	c := opengate.New(p.Host, p.Token)
-	if err := c.DeleteDatamodel(orgName, args[0]); err != nil {
+	if err := c.DeleteDatamodel(cmd.Context(), orgName, args[0]); err != nil {
 		return err
 	}
 

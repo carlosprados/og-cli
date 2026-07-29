@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/carlosprados/og-cli/internal/output"
-	"github.com/carlosprados/og-cli/internal/query"
 	"github.com/carlosprados/og-cli/internal/views"
 	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/pkg/query"
 	"github.com/spf13/cobra"
 )
 
@@ -76,7 +76,7 @@ func runDevicesSearch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	resp, err := c.SearchDevices(filter)
+	resp, err := c.SearchDevices(cmd.Context(), filter)
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func runDevicesGet(cmd *cobra.Command, args []string) error {
 	}
 	c := opengate.New(p.Host, p.Token)
 
-	data, err := c.GetDevice(orgName, args[0])
+	data, err := c.GetDevice(cmd.Context(), orgName, args[0])
 	if err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func runDevicesCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	c := opengate.New(p.Host, p.Token)
-	if err := c.CreateDevice(orgName, body); err != nil {
+	if err := c.CreateDevice(cmd.Context(), orgName, body); err != nil {
 		return err
 	}
 
@@ -264,7 +264,7 @@ func runDevicesUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	c := opengate.New(p.Host, p.Token)
-	if err := c.UpdateDevice(orgName, args[0], body); err != nil {
+	if err := c.UpdateDevice(cmd.Context(), orgName, args[0], body); err != nil {
 		return err
 	}
 
@@ -295,7 +295,7 @@ func runDevicesDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	c := opengate.New(p.Host, p.Token)
-	if err := c.DeleteDevice(orgName, args[0]); err != nil {
+	if err := c.DeleteDevice(cmd.Context(), orgName, args[0]); err != nil {
 		return err
 	}
 

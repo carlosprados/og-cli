@@ -52,7 +52,7 @@ func (m model) fetchConnectors() tea.Cmd {
 		if org == "" {
 			return connectorsFetchedMsg{err: fmt.Errorf("organization required (set it in the profile)")}
 		}
-		resp, err := m.client.ListConnectorFunctions(org, tuiDefaultChannel)
+		resp, err := m.client.ListConnectorFunctions(m.ctx, org, tuiDefaultChannel)
 		if err != nil {
 			return connectorsFetchedMsg{err: err}
 		}
@@ -71,7 +71,7 @@ func (m model) cycleConnectorStatus(raw json.RawMessage) tea.Cmd {
 			return connectorStatusMsg{err: fmt.Errorf("organization required (set it in the profile)")}
 		}
 		target := nextConnectorStatus(s.OperationalStatus)
-		err := m.client.SetConnectorFunctionStatus(org, tuiDefaultChannel, s.Identifier, target)
+		err := m.client.SetConnectorFunctionStatus(m.ctx, org, tuiDefaultChannel, s.Identifier, target)
 		return connectorStatusMsg{id: s.Identifier, status: target, err: err}
 	}
 }

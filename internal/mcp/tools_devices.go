@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/query"
 	"github.com/carlosprados/og-cli/internal/views"
+	"github.com/carlosprados/og-cli/pkg/query"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -102,7 +102,7 @@ func devicesSearchHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid query: %v", err)), nil
 		}
 
-		resp, err := c.SearchDevices(filter)
+		resp, err := c.SearchDevices(ctx, filter)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
 		}
@@ -206,7 +206,7 @@ func devicesGetHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
 
-		data, err := c.GetDevice(orgName, id)
+		data, err := c.GetDevice(ctx, orgName, id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
@@ -245,7 +245,7 @@ func devicesCreateHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("organization and body are required"), nil
 		}
 
-		if err := c.CreateDevice(orgName, json.RawMessage(body)); err != nil {
+		if err := c.CreateDevice(ctx, orgName, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("create failed: %v", err)), nil
 		}
 
@@ -288,7 +288,7 @@ func devicesUpdateHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("organization, id, and body are required"), nil
 		}
 
-		if err := c.UpdateDevice(orgName, id, json.RawMessage(body)); err != nil {
+		if err := c.UpdateDevice(ctx, orgName, id, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("update failed: %v", err)), nil
 		}
 
@@ -326,7 +326,7 @@ func devicesDeleteHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
 
-		if err := c.DeleteDevice(orgName, id); err != nil {
+		if err := c.DeleteDevice(ctx, orgName, id); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("delete failed: %v", err)), nil
 		}
 

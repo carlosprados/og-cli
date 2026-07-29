@@ -78,7 +78,7 @@ func loginHandler(defaultHost string) server.ToolHandlerFunc {
 		}
 
 		c := opengate.New(host, "")
-		result, err := c.Login(email, password, twoFaCode)
+		result, err := c.Login(ctx, email, password, twoFaCode)
 		if err != nil {
 			if opengate.Is2FAChallenge(err) {
 				return mcp.NewToolResultError("this account has 2FA enabled — re-call the login tool with a fresh 6-digit '2FaCode' from the authenticator app"), nil
@@ -134,7 +134,7 @@ func datamodelsSearchHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid query: %v", err)), nil
 		}
 
-		resp, err := c.SearchDatamodels(filter)
+		resp, err := c.SearchDatamodels(ctx, filter)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
 		}
@@ -177,7 +177,7 @@ func datamodelsGetHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
 
-		dm, err := c.GetDatamodel(orgName, id)
+		dm, err := c.GetDatamodel(ctx, orgName, id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
@@ -220,7 +220,7 @@ func datamodelsCreateHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("organization and body are required"), nil
 		}
 
-		if err := c.CreateDatamodel(orgName, json.RawMessage(body)); err != nil {
+		if err := c.CreateDatamodel(ctx, orgName, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("create failed: %v", err)), nil
 		}
 
@@ -263,7 +263,7 @@ func datamodelsUpdateHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("organization, id, and body are required"), nil
 		}
 
-		if err := c.UpdateDatamodel(orgName, id, json.RawMessage(body)); err != nil {
+		if err := c.UpdateDatamodel(ctx, orgName, id, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("update failed: %v", err)), nil
 		}
 
@@ -301,7 +301,7 @@ func datamodelsDeleteHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
 
-		if err := c.DeleteDatamodel(orgName, id); err != nil {
+		if err := c.DeleteDatamodel(ctx, orgName, id); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("delete failed: %v", err)), nil
 		}
 

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -66,7 +67,7 @@ var rulesSearchCmd = &cobra.Command{
 			return err
 		}
 
-		resp, err := c.SearchRules(filter)
+		resp, err := c.SearchRules(cmd.Context(), filter)
 		if err != nil {
 			return err
 		}
@@ -97,7 +98,7 @@ var rulesGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		data, err := c.GetRule(orgName, rulesChannel, args[0])
+		data, err := c.GetRule(cmd.Context(), orgName, rulesChannel, args[0])
 		if err != nil {
 			return err
 		}
@@ -119,7 +120,7 @@ var rulesCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if _, err := c.CreateRule(orgName, rulesChannel, body); err != nil {
+		if _, err := c.CreateRule(cmd.Context(), orgName, rulesChannel, body); err != nil {
 			return err
 		}
 		fmt.Println("Rule created successfully.")
@@ -140,7 +141,7 @@ var rulesUpdateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := c.UpdateRule(orgName, rulesChannel, args[0], body); err != nil {
+		if err := c.UpdateRule(cmd.Context(), orgName, rulesChannel, args[0], body); err != nil {
 			return err
 		}
 		fmt.Println("Rule updated successfully.")
@@ -160,7 +161,7 @@ var rulesDeleteCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := c.DeleteRule(orgName, rulesChannel, args[0]); err != nil {
+		if err := c.DeleteRule(cmd.Context(), orgName, rulesChannel, args[0]); err != nil {
 			return err
 		}
 		fmt.Println("Rule deleted successfully.")
@@ -174,22 +175,22 @@ var rulesEnableCmd = &cobra.Command{
 	Use:   "enable <rule-id>",
 	Short: "Enable a rule (sets active=true)",
 	Args:  cobra.ExactArgs(1),
-	RunE:  func(cmd *cobra.Command, args []string) error { return setRuleActive(args[0], true) },
+	RunE:  func(cmd *cobra.Command, args []string) error { return setRuleActive(cmd.Context(), args[0], true) },
 }
 
 var rulesDisableCmd = &cobra.Command{
 	Use:   "disable <rule-id>",
 	Short: "Disable a rule (sets active=false)",
 	Args:  cobra.ExactArgs(1),
-	RunE:  func(cmd *cobra.Command, args []string) error { return setRuleActive(args[0], false) },
+	RunE:  func(cmd *cobra.Command, args []string) error { return setRuleActive(cmd.Context(), args[0], false) },
 }
 
-func setRuleActive(id string, active bool) error {
+func setRuleActive(ctx context.Context, id string, active bool) error {
 	c, orgName, err := rulesClient()
 	if err != nil {
 		return err
 	}
-	if err := c.SetRuleActive(orgName, rulesChannel, id, active); err != nil {
+	if err := c.SetRuleActive(ctx, orgName, rulesChannel, id, active); err != nil {
 		return err
 	}
 	state := "disabled"
@@ -211,7 +212,7 @@ var rulesCatalogCmd = &cobra.Command{
 			return err
 		}
 		c := opengate.New(p.Host, p.Token)
-		data, err := c.RulesCatalog()
+		data, err := c.RulesCatalog(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -231,7 +232,7 @@ var rulesPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		raw, err := c.GetRule(orgName, rulesChannel, args[0])
+		raw, err := c.GetRule(cmd.Context(), orgName, rulesChannel, args[0])
 		if err != nil {
 			return err
 		}
@@ -255,7 +256,7 @@ var rulesPullAllCmd = &cobra.Command{
 		}
 		c := opengate.New(p.Host, p.Token)
 
-		resp, err := c.SearchRules(nil)
+		resp, err := c.SearchRules(cmd.Context(), nil)
 		if err != nil {
 			return err
 		}
@@ -319,14 +320,14 @@ var rulesDeployCmd = &cobra.Command{
 			if err := json.Unmarshal(body, &rule); err != nil || rule.Identifier == "" {
 				return fmt.Errorf("--update requires an 'identifier' field in rule.json (pull the rule first)")
 			}
-			if err := c.UpdateRule(orgName, rulesChannel, rule.Identifier, body); err != nil {
+			if err := c.UpdateRule(cmd.Context(), orgName, rulesChannel, rule.Identifier, body); err != nil {
 				return err
 			}
 			fmt.Printf("Rule %s updated successfully.\n", rule.Identifier)
 			return nil
 		}
 
-		if _, err := c.CreateRule(orgName, rulesChannel, body); err != nil {
+		if _, err := c.CreateRule(cmd.Context(), orgName, rulesChannel, body); err != nil {
 			return err
 		}
 		fmt.Println("Rule created successfully.")
@@ -353,7 +354,7 @@ Examples:
   og rules logs <rule-id> --level TRACE --org sensehat`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return streamFunctionLogs(opengate.LoggerRules, rulesChannel, args[0])
+		return streamFunctionLogs(cmd.Context(), opengate.LoggerRules, rulesChannel, args[0])
 	},
 }
 

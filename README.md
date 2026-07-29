@@ -1228,6 +1228,51 @@ alone. If a skill already exists it **aborts and lists** what it would replace;
 re-run with `--force` to overwrite, adding `--backup` to keep a `<skill>.bak`
 copy of the previous version.
 
+## Use as a Go library
+
+Besides the CLI, TUI and MCP server, `og` exposes its OpenGate client as an
+importable library. `pkg/opengate` is the API client and `pkg/query` the search
+filter builder; everything under `internal/` is CLI-private.
+
+```bash
+go get github.com/carlosprados/og-cli/pkg/opengate
+```
+
+```go
+import (
+    "github.com/carlosprados/og-cli/pkg/opengate"
+    "github.com/carlosprados/og-cli/pkg/query"
+)
+
+// Options configure this client only — nothing is process-wide.
+c := opengate.New("https://api.opengate.es", jwtToken,
+    opengate.WithHTTPClient(&http.Client{Timeout: 15 * time.Second}),
+    opengate.WithTLS(false, "/etc/ssl/extra-ca.pem"), // --insecure / --ca-file equivalents
+    opengate.WithAPIVersion("v80"),                   // for an on-premises instance on another version
+)
+if err := c.Err(); err != nil {
+    return err // e.g. an unreadable ca-file: New defers the error instead of panicking
+}
+
+filter, err := query.BuildFilter(query.SearchParams{
+    Conditions: []query.Condition{{Field: "provision.device.identifier", Op: "eq", Value: "dev-1"}},
+    Limit:      100,
+})
+
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+devices, err := c.SearchDevices(ctx, filter)
+```
+
+Two things worth knowing for long-running services:
+
+- **Every I/O method takes a `context.Context` first**, propagated down to the
+  HTTP request, so cancellation and per-request deadlines work end to end.
+- **Prefer an API key over a JWT for service accounts.** A JWT obtained at
+  start-up may be dead by the time a deferred phase runs hours later; an API key
+  does not expire. `opengate.WithAPIKey(key)` switches North API calls to the
+  `X-ApiKey` header. It never applies to the Web API, which has its own token.
+
 ## Documentation
 
 | Document | Description |

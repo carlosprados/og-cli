@@ -1,6 +1,7 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -130,17 +131,17 @@ func TestLogin2FAFlow(t *testing.T) {
 	c := New(srv.URL, "")
 
 	// First attempt without a code must surface a 2FA challenge.
-	if _, err := c.Login("user@example.com", "pw", ""); !Is2FAChallenge(err) {
+	if _, err := c.Login(context.Background(), "user@example.com", "pw", ""); !Is2FAChallenge(err) {
 		t.Fatalf("expected 2FA challenge, got %v", err)
 	}
 
 	// A wrong code is still a challenge (so the CLI re-prompts).
-	if _, err := c.Login("user@example.com", "pw", "000000"); !Is2FAChallenge(err) {
+	if _, err := c.Login(context.Background(), "user@example.com", "pw", "000000"); !Is2FAChallenge(err) {
 		t.Fatalf("expected 2FA challenge for bad code, got %v", err)
 	}
 
 	// The correct code logs in and reports TOTP.
-	res, err := c.Login("user@example.com", "pw", wantCode)
+	res, err := c.Login(context.Background(), "user@example.com", "pw", wantCode)
 	if err != nil {
 		t.Fatalf("login with code: %v", err)
 	}

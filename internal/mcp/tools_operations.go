@@ -44,7 +44,7 @@ func jobsSearchHandler(p *provider) server.ToolHandlerFunc {
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid query: %v", err)), nil
 		}
-		resp, err := c.SearchJobs(filter)
+		resp, err := c.SearchJobs(ctx, filter)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
 		}
@@ -72,7 +72,7 @@ func jobsGetHandler(p *provider) server.ToolHandlerFunc {
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
 		}
-		data, err := c.GetJob(id)
+		data, err := c.GetJob(ctx, id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
@@ -102,7 +102,7 @@ func jobsCreateHandler(p *provider) server.ToolHandlerFunc {
 		if body == "" {
 			return mcp.NewToolResultError("body is required"), nil
 		}
-		data, err := c.CreateJob(json.RawMessage(body))
+		data, err := c.CreateJob(ctx, json.RawMessage(body))
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("create failed: %v", err)), nil
 		}
@@ -129,7 +129,7 @@ func jobsCancelHandler(p *provider) server.ToolHandlerFunc {
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
 		}
-		if err := c.CancelJob(id); err != nil {
+		if err := c.CancelJob(ctx, id); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("cancel failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Job cancelled."), nil
@@ -155,7 +155,7 @@ func jobsOpsHandler(p *provider) server.ToolHandlerFunc {
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
 		}
-		resp, err := c.GetJobOperations(id)
+		resp, err := c.GetJobOperations(ctx, id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("failed: %v", err)), nil
 		}
@@ -187,7 +187,7 @@ func tasksSearchHandler(p *provider) server.ToolHandlerFunc {
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid query: %v", err)), nil
 		}
-		resp, err := c.SearchTasks(filter)
+		resp, err := c.SearchTasks(ctx, filter)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
 		}
@@ -215,7 +215,7 @@ func tasksGetHandler(p *provider) server.ToolHandlerFunc {
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
 		}
-		data, err := c.GetTask(id)
+		data, err := c.GetTask(ctx, id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
@@ -242,7 +242,7 @@ func tasksCreateHandler(p *provider) server.ToolHandlerFunc {
 		if body == "" {
 			return mcp.NewToolResultError("body is required"), nil
 		}
-		data, err := c.CreateTask(json.RawMessage(body))
+		data, err := c.CreateTask(ctx, json.RawMessage(body))
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("create failed: %v", err)), nil
 		}
@@ -269,7 +269,7 @@ func tasksCancelHandler(p *provider) server.ToolHandlerFunc {
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
 		}
-		if err := c.CancelTask(id); err != nil {
+		if err := c.CancelTask(ctx, id); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("cancel failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Task cancelled."), nil

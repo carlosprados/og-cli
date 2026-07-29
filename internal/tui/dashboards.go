@@ -23,7 +23,7 @@ type dashboardDetailFetchedMsg struct {
 
 func (m model) fetchDashboardDetail(id string) tea.Cmd {
 	return func() tea.Msg {
-		d, err := m.client.GetDashboard(id)
+		d, err := m.client.GetDashboard(m.ctx, id)
 		return dashboardDetailFetchedMsg{dash: d, err: err}
 	}
 }

@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -12,7 +13,7 @@ import (
 // functionLogsResult collects bounded execution logs for a rule or connector
 // function from the functions-logger WebSocket. kind is opengate.LoggerRules or
 // opengate.LoggerConnectorFunctions. It stops at 'count' lines or 'timeout_seconds'.
-func functionLogsResult(c *opengate.Client, apiKey, kind, channel string, args map[string]any) (*mcp.CallToolResult, error) {
+func functionLogsResult(ctx context.Context, c *opengate.Client, apiKey, kind, channel string, args map[string]any) (*mcp.CallToolResult, error) {
 	if apiKey == "" {
 		return mcp.NewToolResultError("no API key available. Login first."), nil
 	}
@@ -38,7 +39,7 @@ func functionLogsResult(c *opengate.Client, apiKey, kind, channel string, args m
 	timer := time.AfterFunc(time.Duration(timeout)*time.Second, func() { close(stop) })
 	defer timer.Stop()
 
-	msgs, err := c.CollectFunctionLogs(apiKey, kind, org, channel, id, level, count, stop)
+	msgs, err := c.CollectFunctionLogs(ctx, apiKey, kind, org, channel, id, level, count, stop)
 	if err != nil && len(msgs) == 0 {
 		return mcp.NewToolResultError(fmt.Sprintf("logs failed: %v", err)), nil
 	}

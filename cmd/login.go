@@ -101,14 +101,14 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	}
 
 	c := opengate.New(p.Host, "")
-	result, err := c.Login(email, password, twoFaCode)
+	result, err := c.Login(cmd.Context(), email, password, twoFaCode)
 	if err != nil && opengate.Is2FAChallenge(err) {
 		// The account has 2FA enabled and we need a (fresh) TOTP code.
 		code, perr := prompt2FACode(twoFaCode != "")
 		if perr != nil {
 			return perr
 		}
-		result, err = c.Login(email, password, code)
+		result, err = c.Login(cmd.Context(), email, password, code)
 	}
 	if err != nil {
 		return fmt.Errorf("login failed: %w", err)
@@ -149,7 +149,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		if domain == "" || userProfile == "" {
 			fmt.Fprintln(os.Stderr, "Warning: Web API signin skipped (north login did not return domain or profile, and no override flags given). Workspace/dashboard commands will be unavailable.")
 		} else {
-			webResult, err := c.WebSignIn(opengate.WebSignInRequest{
+			webResult, err := c.WebSignIn(cmd.Context(), opengate.WebSignInRequest{
 				Email:     email,
 				Domain:    domain,
 				Profile:   userProfile,

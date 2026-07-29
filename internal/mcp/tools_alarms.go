@@ -64,7 +64,7 @@ func alarmsSearchHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid query: %v", err)), nil
 		}
 
-		resp, err := c.SearchAlarms(filter)
+		resp, err := c.SearchAlarms(ctx, filter)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
 		}
@@ -104,7 +104,7 @@ func alarmsSummaryHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid query: %v", err)), nil
 		}
 
-		resp, err := c.SummaryAlarms(filter)
+		resp, err := c.SummaryAlarms(ctx, filter)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("summary failed: %v", err)), nil
 		}
@@ -139,7 +139,7 @@ func alarmsAttendHandler(p *provider) server.ToolHandlerFunc {
 			return errRes, nil
 		}
 		args := request.GetArguments()
-		return handleAlarmAction(c, "attend", args)
+		return handleAlarmAction(ctx, c, "attend", args)
 	}
 }
 
@@ -165,11 +165,11 @@ func alarmsCloseHandler(p *provider) server.ToolHandlerFunc {
 			return errRes, nil
 		}
 		args := request.GetArguments()
-		return handleAlarmAction(c, "close", args)
+		return handleAlarmAction(ctx, c, "close", args)
 	}
 }
 
-func handleAlarmAction(c *opengate.Client, action string, args map[string]any) (*mcp.CallToolResult, error) {
+func handleAlarmAction(ctx context.Context, c *opengate.Client, action string, args map[string]any) (*mcp.CallToolResult, error) {
 	idsStr, _ := args["ids"].(string)
 	if idsStr == "" {
 		return mcp.NewToolResultError("ids is required"), nil
@@ -187,9 +187,9 @@ func handleAlarmAction(c *opengate.Client, action string, args map[string]any) (
 	var resp *opengate.AlarmActionResponse
 	var err error
 	if action == "attend" {
-		resp, err = c.AttendAlarms(ids, notes)
+		resp, err = c.AttendAlarms(ctx, ids, notes)
 	} else {
-		resp, err = c.CloseAlarms(ids, notes)
+		resp, err = c.CloseAlarms(ctx, ids, notes)
 	}
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("%s failed: %v", action, err)), nil

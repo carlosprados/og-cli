@@ -65,7 +65,9 @@ func newProvider(host string, fixed credentials, multiTenant bool) *provider {
 		host:        host,
 		multiTenant: multiTenant,
 		fixed:       fixed,
-		httpClient:  opengate.NewHTTPClient(),
+		// The MCP server serves one host per process, so the process-wide TLS
+		// settings resolved at startup are the right ones for every session.
+		httpClient: opengate.NewHTTPClient(), //nolint:staticcheck // SA1019: intentional, see above
 	}
 }
 

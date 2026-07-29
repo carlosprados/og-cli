@@ -178,7 +178,7 @@ func datamodelFieldsHandler(p *provider) server.ResourceTemplateHandlerFunc {
 			return nil, fmt.Errorf("organization not found in URI: %s", uri)
 		}
 
-		resp, err := c.SearchDatamodels(nil)
+		resp, err := c.SearchDatamodels(ctx, nil)
 		if err != nil {
 			return nil, fmt.Errorf("fetching datamodels: %w", err)
 		}
@@ -206,7 +206,7 @@ func datamodelFieldsHandler(p *provider) server.ResourceTemplateHandlerFunc {
 				continue
 			}
 			if len(dm.Categories) == 0 {
-				detail, err := c.GetDatamodel(orgName, dm.Identifier)
+				detail, err := c.GetDatamodel(ctx, orgName, dm.Identifier)
 				if err != nil {
 					continue
 				}

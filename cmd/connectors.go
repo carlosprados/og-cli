@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -60,7 +61,7 @@ var connectorsListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		resp, err := c.ListConnectorFunctions(orgName, connectorsChannel)
+		resp, err := c.ListConnectorFunctions(cmd.Context(), orgName, connectorsChannel)
 		if err != nil {
 			return err
 		}
@@ -91,7 +92,7 @@ var connectorsGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		data, err := c.GetConnectorFunction(orgName, connectorsChannel, args[0])
+		data, err := c.GetConnectorFunction(cmd.Context(), orgName, connectorsChannel, args[0])
 		if err != nil {
 			return err
 		}
@@ -113,7 +114,7 @@ var connectorsCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if _, err := c.CreateConnectorFunction(orgName, connectorsChannel, body); err != nil {
+		if _, err := c.CreateConnectorFunction(cmd.Context(), orgName, connectorsChannel, body); err != nil {
 			return err
 		}
 		fmt.Println("Connector function created successfully.")
@@ -134,7 +135,7 @@ var connectorsUpdateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := c.UpdateConnectorFunction(orgName, connectorsChannel, args[0], body); err != nil {
+		if err := c.UpdateConnectorFunction(cmd.Context(), orgName, connectorsChannel, args[0], body); err != nil {
 			return err
 		}
 		fmt.Println("Connector function updated successfully.")
@@ -154,7 +155,7 @@ var connectorsDeleteCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := c.DeleteConnectorFunction(orgName, connectorsChannel, args[0]); err != nil {
+		if err := c.DeleteConnectorFunction(cmd.Context(), orgName, connectorsChannel, args[0]); err != nil {
 			return err
 		}
 		fmt.Println("Connector function deleted successfully.")
@@ -169,7 +170,7 @@ var connectorsStatusCmd = &cobra.Command{
 	Short: "Set a connector function's operationalStatus",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return setConnectorStatus(args[0], strings.ToUpper(args[1]))
+		return setConnectorStatus(cmd.Context(), args[0], strings.ToUpper(args[1]))
 	},
 }
 
@@ -177,17 +178,21 @@ var connectorsEnableCmd = &cobra.Command{
 	Use:   "enable <cf-id>",
 	Short: "Enable a connector function (sets operationalStatus=PRODUCTION)",
 	Args:  cobra.ExactArgs(1),
-	RunE:  func(cmd *cobra.Command, args []string) error { return setConnectorStatus(args[0], "PRODUCTION") },
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return setConnectorStatus(cmd.Context(), args[0], "PRODUCTION")
+	},
 }
 
 var connectorsDisableCmd = &cobra.Command{
 	Use:   "disable <cf-id>",
 	Short: "Disable a connector function (sets operationalStatus=DISABLED)",
 	Args:  cobra.ExactArgs(1),
-	RunE:  func(cmd *cobra.Command, args []string) error { return setConnectorStatus(args[0], "DISABLED") },
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return setConnectorStatus(cmd.Context(), args[0], "DISABLED")
+	},
 }
 
-func setConnectorStatus(id, status string) error {
+func setConnectorStatus(ctx context.Context, id, status string) error {
 	switch status {
 	case "PRODUCTION", "TEST", "DISABLED":
 	default:
@@ -197,7 +202,7 @@ func setConnectorStatus(id, status string) error {
 	if err != nil {
 		return err
 	}
-	if err := c.SetConnectorFunctionStatus(orgName, connectorsChannel, id, status); err != nil {
+	if err := c.SetConnectorFunctionStatus(ctx, orgName, connectorsChannel, id, status); err != nil {
 		return err
 	}
 	fmt.Printf("Connector function %s set to %s.\n", id, status)
@@ -215,7 +220,7 @@ var connectorsCatalogCmd = &cobra.Command{
 			return err
 		}
 		c := opengate.New(p.Host, p.Token)
-		data, err := c.ConnectorFunctionsCatalog()
+		data, err := c.ConnectorFunctionsCatalog(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -235,7 +240,7 @@ var connectorsPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		raw, err := c.GetConnectorFunction(orgName, connectorsChannel, args[0])
+		raw, err := c.GetConnectorFunction(cmd.Context(), orgName, connectorsChannel, args[0])
 		if err != nil {
 			return err
 		}
@@ -257,7 +262,7 @@ var connectorsPullAllCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		resp, err := c.ListConnectorFunctions(orgName, connectorsChannel)
+		resp, err := c.ListConnectorFunctions(cmd.Context(), orgName, connectorsChannel)
 		if err != nil {
 			return err
 		}
@@ -321,14 +326,14 @@ var connectorsDeployCmd = &cobra.Command{
 			if err := json.Unmarshal(body, &cf); err != nil || cf.Identifier == "" {
 				return fmt.Errorf("--update requires an 'identifier' field in connectorfunction.json (pull the connector function first)")
 			}
-			if err := c.UpdateConnectorFunction(orgName, connectorsChannel, cf.Identifier, body); err != nil {
+			if err := c.UpdateConnectorFunction(cmd.Context(), orgName, connectorsChannel, cf.Identifier, body); err != nil {
 				return err
 			}
 			fmt.Printf("Connector function %s updated successfully.\n", cf.Identifier)
 			return nil
 		}
 
-		if _, err := c.CreateConnectorFunction(orgName, connectorsChannel, body); err != nil {
+		if _, err := c.CreateConnectorFunction(cmd.Context(), orgName, connectorsChannel, body); err != nil {
 			return err
 		}
 		fmt.Println("Connector function created successfully.")
@@ -355,7 +360,7 @@ Examples:
   og connectors logs <cf-id> --level TRACE --org sensehat`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return streamFunctionLogs(opengate.LoggerConnectorFunctions, connectorsChannel, args[0])
+		return streamFunctionLogs(cmd.Context(), opengate.LoggerConnectorFunctions, connectorsChannel, args[0])
 	},
 }
 

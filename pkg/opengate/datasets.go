@@ -1,15 +1,16 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 const (
-	datasetsBasePath = "/north/v80/datasets/provision/organizations/%s"
-	datasetPath      = "/north/v80/datasets/provision/organizations/%s/%s"
-	datasetDataPath  = "/north/v80/datasets/provision/organizations/%s/%s/data"
+	datasetsBasePath = "/north/{v}/datasets/provision/organizations/%s"
+	datasetPath      = "/north/{v}/datasets/provision/organizations/%s/%s"
+	datasetDataPath  = "/north/{v}/datasets/provision/organizations/%s/%s/data"
 )
 
 // Dataset represents a dataset definition.
@@ -44,10 +45,10 @@ type DatasetDataResponse struct {
 }
 
 // ListDatasets returns all datasets in an organization.
-func (c *Client) ListDatasets(orgName string) (*DatasetListResponse, error) {
+func (c *Client) ListDatasets(ctx context.Context, orgName string) (*DatasetListResponse, error) {
 	path := fmt.Sprintf(datasetsBasePath, orgName)
 
-	data, statusCode, err := c.Get(path)
+	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("list datasets: %w", err)
 	}
@@ -66,10 +67,10 @@ func (c *Client) ListDatasets(orgName string) (*DatasetListResponse, error) {
 }
 
 // GetDataset retrieves a single dataset by org and identifier.
-func (c *Client) GetDataset(orgName, id string) (*Dataset, error) {
+func (c *Client) GetDataset(ctx context.Context, orgName, id string) (*Dataset, error) {
 	path := fmt.Sprintf(datasetPath, orgName, id)
 
-	data, statusCode, err := c.Get(path)
+	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("get dataset: %w", err)
 	}
@@ -85,10 +86,10 @@ func (c *Client) GetDataset(orgName, id string) (*Dataset, error) {
 }
 
 // CreateDataset creates a new dataset.
-func (c *Client) CreateDataset(orgName string, body json.RawMessage) error {
+func (c *Client) CreateDataset(ctx context.Context, orgName string, body json.RawMessage) error {
 	path := fmt.Sprintf(datasetsBasePath, orgName)
 
-	data, statusCode, err := c.Post(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.Post(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return fmt.Errorf("create dataset: %w", err)
 	}
@@ -96,10 +97,10 @@ func (c *Client) CreateDataset(orgName string, body json.RawMessage) error {
 }
 
 // UpdateDataset updates an existing dataset.
-func (c *Client) UpdateDataset(orgName, id string, body json.RawMessage) error {
+func (c *Client) UpdateDataset(ctx context.Context, orgName, id string, body json.RawMessage) error {
 	path := fmt.Sprintf(datasetPath, orgName, id)
 
-	data, statusCode, err := c.Put(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.Put(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return fmt.Errorf("update dataset: %w", err)
 	}
@@ -107,10 +108,10 @@ func (c *Client) UpdateDataset(orgName, id string, body json.RawMessage) error {
 }
 
 // DeleteDataset deletes a dataset.
-func (c *Client) DeleteDataset(orgName, id string) error {
+func (c *Client) DeleteDataset(ctx context.Context, orgName, id string) error {
 	path := fmt.Sprintf(datasetPath, orgName, id)
 
-	data, statusCode, err := c.Delete(path)
+	data, statusCode, err := c.Delete(ctx, path)
 	if err != nil {
 		return fmt.Errorf("delete dataset: %w", err)
 	}
@@ -118,7 +119,7 @@ func (c *Client) DeleteDataset(orgName, id string) error {
 }
 
 // QueryDatasetData searches data in a dataset with filter/sort/limit.
-func (c *Client) QueryDatasetData(orgName, id string, filter json.RawMessage) (*DatasetDataResponse, error) {
+func (c *Client) QueryDatasetData(ctx context.Context, orgName, id string, filter json.RawMessage) (*DatasetDataResponse, error) {
 	path := fmt.Sprintf(datasetDataPath, orgName, id)
 
 	var body string
@@ -128,7 +129,7 @@ func (c *Client) QueryDatasetData(orgName, id string, filter json.RawMessage) (*
 		body = "{}"
 	}
 
-	data, statusCode, err := c.Post(path, strings.NewReader(body))
+	data, statusCode, err := c.Post(ctx, path, strings.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("query dataset data: %w", err)
 	}

@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/query"
 	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/pkg/query"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -74,7 +74,7 @@ func (m model) fetchDevices() tea.Cmd {
 			}
 			filter = f
 		}
-		resp, err := m.client.SearchDevices(filter)
+		resp, err := m.client.SearchDevices(m.ctx, filter)
 		if err != nil {
 			return devicesFetchedMsg{err: err}
 		}
@@ -100,7 +100,7 @@ func (m model) fetchDeviceDetail(id string) tea.Cmd {
 		if orgName == "" {
 			return deviceDetailFetchedMsg{err: fmt.Errorf("organization required")}
 		}
-		data, err := m.client.GetDevice(orgName, id)
+		data, err := m.client.GetDevice(m.ctx, orgName, id)
 		return deviceDetailFetchedMsg{data: data, err: err}
 	}
 }

@@ -35,7 +35,7 @@ func connectorsCatalogHandler(p *provider) server.ToolHandlerFunc {
 		if errRes != nil {
 			return errRes, nil
 		}
-		data, err := c.ConnectorFunctionsCatalog()
+		data, err := c.ConnectorFunctionsCatalog(ctx)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("catalog failed: %v", err)), nil
 		}
@@ -68,7 +68,7 @@ func connectorsLogsHandler(p *provider) server.ToolHandlerFunc {
 			return errRes, nil
 		}
 		args := request.GetArguments()
-		return functionLogsResult(c, apiKey, opengate.LoggerConnectorFunctions, connectorChannelArg(args), args)
+		return functionLogsResult(ctx, c, apiKey, opengate.LoggerConnectorFunctions, connectorChannelArg(args), args)
 	}
 }
 
@@ -105,7 +105,7 @@ func connectorsListHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" {
 			return mcp.NewToolResultError("organization is required"), nil
 		}
-		resp, err := c.ListConnectorFunctions(org, connectorChannelArg(args))
+		resp, err := c.ListConnectorFunctions(ctx, org, connectorChannelArg(args))
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("list failed: %v", err)), nil
 		}
@@ -140,7 +140,7 @@ func connectorsGetHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
-		data, err := c.GetConnectorFunction(org, connectorChannelArg(args), id)
+		data, err := c.GetConnectorFunction(ctx, org, connectorChannelArg(args), id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
@@ -182,7 +182,7 @@ func connectorsCreateHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || body == "" {
 			return mcp.NewToolResultError("organization and body are required"), nil
 		}
-		if _, err := c.CreateConnectorFunction(org, connectorChannelArg(args), json.RawMessage(body)); err != nil {
+		if _, err := c.CreateConnectorFunction(ctx, org, connectorChannelArg(args), json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("create failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Connector function created successfully."), nil
@@ -214,7 +214,7 @@ func connectorsUpdateHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" || body == "" {
 			return mcp.NewToolResultError("organization, id, and body are required"), nil
 		}
-		if err := c.UpdateConnectorFunction(org, connectorChannelArg(args), id, json.RawMessage(body)); err != nil {
+		if err := c.UpdateConnectorFunction(ctx, org, connectorChannelArg(args), id, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("update failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Connector function updated successfully."), nil
@@ -244,7 +244,7 @@ func connectorsDeleteHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
-		if err := c.DeleteConnectorFunction(org, connectorChannelArg(args), id); err != nil {
+		if err := c.DeleteConnectorFunction(ctx, org, connectorChannelArg(args), id); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("delete failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Connector function deleted successfully."), nil
@@ -281,7 +281,7 @@ func connectorsSetStatusHandler(p *provider) server.ToolHandlerFunc {
 		default:
 			return mcp.NewToolResultError("status must be DISABLED, PRODUCTION, or TEST"), nil
 		}
-		if err := c.SetConnectorFunctionStatus(org, connectorChannelArg(args), id, status); err != nil {
+		if err := c.SetConnectorFunctionStatus(ctx, org, connectorChannelArg(args), id, status); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("set status failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText(fmt.Sprintf("Connector function operationalStatus=%s applied.", status)), nil

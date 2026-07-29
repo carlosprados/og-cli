@@ -1,6 +1,7 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -88,13 +89,13 @@ type WorkspaceMenuCategory struct {
 
 // ListWorkspaces returns all workspaces accessible to the current user.
 // When full is true, the response includes embedded dashboards (?full=1).
-func (c *Client) ListWorkspaces(full bool) ([]Workspace, error) {
+func (c *Client) ListWorkspaces(ctx context.Context, full bool) ([]Workspace, error) {
 	path := workspacesListPath
 	if full {
 		path += "?full=1"
 	}
 
-	data, statusCode, err := c.WebGet(path)
+	data, statusCode, err := c.WebGet(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("list workspaces: %w", err)
 	}
@@ -114,13 +115,13 @@ func (c *Client) ListWorkspaces(full bool) ([]Workspace, error) {
 
 // GetWorkspace retrieves a single workspace by ID. When full is true, embedded
 // dashboards are included (?full=1).
-func (c *Client) GetWorkspace(id string, full bool) (*Workspace, error) {
+func (c *Client) GetWorkspace(ctx context.Context, id string, full bool) (*Workspace, error) {
 	path := fmt.Sprintf(workspacePath, id)
 	if full {
 		path += "?full=1"
 	}
 
-	data, statusCode, err := c.WebGet(path)
+	data, statusCode, err := c.WebGet(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("get workspace: %w", err)
 	}
@@ -138,10 +139,10 @@ func (c *Client) GetWorkspace(id string, full bool) (*Workspace, error) {
 // ExportWorkspace fetches the export payload for a workspace as raw JSON.
 // Use this for backups or migrations; the returned bytes can be passed back
 // to ImportWorkspace on a different tenant.
-func (c *Client) ExportWorkspace(id string) ([]byte, error) {
+func (c *Client) ExportWorkspace(ctx context.Context, id string) ([]byte, error) {
 	path := fmt.Sprintf(workspaceExportPath, id)
 
-	data, statusCode, err := c.WebGet(path)
+	data, statusCode, err := c.WebGet(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("export workspace: %w", err)
 	}
@@ -153,8 +154,8 @@ func (c *Client) ExportWorkspace(id string) ([]byte, error) {
 
 // CreateWorkspace posts a workspace definition. The body is the full JSON
 // (typically produced by ExportWorkspace).
-func (c *Client) CreateWorkspace(body json.RawMessage) ([]byte, error) {
-	data, statusCode, err := c.WebPost(workspacesPath, strings.NewReader(string(body)))
+func (c *Client) CreateWorkspace(ctx context.Context, body json.RawMessage) ([]byte, error) {
+	data, statusCode, err := c.WebPost(ctx, workspacesPath, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, fmt.Errorf("create workspace: %w", err)
 	}
@@ -165,10 +166,10 @@ func (c *Client) CreateWorkspace(body json.RawMessage) ([]byte, error) {
 }
 
 // UpdateWorkspace updates an existing workspace.
-func (c *Client) UpdateWorkspace(id string, body json.RawMessage) error {
+func (c *Client) UpdateWorkspace(ctx context.Context, id string, body json.RawMessage) error {
 	path := fmt.Sprintf(workspacePath, id)
 
-	data, statusCode, err := c.WebPut(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.WebPut(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return fmt.Errorf("update workspace: %w", err)
 	}
@@ -176,10 +177,10 @@ func (c *Client) UpdateWorkspace(id string, body json.RawMessage) error {
 }
 
 // DeleteWorkspace deletes a workspace by ID.
-func (c *Client) DeleteWorkspace(id string) error {
+func (c *Client) DeleteWorkspace(ctx context.Context, id string) error {
 	path := fmt.Sprintf(workspacePath, id)
 
-	data, statusCode, err := c.WebDelete(path)
+	data, statusCode, err := c.WebDelete(ctx, path)
 	if err != nil {
 		return fmt.Errorf("delete workspace: %w", err)
 	}
@@ -195,7 +196,7 @@ func (c *Client) DeleteWorkspace(id string) error {
 // Single-shot POST /api/workspaces persists the shell but discards the
 // dashboard bodies that ride inside the array, so workspace import has to be
 // done in this multi-phase manner.
-func (c *Client) ImportWorkspaceDeep(w *Workspace) error {
+func (c *Client) ImportWorkspaceDeep(ctx context.Context, w *Workspace) error {
 	if w == nil {
 		return fmt.Errorf("workspace is nil")
 	}
@@ -207,7 +208,7 @@ func (c *Client) ImportWorkspaceDeep(w *Workspace) error {
 	if err != nil {
 		return err
 	}
-	if _, err := c.CreateWorkspace(shellRaw); err != nil {
+	if _, err := c.CreateWorkspace(ctx, shellRaw); err != nil {
 		return fmt.Errorf("creating workspace shell: %w", err)
 	}
 
@@ -220,12 +221,12 @@ func (c *Client) ImportWorkspaceDeep(w *Workspace) error {
 		if err != nil {
 			return fmt.Errorf("marshaling dashboard %s: %w", dash.ID, err)
 		}
-		if _, err := c.CreateDashboard(dashRaw, ""); err != nil {
+		if _, err := c.CreateDashboard(ctx, dashRaw, ""); err != nil {
 			return fmt.Errorf("creating dashboard %s: %w", dash.ID, err)
 		}
 	}
 
-	return c.putWorkspaceWithLayoutRefs(w)
+	return c.putWorkspaceWithLayoutRefs(ctx, w)
 }
 
 // UpdateWorkspaceDeep is the symmetric in-place variant for re-deploying an
@@ -233,7 +234,7 @@ func (c *Client) ImportWorkspaceDeep(w *Workspace) error {
 //
 //  1. PUT /api/dashboards/{id} for every dashboard with its current body
 //  2. PUT /api/workspaces/{id} with the shell + dashboards[] as layout refs
-func (c *Client) UpdateWorkspaceDeep(w *Workspace) error {
+func (c *Client) UpdateWorkspaceDeep(ctx context.Context, w *Workspace) error {
 	if w == nil {
 		return fmt.Errorf("workspace is nil")
 	}
@@ -250,17 +251,17 @@ func (c *Client) UpdateWorkspaceDeep(w *Workspace) error {
 		if err != nil {
 			return fmt.Errorf("marshaling dashboard %s: %w", dash.ID, err)
 		}
-		if err := c.UpdateDashboard(dash.ID, dashRaw); err != nil {
+		if err := c.UpdateDashboard(ctx, dash.ID, dashRaw); err != nil {
 			return fmt.Errorf("updating dashboard %s: %w", dash.ID, err)
 		}
 	}
 
-	return c.putWorkspaceWithLayoutRefs(w)
+	return c.putWorkspaceWithLayoutRefs(ctx, w)
 }
 
 // putWorkspaceWithLayoutRefs performs the final PUT of the workspace with the
 // dashboards[] array reduced to grid layout references (no inline body).
-func (c *Client) putWorkspaceWithLayoutRefs(w *Workspace) error {
+func (c *Client) putWorkspaceWithLayoutRefs(ctx context.Context, w *Workspace) error {
 	wsForPut := *w
 	wsForPut.Dashboards = make([]WorkspaceDashboard, len(w.Dashboards))
 	for i, wd := range w.Dashboards {
@@ -279,7 +280,7 @@ func (c *Client) putWorkspaceWithLayoutRefs(w *Workspace) error {
 	if err != nil {
 		return fmt.Errorf("marshaling workspace PUT body: %w", err)
 	}
-	return c.UpdateWorkspace(w.ID, body)
+	return c.UpdateWorkspace(ctx, w.ID, body)
 }
 
 // workspaceShellJSON returns the workspace JSON with the dashboards field

@@ -35,7 +35,7 @@ func runTSList(cmd *cobra.Command, args []string) error {
 	}
 	c := opengate.New(p.Host, p.Token)
 
-	resp, err := c.ListTimeSeries(orgName)
+	resp, err := c.ListTimeSeries(cmd.Context(), orgName)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func runTSGet(cmd *cobra.Command, args []string) error {
 	}
 	c := opengate.New(p.Host, p.Token)
 
-	ts, err := c.GetTimeSeries(orgName, args[0])
+	ts, err := c.GetTimeSeries(cmd.Context(), orgName, args[0])
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func runTSCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	c := opengate.New(p.Host, p.Token)
-	if err := c.CreateTimeSeries(orgName, body); err != nil {
+	if err := c.CreateTimeSeries(cmd.Context(), orgName, body); err != nil {
 		return err
 	}
 
@@ -186,7 +186,7 @@ func runTSUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	c := opengate.New(p.Host, p.Token)
-	if err := c.UpdateTimeSeries(orgName, args[0], body); err != nil {
+	if err := c.UpdateTimeSeries(cmd.Context(), orgName, args[0], body); err != nil {
 		return err
 	}
 
@@ -217,7 +217,7 @@ func runTSDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	c := opengate.New(p.Host, p.Token)
-	if err := c.DeleteTimeSeries(orgName, args[0]); err != nil {
+	if err := c.DeleteTimeSeries(cmd.Context(), orgName, args[0]); err != nil {
 		return err
 	}
 
@@ -274,7 +274,7 @@ func runTSData(cmd *cobra.Command, args []string) error {
 		filter = json.RawMessage(fmt.Sprintf(`{"sort":"%s"}`, tsDataSort))
 	}
 
-	resp, err := c.QueryTimeSeriesData(orgName, args[0], filter)
+	resp, err := c.QueryTimeSeriesData(cmd.Context(), orgName, args[0], filter)
 	if err != nil {
 		return err
 	}
@@ -322,7 +322,7 @@ func runTSExport(cmd *cobra.Command, args []string) error {
 	}
 
 	c := opengate.New(p.Host, p.Token)
-	if err := c.ExportTimeSeries(orgName, args[0], nil); err != nil {
+	if err := c.ExportTimeSeries(cmd.Context(), orgName, args[0], nil); err != nil {
 		return err
 	}
 

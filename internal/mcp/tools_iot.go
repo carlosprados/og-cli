@@ -53,7 +53,7 @@ func iotCollectRawHandler(p *provider) server.ToolHandlerFunc {
 		}
 		contentType, _ := args["content_type"].(string)
 
-		data, status, err := opengate.CollectRaw(host, apiKey, deviceID, route, []byte(body), contentType)
+		data, status, err := opengate.CollectRaw(ctx, host, apiKey, deviceID, route, []byte(body), contentType)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("collect-raw failed: %v", err)), nil
 		}
@@ -110,7 +110,7 @@ func iotCollectHandler(p *provider) server.ToolHandlerFunc {
 
 		value := mcpParseValue(rawValue)
 
-		if err := opengate.CollectSimple(host, apiKey, deviceID, datastreamID, value); err != nil {
+		if err := opengate.CollectSimple(ctx, host, apiKey, deviceID, datastreamID, value); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("collect failed: %v", err)), nil
 		}
 
@@ -159,7 +159,7 @@ func iotCollectPayloadHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid payload: %v", err)), nil
 		}
 
-		if err := opengate.CollectIoT(host, apiKey, deviceID, payload); err != nil {
+		if err := opengate.CollectIoT(ctx, host, apiKey, deviceID, payload); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("collect failed: %v", err)), nil
 		}
 

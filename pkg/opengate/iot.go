@@ -1,6 +1,7 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -35,7 +36,7 @@ type IoTDatapoint struct {
 
 // CollectIoT sends IoT data to a device via the South API.
 // Uses X-ApiKey authentication instead of JWT Bearer.
-func CollectIoT(host, apiKey, deviceID string, payload IoTPayload) error {
+func CollectIoT(ctx context.Context, host, apiKey, deviceID string, payload IoTPayload) error {
 	url := strings.TrimRight(host, "/") + fmt.Sprintf(collectPath, deviceID)
 
 	body, err := json.Marshal(payload)
@@ -43,7 +44,7 @@ func CollectIoT(host, apiKey, deviceID string, payload IoTPayload) error {
 		return fmt.Errorf("marshaling IoT payload: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(string(body)))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(string(body)))
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
@@ -73,7 +74,7 @@ func CollectIoT(host, apiKey, deviceID string, payload IoTPayload) error {
 // and bypasses connector functions), this triggers a COLLECTION/RESPONSE
 // connector function that matches the route. Uses X-ApiKey authentication.
 // Returns the response body (a CF may return content) and status code.
-func CollectRaw(host, apiKey, deviceID, route string, body []byte, contentType string) ([]byte, int, error) {
+func CollectRaw(ctx context.Context, host, apiKey, deviceID, route string, body []byte, contentType string) ([]byte, int, error) {
 	route = strings.TrimPrefix(route, "/")
 	if route == "" {
 		return nil, 0, fmt.Errorf("route is required (the connector function's south path)")
@@ -83,7 +84,7 @@ func CollectRaw(host, apiKey, deviceID, route string, body []byte, contentType s
 	}
 	url := strings.TrimRight(host, "/") + fmt.Sprintf(collectRawPath, deviceID, route)
 
-	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(string(body)))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, 0, fmt.Errorf("creating request: %w", err)
 	}
@@ -105,7 +106,7 @@ func CollectRaw(host, apiKey, deviceID, route string, body []byte, contentType s
 }
 
 // CollectSimple is a convenience function to send a single value to a single datastream.
-func CollectSimple(host, apiKey, deviceID, datastreamID string, value any) error {
+func CollectSimple(ctx context.Context, host, apiKey, deviceID, datastreamID string, value any) error {
 	payload := IoTPayload{
 		Version: "1.0.0",
 		Datastreams: []IoTDatastream{
@@ -115,5 +116,5 @@ func CollectSimple(host, apiKey, deviceID, datastreamID string, value any) error
 			},
 		},
 	}
-	return CollectIoT(host, apiKey, deviceID, payload)
+	return CollectIoT(ctx, host, apiKey, deviceID, payload)
 }

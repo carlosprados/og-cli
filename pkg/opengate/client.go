@@ -2,6 +2,7 @@ package opengate
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -31,22 +32,94 @@ type Client struct {
 	BaseURL    string
 	Token      string
 	WebToken   string
+	APIKey     string // when set, North API calls use X-ApiKey instead of the bearer token
 	HTTPClient *http.Client
+
+	apiVersion string
+	initErr    error
 
 	webRefreshMu      sync.Mutex
 	webRefreshRequest *WebSignInRequest
 	onWebRefresh      func(newToken string)
 }
 
-// New creates a Client from a host URL and an optional JWT token. The HTTP
-// client honours the process-wide TLS settings configured via ConfigureTLS
-// (e.g. --insecure / --ca-file for self-signed servers).
-func New(host, token string) *Client {
-	return &Client{
-		BaseURL:    strings.TrimRight(host, "/"),
-		Token:      token,
-		HTTPClient: NewHTTPClient(),
+// New creates a Client from a host URL and an optional JWT token.
+//
+// Without options the client inherits the process-wide TLS settings configured
+// via ConfigureTLS and targets North API DefaultAPIVersion. Pass WithHTTPClient,
+// WithTLS, WithAPIVersion or WithAPIKey to configure it independently of any
+// other client in the process.
+//
+// New never returns nil and never fails: a bad configuration (e.g. an unreadable
+// --ca-file) is recorded and returned by Err and by every request the client
+// makes. Long-running consumers should check Err right after construction.
+func New(host, token string, opts ...Option) *Client {
+	c := &Client{
+		BaseURL: strings.TrimRight(host, "/"),
+		Token:   token,
 	}
+
+	var o clientOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+	if err := o.apply(c); err != nil {
+		c.initErr = err
+		if c.HTTPClient == nil {
+			c.HTTPClient = NewHTTPClient()
+		}
+	}
+	return c
+}
+
+// Err reports a configuration error captured during New, if any. Every request
+// the client makes fails with the same error until it is fixed.
+func (c *Client) Err() error { return c.initErr }
+
+// authHeader is the credential a single request carries. The zero value sends
+// no credential at all (used by login).
+type authHeader struct {
+	name  string
+	value string
+}
+
+func (a authHeader) set(req *http.Request) {
+	if a.name != "" {
+		req.Header.Set(a.name, a.value)
+	}
+}
+
+// bearer builds the Authorization header for a JWT.
+func bearer(token string) authHeader {
+	if token == "" {
+		return authHeader{}
+	}
+	return authHeader{name: "Authorization", value: "Bearer " + token}
+}
+
+// northAuth returns the credential for North API calls. An API key wins over
+// the JWT: a caller that configured WithAPIKey did so precisely to avoid
+// depending on a token that expires.
+func (c *Client) northAuth() authHeader {
+	if c.APIKey != "" {
+		return authHeader{name: "X-ApiKey", value: c.APIKey}
+	}
+	return bearer(c.Token)
+}
+
+// versionToken is the placeholder every North API path constant carries in
+// place of a hardcoded version segment. resolvePath substitutes it with the
+// client's version, so retargeting an instance pinned to another API version is
+// one option instead of a fork.
+const versionToken = "{v}"
+
+// resolvePath substitutes the API version placeholder in a path constant.
+func (c *Client) resolvePath(path string) string {
+	v := c.apiVersion
+	if v == "" {
+		v = DefaultAPIVersion
+	}
+	return strings.Replace(path, versionToken, v, 1)
 }
 
 // WithWebToken returns the client with WebToken set. Used for Web API calls.
@@ -68,15 +141,15 @@ func (c *Client) WithWebRefresh(req WebSignInRequest, onRefresh func(string)) *C
 	return c
 }
 
-// doRequest executes an HTTP request with the north API token and returns the response body.
-func (c *Client) doRequest(method, path string, body io.Reader) ([]byte, int, error) {
-	return c.doRequestWithToken(method, path, body, c.Token)
+// doRequest executes an HTTP request with the north API credential and returns the response body.
+func (c *Client) doRequest(ctx context.Context, method, path string, body io.Reader) ([]byte, int, error) {
+	return c.doRequestWithAuth(ctx, method, path, body, c.northAuth())
 }
 
 // webDoRequest executes an HTTP request with the Web API token. If the server
 // responds with 401 and a refresh request is configured, it re-signs in once
 // and retries the request transparently.
-func (c *Client) webDoRequest(method, path string, body io.Reader) ([]byte, int, error) {
+func (c *Client) webDoRequest(ctx context.Context, method, path string, body io.Reader) ([]byte, int, error) {
 	if c.WebToken == "" {
 		return nil, 0, fmt.Errorf("web API token is missing — re-run `og login` to obtain it (or set OG_WEB_TOKEN)")
 	}
@@ -98,19 +171,19 @@ func (c *Client) webDoRequest(method, path string, body io.Reader) ([]byte, int,
 		return bytes.NewReader(bodyBytes)
 	}
 
-	data, statusCode, err := c.doRequestWithToken(method, path, makeReader(), c.WebToken)
+	data, statusCode, err := c.doRequestWithAuth(ctx, method, path, makeReader(), bearer(c.WebToken))
 	if err != nil || !isAuthFailure(statusCode) || c.webRefreshRequest == nil {
 		return data, statusCode, err
 	}
 
 	// 401/403 with refresh configured — try to re-signin once.
 	fmt.Fprintln(os.Stderr, "Web token rejected (HTTP", statusCode, "); refreshing and retrying once...")
-	if refreshErr := c.refreshWebToken(); refreshErr != nil {
+	if refreshErr := c.refreshWebToken(ctx); refreshErr != nil {
 		// Return the original 401 response; surface refresh error in a wrapping message.
 		return data, statusCode, fmt.Errorf("web token refresh failed: %w", refreshErr)
 	}
 
-	return c.doRequestWithToken(method, path, makeReader(), c.WebToken)
+	return c.doRequestWithAuth(ctx, method, path, makeReader(), bearer(c.WebToken))
 }
 
 // isAuthFailure returns true for HTTP status codes that indicate the bearer
@@ -122,7 +195,7 @@ func isAuthFailure(statusCode int) bool {
 
 // refreshWebToken re-signs in using the stored refresh credentials and
 // updates the client's WebToken. Calls the onWebRefresh callback if set.
-func (c *Client) refreshWebToken() error {
+func (c *Client) refreshWebToken(ctx context.Context) error {
 	c.webRefreshMu.Lock()
 	defer c.webRefreshMu.Unlock()
 
@@ -130,7 +203,7 @@ func (c *Client) refreshWebToken() error {
 		return fmt.Errorf("no refresh credentials configured")
 	}
 
-	res, err := c.WebSignIn(*c.webRefreshRequest)
+	res, err := c.WebSignIn(ctx, *c.webRefreshRequest)
 	if err != nil {
 		return err
 	}
@@ -141,18 +214,19 @@ func (c *Client) refreshWebToken() error {
 	return nil
 }
 
-func (c *Client) doRequestWithToken(method, path string, body io.Reader, token string) ([]byte, int, error) {
-	url := c.BaseURL + path
+func (c *Client) doRequestWithAuth(ctx context.Context, method, path string, body io.Reader, auth authHeader) ([]byte, int, error) {
+	if c.initErr != nil {
+		return nil, 0, c.initErr
+	}
+	url := c.BaseURL + c.resolvePath(path)
 
-	req, err := http.NewRequest(method, url, body)
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, 0, fmt.Errorf("creating request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
+	auth.set(req)
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -169,44 +243,45 @@ func (c *Client) doRequestWithToken(method, path string, body io.Reader, token s
 }
 
 // WebGet performs a GET against the Web API (uses WebToken).
-func (c *Client) WebGet(path string) ([]byte, int, error) {
-	return c.webDoRequest(http.MethodGet, path, nil)
+func (c *Client) WebGet(ctx context.Context, path string) ([]byte, int, error) {
+	return c.webDoRequest(ctx, http.MethodGet, path, nil)
 }
 
 // WebPost performs a POST against the Web API (uses WebToken).
-func (c *Client) WebPost(path string, body io.Reader) ([]byte, int, error) {
-	return c.webDoRequest(http.MethodPost, path, body)
+func (c *Client) WebPost(ctx context.Context, path string, body io.Reader) ([]byte, int, error) {
+	return c.webDoRequest(ctx, http.MethodPost, path, body)
 }
 
 // WebPut performs a PUT against the Web API (uses WebToken).
-func (c *Client) WebPut(path string, body io.Reader) ([]byte, int, error) {
-	return c.webDoRequest(http.MethodPut, path, body)
+func (c *Client) WebPut(ctx context.Context, path string, body io.Reader) ([]byte, int, error) {
+	return c.webDoRequest(ctx, http.MethodPut, path, body)
 }
 
 // WebDelete performs a DELETE against the Web API (uses WebToken).
-func (c *Client) WebDelete(path string) ([]byte, int, error) {
-	return c.webDoRequest(http.MethodDelete, path, nil)
+func (c *Client) WebDelete(ctx context.Context, path string) ([]byte, int, error) {
+	return c.webDoRequest(ctx, http.MethodDelete, path, nil)
 }
 
 // Get performs a GET request.
-func (c *Client) Get(path string) ([]byte, int, error) {
-	return c.doRequest(http.MethodGet, path, nil)
+func (c *Client) Get(ctx context.Context, path string) ([]byte, int, error) {
+	return c.doRequest(ctx, http.MethodGet, path, nil)
 }
 
 // GetWithAccept performs a GET request with an explicit Accept header. Used by
 // endpoints that return a non-JSON body (e.g. an Excel file) and reject the
 // request with HTTP 409 when Accept does not match the response content type.
-func (c *Client) GetWithAccept(path, accept string) ([]byte, int, error) {
-	req, err := http.NewRequest(http.MethodGet, c.BaseURL+path, nil)
+func (c *Client) GetWithAccept(ctx context.Context, path, accept string) ([]byte, int, error) {
+	if c.initErr != nil {
+		return nil, 0, c.initErr
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+c.resolvePath(path), nil)
 	if err != nil {
 		return nil, 0, fmt.Errorf("creating request: %w", err)
 	}
 	if accept != "" {
 		req.Header.Set("Accept", accept)
 	}
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
+	c.northAuth().set(req)
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -222,18 +297,18 @@ func (c *Client) GetWithAccept(path, accept string) ([]byte, int, error) {
 }
 
 // Post performs a POST request with a JSON body.
-func (c *Client) Post(path string, body io.Reader) ([]byte, int, error) {
-	return c.doRequest(http.MethodPost, path, body)
+func (c *Client) Post(ctx context.Context, path string, body io.Reader) ([]byte, int, error) {
+	return c.doRequest(ctx, http.MethodPost, path, body)
 }
 
 // Put performs a PUT request with a JSON body.
-func (c *Client) Put(path string, body io.Reader) ([]byte, int, error) {
-	return c.doRequest(http.MethodPut, path, body)
+func (c *Client) Put(ctx context.Context, path string, body io.Reader) ([]byte, int, error) {
+	return c.doRequest(ctx, http.MethodPut, path, body)
 }
 
 // Delete performs a DELETE request.
-func (c *Client) Delete(path string) ([]byte, int, error) {
-	return c.doRequest(http.MethodDelete, path, nil)
+func (c *Client) Delete(ctx context.Context, path string) ([]byte, int, error) {
+	return c.doRequest(ctx, http.MethodDelete, path, nil)
 }
 
 // excelContentType maps a spreadsheet file extension to its MIME type.
@@ -255,7 +330,10 @@ func excelContentType(filePath string) string {
 // accept sets the request's Accept header when non-empty. Some endpoints (e.g.
 // the provision bulk execution) reject the request with HTTP 409 unless Accept
 // matches the uploaded file's content type.
-func (c *Client) PostMultipartFile(path, fieldName, filePath, accept string) (body []byte, status int, location string, err error) {
+func (c *Client) PostMultipartFile(ctx context.Context, path, fieldName, filePath, accept string) (body []byte, status int, location string, err error) {
+	if c.initErr != nil {
+		return nil, 0, "", c.initErr
+	}
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, 0, "", fmt.Errorf("opening %s: %w", filePath, err)
@@ -279,7 +357,7 @@ func (c *Client) PostMultipartFile(path, fieldName, filePath, accept string) (bo
 		return nil, 0, "", fmt.Errorf("closing multipart writer: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.BaseURL+path, &buf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+c.resolvePath(path), &buf)
 	if err != nil {
 		return nil, 0, "", fmt.Errorf("creating request: %w", err)
 	}
@@ -287,9 +365,7 @@ func (c *Client) PostMultipartFile(path, fieldName, filePath, accept string) (bo
 	if accept != "" {
 		req.Header.Set("Accept", accept)
 	}
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
+	c.northAuth().set(req)
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {

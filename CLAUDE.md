@@ -25,13 +25,31 @@ Version info is injected via ldflags — see Taskfile.yml `LDFLAGS`.
 ```
 main.go              → cmd.Execute()
 cmd/                 → Cobra commands (root, login, version, mcp, datamodels, devices)
-internal/client/     → OpenGate REST API client (HTTP methods, auth, resource methods)
+pkg/opengate/        → OpenGate REST API client (HTTP methods, auth, resource methods)
+pkg/query/           → Search filter parser (-w "field op value", query strings)
 internal/config/     → Viper config, profiles, .env loading
 internal/mcp/        → MCP server (stdio + HTTP transports) + tool definitions
 internal/output/     → JSON/table output formatting
-internal/query/      → Search filter parser (-w "field op value", query strings)
 internal/tui/        → Bubble Tea interactive TUI
+internal/unwrap/     → Workspace/rule/connector unwrap to local dirs
+internal/views/      → Named field views for searches
 ```
+
+`pkg/` is the public library surface: it is consumed by external services (e.g.
+Punto de Luz), so its API is a contract. `internal/` is CLI-private.
+
+**Library conventions for `pkg/`:**
+
+- Every method that performs I/O takes `ctx context.Context` as its **first**
+  parameter, propagated to `http.NewRequestWithContext`. No exceptions.
+- Per-client configuration goes through functional options on `New`
+  (`WithHTTPClient`, `WithTLS`, `WithAPIVersion`, `WithAPIKey`) — never
+  process-wide state. `ConfigureTLS`/`NewHTTPClient` are deprecated leftovers
+  kept for the CLI, which has exactly one endpoint per invocation.
+- North API path constants carry the `{v}` version placeholder, resolved per
+  client. Never hardcode a version segment.
+- A misconfigured client is not a panic and not a second constructor: `New`
+  records the error, and `Err()` plus every request return it.
 
 ### Three interfaces — og has three execution modes:
 

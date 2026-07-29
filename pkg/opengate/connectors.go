@@ -1,15 +1,16 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 const (
-	connectorFunctionsCatalogPath = "/north/v80/connectorFunctions/provision/catalog"
-	connectorFunctionsPath        = "/north/v80/connectorFunctions/provision/organizations/%s/channels/%s"
-	connectorFunctionPath         = "/north/v80/connectorFunctions/provision/organizations/%s/channels/%s/%s"
+	connectorFunctionsCatalogPath = "/north/{v}/connectorFunctions/provision/catalog"
+	connectorFunctionsPath        = "/north/{v}/connectorFunctions/provision/organizations/%s/channels/%s"
+	connectorFunctionPath         = "/north/{v}/connectorFunctions/provision/organizations/%s/channels/%s/%s"
 )
 
 // ConnectorFunctionSummary extracts key fields from a connector function for display.
@@ -48,10 +49,10 @@ type ListConnectorFunctionsResponse struct {
 }
 
 // ListConnectorFunctions lists every connector function in an organization channel.
-func (c *Client) ListConnectorFunctions(org, channel string) (*ListConnectorFunctionsResponse, error) {
+func (c *Client) ListConnectorFunctions(ctx context.Context, org, channel string) (*ListConnectorFunctionsResponse, error) {
 	path := fmt.Sprintf(connectorFunctionsPath, org, channel)
 
-	data, statusCode, err := c.Get(path)
+	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("list connector functions: %w", err)
 	}
@@ -71,8 +72,8 @@ func (c *Client) ListConnectorFunctions(org, channel string) (*ListConnectorFunc
 
 // ConnectorFunctionsCatalog returns the platform connector functions catalog
 // (predefined templates, not scoped to an organization channel).
-func (c *Client) ConnectorFunctionsCatalog() (json.RawMessage, error) {
-	data, statusCode, err := c.Get(connectorFunctionsCatalogPath)
+func (c *Client) ConnectorFunctionsCatalog(ctx context.Context) (json.RawMessage, error) {
+	data, statusCode, err := c.Get(ctx, connectorFunctionsCatalogPath)
 	if err != nil {
 		return nil, fmt.Errorf("connector functions catalog: %w", err)
 	}
@@ -83,10 +84,10 @@ func (c *Client) ConnectorFunctionsCatalog() (json.RawMessage, error) {
 }
 
 // GetConnectorFunction retrieves a connector function by identifier.
-func (c *Client) GetConnectorFunction(org, channel, id string) (json.RawMessage, error) {
+func (c *Client) GetConnectorFunction(ctx context.Context, org, channel, id string) (json.RawMessage, error) {
 	path := fmt.Sprintf(connectorFunctionPath, org, channel, id)
 
-	data, statusCode, err := c.Get(path)
+	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("get connector function: %w", err)
 	}
@@ -97,10 +98,10 @@ func (c *Client) GetConnectorFunction(org, channel, id string) (json.RawMessage,
 }
 
 // CreateConnectorFunction creates a connector function in an organization channel.
-func (c *Client) CreateConnectorFunction(org, channel string, body json.RawMessage) (json.RawMessage, error) {
+func (c *Client) CreateConnectorFunction(ctx context.Context, org, channel string, body json.RawMessage) (json.RawMessage, error) {
 	path := fmt.Sprintf(connectorFunctionsPath, org, channel)
 
-	data, statusCode, err := c.Post(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.Post(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, fmt.Errorf("create connector function: %w", err)
 	}
@@ -111,10 +112,10 @@ func (c *Client) CreateConnectorFunction(org, channel string, body json.RawMessa
 }
 
 // UpdateConnectorFunction updates an existing connector function.
-func (c *Client) UpdateConnectorFunction(org, channel, id string, body json.RawMessage) error {
+func (c *Client) UpdateConnectorFunction(ctx context.Context, org, channel, id string, body json.RawMessage) error {
 	path := fmt.Sprintf(connectorFunctionPath, org, channel, id)
 
-	data, statusCode, err := c.Put(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.Put(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return fmt.Errorf("update connector function: %w", err)
 	}
@@ -122,10 +123,10 @@ func (c *Client) UpdateConnectorFunction(org, channel, id string, body json.RawM
 }
 
 // DeleteConnectorFunction deletes a connector function.
-func (c *Client) DeleteConnectorFunction(org, channel, id string) error {
+func (c *Client) DeleteConnectorFunction(ctx context.Context, org, channel, id string) error {
 	path := fmt.Sprintf(connectorFunctionPath, org, channel, id)
 
-	data, statusCode, err := c.Delete(path)
+	data, statusCode, err := c.Delete(ctx, path)
 	if err != nil {
 		return fmt.Errorf("delete connector function: %w", err)
 	}
@@ -134,8 +135,8 @@ func (c *Client) DeleteConnectorFunction(org, channel, id string) error {
 
 // SetConnectorFunctionStatus changes a connector function's operationalStatus
 // (GET + patch operationalStatus + PUT). Valid values: DISABLED, PRODUCTION, TEST.
-func (c *Client) SetConnectorFunctionStatus(org, channel, id, status string) error {
-	raw, err := c.GetConnectorFunction(org, channel, id)
+func (c *Client) SetConnectorFunctionStatus(ctx context.Context, org, channel, id, status string) error {
+	raw, err := c.GetConnectorFunction(ctx, org, channel, id)
 	if err != nil {
 		return err
 	}
@@ -151,5 +152,5 @@ func (c *Client) SetConnectorFunctionStatus(org, channel, id, status string) err
 	if err != nil {
 		return fmt.Errorf("marshaling connector function: %w", err)
 	}
-	return c.UpdateConnectorFunction(org, channel, id, body)
+	return c.UpdateConnectorFunction(ctx, org, channel, id, body)
 }

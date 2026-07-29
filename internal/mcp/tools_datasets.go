@@ -36,7 +36,7 @@ func dsListHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" {
 			return mcp.NewToolResultError("organization is required"), nil
 		}
-		resp, err := c.ListDatasets(org)
+		resp, err := c.ListDatasets(ctx, org)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("list failed: %v", err)), nil
 		}
@@ -65,7 +65,7 @@ func dsGetHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
-		ds, err := c.GetDataset(org, id)
+		ds, err := c.GetDataset(ctx, org, id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
@@ -94,7 +94,7 @@ func dsCreateHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || body == "" {
 			return mcp.NewToolResultError("organization and body are required"), nil
 		}
-		if err := c.CreateDataset(org, json.RawMessage(body)); err != nil {
+		if err := c.CreateDataset(ctx, org, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("create failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Dataset created successfully."), nil
@@ -123,7 +123,7 @@ func dsUpdateHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" || body == "" {
 			return mcp.NewToolResultError("organization, id, and body are required"), nil
 		}
-		if err := c.UpdateDataset(org, id, json.RawMessage(body)); err != nil {
+		if err := c.UpdateDataset(ctx, org, id, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("update failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Dataset updated successfully."), nil
@@ -150,7 +150,7 @@ func dsDeleteHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
-		if err := c.DeleteDataset(org, id); err != nil {
+		if err := c.DeleteDataset(ctx, org, id); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("delete failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Dataset deleted successfully."), nil
@@ -189,7 +189,7 @@ func dsDataHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid query: %v", err)), nil
 		}
 
-		resp, err := c.QueryDatasetData(org, id, filter)
+		resp, err := c.QueryDatasetData(ctx, org, id, filter)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("query failed: %v", err)), nil
 		}

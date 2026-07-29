@@ -57,7 +57,7 @@ type tasksFetchedMsg struct {
 
 func (m model) fetchJobs() tea.Cmd {
 	return func() tea.Msg {
-		resp, err := m.client.SearchJobs(nil)
+		resp, err := m.client.SearchJobs(m.ctx, nil)
 		if err != nil {
 			return jobsFetchedMsg{err: err}
 		}
@@ -67,11 +67,11 @@ func (m model) fetchJobs() tea.Cmd {
 
 func (m model) fetchJobDetail(jobID string) tea.Cmd {
 	return func() tea.Msg {
-		jobData, err := m.client.GetJob(jobID)
+		jobData, err := m.client.GetJob(m.ctx, jobID)
 		if err != nil {
 			return jobDetailFetchedMsg{jobID: jobID, err: err}
 		}
-		opsResp, err := m.client.GetJobOperations(jobID)
+		opsResp, err := m.client.GetJobOperations(m.ctx, jobID)
 		var ops []json.RawMessage
 		if err == nil && opsResp != nil {
 			ops = opsResp.Operations
@@ -104,14 +104,14 @@ func (m model) createQuickJob(operationName string, deviceID string) tea.Cmd {
 			},
 		}
 		body, _ := json.Marshal(job)
-		data, err := m.client.CreateJob(body)
+		data, err := m.client.CreateJob(m.ctx, body)
 		return jobCreatedMsg{data: data, err: err}
 	}
 }
 
 func (m model) fetchTasks() tea.Cmd {
 	return func() tea.Msg {
-		resp, err := m.client.SearchTasks(nil)
+		resp, err := m.client.SearchTasks(m.ctx, nil)
 		if err != nil {
 			return tasksFetchedMsg{err: err}
 		}

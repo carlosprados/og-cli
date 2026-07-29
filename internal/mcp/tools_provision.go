@@ -52,7 +52,7 @@ func provisionListHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" {
 			return mcp.NewToolResultError("organization is required"), nil
 		}
-		items, err := c.ListProvisionProcessors(org)
+		items, err := c.ListProvisionProcessors(ctx, org)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("list failed: %v", err)), nil
 		}
@@ -86,7 +86,7 @@ func provisionGetHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
-		data, err := c.GetProvisionProcessor(org, id)
+		data, err := c.GetProvisionProcessor(ctx, org, id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
@@ -121,7 +121,7 @@ func provisionCreateHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || body == "" {
 			return mcp.NewToolResultError("organization and body are required"), nil
 		}
-		if _, err := c.CreateProvisionProcessor(org, json.RawMessage(body)); err != nil {
+		if _, err := c.CreateProvisionProcessor(ctx, org, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("create failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Provision function created successfully."), nil
@@ -152,7 +152,7 @@ func provisionUpdateHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" || body == "" {
 			return mcp.NewToolResultError("organization, id, and body are required"), nil
 		}
-		if err := c.UpdateProvisionProcessor(org, id, json.RawMessage(body)); err != nil {
+		if err := c.UpdateProvisionProcessor(ctx, org, id, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("update failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Provision function updated successfully."), nil
@@ -181,7 +181,7 @@ func provisionDeleteHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
-		if err := c.DeleteProvisionProcessor(org, id); err != nil {
+		if err := c.DeleteProvisionProcessor(ctx, org, id); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("delete failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Provision function deleted successfully."), nil
@@ -220,7 +220,7 @@ func provisionPlanHandler(p *provider) server.ToolHandlerFunc {
 		if v, ok := args["rows"].(float64); ok && v > 0 {
 			rows = int(v)
 		}
-		data, err := c.PlanProvisionBulk(org, id, file, rows)
+		data, err := c.PlanProvisionBulk(ctx, org, id, file, rows)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("plan failed: %v", err)), nil
 		}
@@ -255,7 +255,7 @@ func provisionBulkHandler(p *provider) server.ToolHandlerFunc {
 		if _, err := os.Stat(file); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("file not accessible: %v", err)), nil
 		}
-		bulkID, err := c.RunProvisionBulk(org, id, file)
+		bulkID, err := c.RunProvisionBulk(ctx, org, id, file)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("bulk failed: %v", err)), nil
 		}
@@ -285,7 +285,7 @@ func provisionBulkStatusHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || bulkID == "" {
 			return mcp.NewToolResultError("organization and bulk_id are required"), nil
 		}
-		data, err := c.GetProvisionBulkStatus(org, bulkID)
+		data, err := c.GetProvisionBulkStatus(ctx, org, bulkID)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("bulk status failed: %v", err)), nil
 		}
@@ -316,7 +316,7 @@ func provisionBulkDetailsHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || bulkID == "" {
 			return mcp.NewToolResultError("organization and bulk_id are required"), nil
 		}
-		data, ready, err := c.GetProvisionBulkDetails(org, bulkID)
+		data, ready, err := c.GetProvisionBulkDetails(ctx, org, bulkID)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("bulk details failed: %v", err)), nil
 		}

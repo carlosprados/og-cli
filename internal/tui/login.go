@@ -165,7 +165,7 @@ func (m model) doLogin(email, password, twoFaCode string) tea.Cmd {
 			}
 		}
 		c := opengate.New(m.profile.Host, "")
-		result, err := c.Login(email, password, twoFaCode)
+		result, err := c.Login(m.ctx, email, password, twoFaCode)
 		if err != nil && opengate.Is2FAChallenge(err) {
 			return loginResultMsg{err: err, challenge: true}
 		}

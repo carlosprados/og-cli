@@ -67,11 +67,11 @@ func runShare(id, kind string, users, domains []string, cmd *cobra.Command) erro
 	c := newWebClient(p)
 
 	if kind == "workspace" {
-		if _, err := c.ShareWorkspace(id, users, domains); err != nil {
+		if _, err := c.ShareWorkspace(cmd.Context(), id, users, domains); err != nil {
 			return err
 		}
 	} else {
-		if _, err := c.ShareDashboard(id, users, domains); err != nil {
+		if _, err := c.ShareDashboard(cmd.Context(), id, users, domains); err != nil {
 			return err
 		}
 	}

@@ -42,7 +42,7 @@ func runJobsSearch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	resp, err := c.SearchJobs(filter)
+	resp, err := c.SearchJobs(cmd.Context(), filter)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ var jobsGetCmd = &cobra.Command{
 		}
 		c := opengate.New(p.Host, p.Token)
 
-		data, err := c.GetJob(args[0])
+		data, err := c.GetJob(cmd.Context(), args[0])
 		if err != nil {
 			return err
 		}
@@ -113,7 +113,7 @@ func runJobsCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	c := opengate.New(p.Host, p.Token)
-	resp, err := c.CreateJob(body)
+	resp, err := c.CreateJob(cmd.Context(), body)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ var jobsCancelCmd = &cobra.Command{
 			return err
 		}
 		c := opengate.New(p.Host, p.Token)
-		if err := c.CancelJob(args[0]); err != nil {
+		if err := c.CancelJob(cmd.Context(), args[0]); err != nil {
 			return err
 		}
 		fmt.Println("Job cancelled.")
@@ -153,7 +153,7 @@ var jobsOpsCmd = &cobra.Command{
 		}
 		c := opengate.New(p.Host, p.Token)
 
-		resp, err := c.GetJobOperations(args[0])
+		resp, err := c.GetJobOperations(cmd.Context(), args[0])
 		if err != nil {
 			return err
 		}
@@ -194,7 +194,7 @@ func runTasksSearch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	resp, err := c.SearchTasks(filter)
+	resp, err := c.SearchTasks(cmd.Context(), filter)
 	if err != nil {
 		return err
 	}
@@ -228,7 +228,7 @@ var tasksGetCmd = &cobra.Command{
 		}
 		c := opengate.New(p.Host, p.Token)
 
-		data, err := c.GetTask(args[0])
+		data, err := c.GetTask(cmd.Context(), args[0])
 		if err != nil {
 			return err
 		}
@@ -257,7 +257,7 @@ func runTasksCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	c := opengate.New(p.Host, p.Token)
-	resp, err := c.CreateTask(body)
+	resp, err := c.CreateTask(cmd.Context(), body)
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ var tasksCancelCmd = &cobra.Command{
 			return err
 		}
 		c := opengate.New(p.Host, p.Token)
-		if err := c.CancelTask(args[0]); err != nil {
+		if err := c.CancelTask(cmd.Context(), args[0]); err != nil {
 			return err
 		}
 		fmt.Println("Task cancelled.")
@@ -297,7 +297,7 @@ var tasksJobsCmd = &cobra.Command{
 		}
 		c := opengate.New(p.Host, p.Token)
 
-		resp, err := c.GetTaskJobs(args[0])
+		resp, err := c.GetTaskJobs(cmd.Context(), args[0])
 		if err != nil {
 			return err
 		}
