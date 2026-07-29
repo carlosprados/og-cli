@@ -143,7 +143,7 @@ func (c *Client) WithWebRefresh(req WebSignInRequest, onRefresh func(string)) *C
 
 // doRequest executes an HTTP request with the north API credential and returns the response body.
 func (c *Client) doRequest(ctx context.Context, method, path string, body io.Reader) ([]byte, int, error) {
-	return c.doRequestWithAuth(ctx, method, path, body, c.northAuth())
+	return c.doRequestWithAuth(ctx, method, path, body, c.northAuth(), "")
 }
 
 // webDoRequest executes an HTTP request with the Web API token. If the server
@@ -171,7 +171,7 @@ func (c *Client) webDoRequest(ctx context.Context, method, path string, body io.
 		return bytes.NewReader(bodyBytes)
 	}
 
-	data, statusCode, err := c.doRequestWithAuth(ctx, method, path, makeReader(), bearer(c.WebToken))
+	data, statusCode, err := c.doRequestWithAuth(ctx, method, path, makeReader(), bearer(c.WebToken), "")
 	if err != nil || !isAuthFailure(statusCode) || c.webRefreshRequest == nil {
 		return data, statusCode, err
 	}
@@ -183,7 +183,7 @@ func (c *Client) webDoRequest(ctx context.Context, method, path string, body io.
 		return data, statusCode, fmt.Errorf("web token refresh failed: %w", refreshErr)
 	}
 
-	return c.doRequestWithAuth(ctx, method, path, makeReader(), bearer(c.WebToken))
+	return c.doRequestWithAuth(ctx, method, path, makeReader(), bearer(c.WebToken), "")
 }
 
 // isAuthFailure returns true for HTTP status codes that indicate the bearer
@@ -214,7 +214,10 @@ func (c *Client) refreshWebToken(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) doRequestWithAuth(ctx context.Context, method, path string, body io.Reader, auth authHeader) ([]byte, int, error) {
+// doRequestWithAuth issues a request with the given credential. accept, when
+// non-empty, sets the Accept header — needed by endpoints that can serve more
+// than one representation, or that reject a mismatched Accept with HTTP 409.
+func (c *Client) doRequestWithAuth(ctx context.Context, method, path string, body io.Reader, auth authHeader, accept string) ([]byte, int, error) {
 	if c.initErr != nil {
 		return nil, 0, c.initErr
 	}
@@ -226,6 +229,9 @@ func (c *Client) doRequestWithAuth(ctx context.Context, method, path string, bod
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	if accept != "" {
+		req.Header.Set("Accept", accept)
+	}
 	auth.set(req)
 
 	resp, err := c.HTTPClient.Do(req)
@@ -271,34 +277,18 @@ func (c *Client) Get(ctx context.Context, path string) ([]byte, int, error) {
 // endpoints that return a non-JSON body (e.g. an Excel file) and reject the
 // request with HTTP 409 when Accept does not match the response content type.
 func (c *Client) GetWithAccept(ctx context.Context, path, accept string) ([]byte, int, error) {
-	if c.initErr != nil {
-		return nil, 0, c.initErr
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+c.resolvePath(path), nil)
-	if err != nil {
-		return nil, 0, fmt.Errorf("creating request: %w", err)
-	}
-	if accept != "" {
-		req.Header.Set("Accept", accept)
-	}
-	c.northAuth().set(req)
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, 0, fmt.Errorf("executing request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("reading response: %w", err)
-	}
-	return data, resp.StatusCode, nil
+	return c.doRequestWithAuth(ctx, http.MethodGet, path, nil, c.northAuth(), accept)
 }
 
 // Post performs a POST request with a JSON body.
 func (c *Client) Post(ctx context.Context, path string, body io.Reader) ([]byte, int, error) {
 	return c.doRequest(ctx, http.MethodPost, path, body)
+}
+
+// PostAccepting performs a POST with an explicit Accept header, for endpoints
+// that can serve more than one representation of the same result.
+func (c *Client) PostAccepting(ctx context.Context, path string, body io.Reader, accept string) ([]byte, int, error) {
+	return c.doRequestWithAuth(ctx, http.MethodPost, path, body, c.northAuth(), accept)
 }
 
 // Put performs a PUT request with a JSON body.

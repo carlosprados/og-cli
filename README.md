@@ -600,9 +600,37 @@ og jobs get <job-id>
 og jobs create -f job.json
 og jobs cancel <job-id>
 
-# List per-device operations within a job
+# List per-device operations within a job, with their execution steps
 og jobs operations <job-id>
+og jobs operations <job-id> --all              # every page — a job over a big fleet is paged
+og jobs operations <job-id> --page 2 --limit 100
+
+# Operation history: closed operations across jobs, filterable
+og jobs history --job <job-id> --all           # read back one job's results
+og jobs history -w "operationName eq DIAGNOSIS" --limit 100
+og jobs history -w "entityId eq dev-1" --output json
 ```
+
+Each operation carries `status` (lifecycle, e.g. `FINISHED`) and `result` (outcome,
+e.g. `SUCCESSFUL`), plus `steps[]` where every step has a `name`, a `result`
+(`SUCCESSFUL`, `ERROR`, `SKIPPED`, `NOT_EXECUTED`) and a `description`. The table
+output compacts the steps into `NAME=OK/ERR/SKIP/NOTRUN`; use `--output json` for
+the descriptions, which is where the reason for a failure is written.
+
+`jobs operations` lists one job by id and caps its page size at 1000; `jobs history`
+takes a filter and caps at 2000. **A `FINISHED` job does not mean every device
+succeeded, and the first page is not the whole job** — pass `--all` when the question
+is "did they all work" or "how many failed".
+
+The history filter accepts a narrow, unprefixed set of fields, verified against a live
+instance: `jobId`, `entityId`, `operationId`, `resourceType` and `operationName` (alias
+`operation.name`). Anything else — including `status`, `result` and any `operations.`
+prefix — is rejected with HTTP 400 *"Field in filter unknown"*, so there is no
+server-side filter by outcome: fetch with `--all` and filter the output.
+
+Note that `jobs operations` has been observed returning HTTP 204 (no content) for a
+job whose operations do exist and are returned by `jobs history`. When results matter,
+prefer `og jobs history --job <id>`.
 
 Example job JSON for REBOOT_EQUIPMENT:
 

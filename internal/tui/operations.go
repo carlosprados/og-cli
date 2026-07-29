@@ -21,7 +21,7 @@ type jobsModel struct {
 type jobDetailModel struct {
 	jobID      string
 	jobData    json.RawMessage
-	operations []json.RawMessage
+	operations []opengate.Operation
 	table      table.Model
 	loading    bool
 }
@@ -41,7 +41,7 @@ type jobsFetchedMsg struct {
 type jobDetailFetchedMsg struct {
 	jobID      string
 	jobData    json.RawMessage
-	operations []json.RawMessage
+	operations []opengate.Operation
 	err        error
 }
 
@@ -72,7 +72,7 @@ func (m model) fetchJobDetail(jobID string) tea.Cmd {
 			return jobDetailFetchedMsg{jobID: jobID, err: err}
 		}
 		opsResp, err := m.client.GetJobOperations(m.ctx, jobID)
-		var ops []json.RawMessage
+		var ops []opengate.Operation
 		if err == nil && opsResp != nil {
 			ops = opsResp.Operations
 		}
@@ -337,7 +337,7 @@ func buildJobsTable(items []json.RawMessage, width int) table.Model {
 	return t
 }
 
-func buildOperationsTable(items []json.RawMessage, width int) table.Model {
+func buildOperationsTable(items []opengate.Operation, width int) table.Model {
 	columns := []table.Column{
 		{Title: "Entity", Width: 20},
 		{Title: "Operation", Width: 22},
@@ -353,13 +353,8 @@ func buildOperationsTable(items []json.RawMessage, width int) table.Model {
 	}
 
 	rows := make([]table.Row, len(items))
-	for i, raw := range items {
-		rows[i] = table.Row{
-			extractJobField(raw, "entityId"),
-			extractJobField(raw, "name"),
-			extractJobField(raw, "status"),
-			extractJobField(raw, "date"),
-		}
+	for i, op := range items {
+		rows[i] = table.Row{op.EntityID, op.Name, op.Status, op.Date}
 	}
 
 	t := table.New(table.WithColumns(columns), table.WithRows(rows), table.WithFocused(true), table.WithHeight(min(len(rows)+1, 20)))

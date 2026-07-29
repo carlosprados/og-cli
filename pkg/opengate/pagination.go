@@ -54,6 +54,17 @@ func limitOf(filter json.RawMessage) searchLimit {
 	return body.Limit
 }
 
+// SetFilterPage returns filter with its limit block set to the requested page,
+// preserving every other key. Use it to page a filter you built elsewhere — for
+// example JobIDFilter — without hand-editing JSON.
+//
+// page is a 1-based page number for the filter-based search endpoints. The name
+// deliberately avoids the With prefix, which in this package marks the
+// functional options accepted by New.
+func SetFilterPage(filter json.RawMessage, page, size int) (json.RawMessage, error) {
+	return withPage(filter, page, size)
+}
+
 // withPage returns filter with limit.start and limit.size set to the requested
 // page, preserving every other key. A nil or empty filter yields a body that
 // only carries the limit.
@@ -77,38 +88,34 @@ func withPage(filter json.RawMessage, page, size int) (json.RawMessage, error) {
 // pagination block the server reported.
 type pageFetcher[T any] func(ctx context.Context, filter json.RawMessage) ([]T, *Page, error)
 
-// paginate walks every page of a search and yields items one by one.
+// walkPages is the shared paging loop behind every iterator. fetch is called
+// with successive page numbers and returns that page's items plus the
+// pagination block the server reported. first is the page number to start from.
 //
-// The page size comes from the caller's filter when it sets one, so an explicit
-// limit.size is honoured rather than overridden; otherwise DefaultPageSize is
-// used. Iteration stops when the server reports the last page (number >= of),
-// when a page comes back empty, or when a page is shorter than requested —
-// the last two cover endpoints that do not report "of" at all.
+// Iteration stops when the server reports the last page (number >= of), when a
+// page comes back empty, or when a page is shorter than requested — the last
+// two cover the endpoints that do not report "of" at all.
+//
+// The next page number follows the number the server reports, falling back to a
+// local increment. That matters because the platform is not consistent about
+// where paging starts: the search endpoints document limit.start as counting
+// from 1, while the job operations endpoint documents its start query parameter
+// with a default of 0. Following the server's own numbering works under either
+// convention instead of silently skipping or repeating a page.
 //
 // A cancelled ctx ends the iteration, yielding the context error once so the
 // consumer can tell a truncated walk from a complete one.
-func paginate[T any](ctx context.Context, filter json.RawMessage, fetch pageFetcher[T]) iter.Seq2[T, error] {
+func walkPages[T any](ctx context.Context, first, size int, fetch func(ctx context.Context, page int) ([]T, *Page, error)) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		var zero T
 
-		size := limitOf(filter).Size
-		if size <= 0 {
-			size = DefaultPageSize
-		}
-
-		for page := 1; ; page++ {
+		for page := first; ; {
 			if err := ctx.Err(); err != nil {
 				yield(zero, err)
 				return
 			}
 
-			paged, err := withPage(filter, page, size)
-			if err != nil {
-				yield(zero, err)
-				return
-			}
-
-			items, info, err := fetch(ctx, paged)
+			items, info, err := fetch(ctx, page)
 			if err != nil {
 				yield(zero, err)
 				return
@@ -123,9 +130,36 @@ func paginate[T any](ctx context.Context, filter json.RawMessage, fetch pageFetc
 			if len(items) == 0 || len(items) < size {
 				return
 			}
-			if info != nil && info.Of > 0 && page >= info.Of {
+			if info != nil && info.Of > 0 && info.Number > 0 && info.Number >= info.Of {
 				return
+			}
+
+			if info != nil && info.Number > 0 {
+				page = info.Number + 1
+			} else {
+				page++
 			}
 		}
 	}
+}
+
+// paginate walks every page of a filter-based search — a POST whose body carries
+// the limit block — and yields items one by one.
+//
+// The page size comes from the caller's filter when it sets one, so an explicit
+// limit.size is honoured rather than overridden; otherwise DefaultPageSize is
+// used.
+func paginate[T any](ctx context.Context, filter json.RawMessage, fetch pageFetcher[T]) iter.Seq2[T, error] {
+	size := limitOf(filter).Size
+	if size <= 0 {
+		size = DefaultPageSize
+	}
+
+	return walkPages(ctx, 1, size, func(ctx context.Context, page int) ([]T, *Page, error) {
+		paged, err := withPage(filter, page, size)
+		if err != nil {
+			return nil, nil, err
+		}
+		return fetch(ctx, paged)
+	})
 }

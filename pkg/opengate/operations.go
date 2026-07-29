@@ -53,8 +53,8 @@ type SearchTasksResponse struct {
 
 // JobOperationsResponse is the response listing operations within a job.
 type JobOperationsResponse struct {
-	Operations []json.RawMessage `json:"operations"`
-	Page       *Page             `json:"page,omitempty"`
+	Operations []Operation `json:"operations"`
+	Page       *Page       `json:"page,omitempty"`
 }
 
 // SearchJobs searches for jobs.
@@ -164,8 +164,12 @@ func (c *Client) CancelJob(ctx context.Context, jobID string) error {
 
 // GetJobOperations lists operations within a job.
 func (c *Client) GetJobOperations(ctx context.Context, jobID string) (*JobOperationsResponse, error) {
-	path := fmt.Sprintf(jobOperationsPath, jobID)
+	return c.getJobOperations(ctx, fmt.Sprintf(jobOperationsPath, jobID))
+}
 
+// getJobOperations fetches and decodes a job operations listing from a fully
+// built path, shared by the plain and the paged variants.
+func (c *Client) getJobOperations(ctx context.Context, path string) (*JobOperationsResponse, error) {
 	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("get job operations: %w", err)

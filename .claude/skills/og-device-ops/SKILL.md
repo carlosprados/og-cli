@@ -39,7 +39,8 @@ devices, with schedule/timeout/retry semantics. Lifecycle:
 ```bash
 og jobs create -f job.json          # launch (see job-templates.md for ready JSONs)
 og jobs get <job-id>                # report: jobs.report.summary.status
-og jobs operations <job-id>         # per-device results — check THIS for partial failures
+og jobs operations <job-id> --all   # per-device results — check THIS for partial failures
+og jobs history --job <job-id> --all    # same results, filterable, across jobs
 og jobs cancel <job-id>             # stop a running job
 og jobs search -w "jobs.report.summary.status eq IN_PROGRESS"
 og jobs search -w "jobs.request.name eq REBOOT_EQUIPMENT"
@@ -48,6 +49,38 @@ og jobs search -w "jobs.request.name eq REBOOT_EQUIPMENT"
 - Status values: `IN_PROGRESS`, `FINISHED`, `CANCELLED`, `PAUSED`, `CANCELLING_BY_USER`.
 - `FINISHED` does NOT mean every device succeeded — always inspect `jobs operations`
   for per-device outcomes when it matters.
+
+**Reading results back — two commands, different jobs to do.**
+
+- `og jobs operations <job-id>` lists ONE job by id (GET, paged by `--page`/`--limit`,
+  page size max **1000**).
+- `og jobs history` takes a **filter**, so it selects across jobs. `--job <id>` is the
+  shortcut for one job's outcome. Page size max 2000.
+
+**VERIFIED LIVE — `jobs operations` can return HTTP 204 for a job whose operations
+exist.** On a real tenant, `/operation/jobs/{id}/operations` returned 204 (no content)
+for a FINISHED job while `jobs history` returned its operation with full steps. Do NOT
+conclude "the job had no operations" from an empty `jobs operations`: cross-check with
+`og jobs history --job <id>`. Treat `jobs history` as the reliable way to read results.
+
+**History filter fields are UNPREFIXED and the set is narrow** (probed live): `jobId`,
+`entityId`, `operationId`, `resourceType`, `operationName` (alias `operation.name`).
+Everything else — `name`, `status`, `result`, `user`, `date`, `notify`, `description`,
+and anything with an `operations.` prefix — returns HTTP 400 *"Field in filter unknown"*.
+There is **no server-side filter for status or result**, so "which devices failed" means
+fetching with `--all` and filtering the output yourself.
+
+**Both are paged, and the first page is not the whole job.** Pass `--all` whenever the
+question is "did every device succeed" or "how many failed" — otherwise you are counting
+one page and will report a wrong number that looks right.
+
+**Per-operation detail lives in the steps.** Each operation has `status` (lifecycle, e.g.
+`FINISHED`) and `result` (outcome, e.g. `SUCCESSFUL`), and `steps[]` where each step has
+a `name`, a `result` and a `description`. The step `result` values are `SUCCESSFUL`,
+`ERROR`, `SKIPPED` and `NOT_EXECUTED` — note the field is `result`, not `status`, and
+that `NOT_EXECUTED` exists. The table output shows a compact `NAME=OK/ERR/SKIP/NOTRUN`
+summary; use `--output json` for the full descriptions, which is where the actual reason
+for a failure is written.
 - Job JSON anatomy and per-operation templates with realistic timeouts:
   [job-templates.md](job-templates.md).
 - DESTRUCTIVE: rebooting production devices needs explicit user confirmation. Never
@@ -300,7 +333,7 @@ After any operation, verify the effect rather than assuming success:
 
 | Action | Verify with |
 |---|---|
-| job created | `og jobs get <id>` until FINISHED, then `og jobs operations <id>` |
+| job created | `og jobs get <id>` until FINISHED, then `og jobs operations <id> --all` |
 | alarm attended/closed | `og alarms search -w "alarm.entityIdentifier eq <dev>"` |
 | data injected | `og dev search -s <ds>@at -w "provision.device.identifier eq <dev>"` |
 

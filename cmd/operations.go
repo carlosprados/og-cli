@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/carlosprados/og-cli/internal/output"
 	"github.com/carlosprados/og-cli/pkg/opengate"
@@ -142,10 +143,25 @@ var jobsCancelCmd = &cobra.Command{
 	},
 }
 
+var (
+	jobOpsAll   bool
+	jobOpsPage  int
+	jobOpsLimit int
+)
+
 var jobsOpsCmd = &cobra.Command{
 	Use:   "operations <job-id>",
 	Short: "List operations within a job",
-	Args:  cobra.ExactArgs(1),
+	Long: `List the operations of a job, one per target entity, with their execution steps.
+
+Results are paged. Use --all to walk every page, which is what you want for a
+job over a large fleet; otherwise you get the first page only.
+
+Examples:
+  og jobs operations <job-id>
+  og jobs operations <job-id> --all
+  og jobs operations <job-id> --page 2 --limit 100 --output json`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		p, err := activeProfile()
 		if err != nil {
@@ -153,13 +169,169 @@ var jobsOpsCmd = &cobra.Command{
 		}
 		c := opengate.New(p.Host, p.Token)
 
-		resp, err := c.GetJobOperations(cmd.Context(), args[0])
+		if jobOpsAll && jobOpsPage > 0 {
+			return fmt.Errorf("--all walks every page; it cannot be combined with --page")
+		}
+
+		var ops []opengate.Operation
+		if jobOpsAll {
+			for op, err := range c.GetJobOperationsAll(cmd.Context(), args[0]) {
+				if err != nil {
+					return err
+				}
+				ops = append(ops, op)
+			}
+		} else {
+			page := -1 // let the platform serve its first page
+			if jobOpsPage > 0 {
+				page = jobOpsPage
+			}
+			resp, err := c.GetJobOperationsPage(cmd.Context(), args[0], page, jobOpsLimit)
+			if err != nil {
+				return err
+			}
+			ops = resp.Operations
+		}
+
+		return printOperations(ops)
+	},
+}
+
+// --- operations history ---
+
+var (
+	opsHistoryJob    string
+	opsHistoryWhere  []string
+	opsHistoryFilter string
+	opsHistoryLimit  int
+	opsHistoryPage   int
+	opsHistoryAll    bool
+)
+
+var jobsHistoryCmd = &cobra.Command{
+	Use:   "history",
+	Short: "Search closed operations across jobs (with their execution steps)",
+	Long: `Search the operation history: closed operations and their per-step results.
+
+Unlike 'jobs operations', which lists one job by id, this takes a filter — so it
+can pull the outcome of many operations in one walk. --job is a shortcut for the
+common case of reading back a single job's results.
+
+Results are paged; use --all to walk every page.
+
+Filter fields are UNPREFIXED and the set is narrow (verified live): jobId, entityId,
+operationId, resourceType and operationName (alias operation.name). Anything else —
+including name, status, result, user, date and any "operations." prefix — is rejected
+with HTTP 400 "Field in filter unknown".
+
+There is NO server-side filter for status or result: fetch with --all and filter the
+output yourself (e.g. jq) when you need "which entities failed".
+
+Examples:
+  og jobs history --job <job-id> --all
+  og jobs history -w "operationName eq DIAGNOSIS" --limit 100
+  og jobs history -w "entityId eq dev-1" --output json
+  og jobs history --filter '{"filter":{"and":[{"eq":{"jobId":"<id>"}}]}}'`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		p, err := activeProfile()
 		if err != nil {
 			return err
 		}
+		c := opengate.New(p.Host, p.Token)
 
-		return output.PrintJSON(os.Stdout, resp.Operations)
+		if opsHistoryAll && opsHistoryPage > 0 {
+			return fmt.Errorf("--all walks every page; it cannot be combined with --page")
+		}
+		if opsHistoryJob != "" && (len(opsHistoryWhere) > 0 || opsHistoryFilter != "") {
+			return fmt.Errorf("--job is a shortcut for a jobId filter; do not combine it with -w or --filter")
+		}
+
+		var filter json.RawMessage
+		switch {
+		case opsHistoryJob != "":
+			filter = opengate.JobIDFilter(opsHistoryJob)
+			if opsHistoryLimit > 0 || opsHistoryPage > 0 {
+				page := opsHistoryPage
+				if page < 1 {
+					page = 1
+				}
+				size := opsHistoryLimit
+				if size <= 0 {
+					size = opengate.DefaultPageSize
+				}
+				if filter, err = opengate.SetFilterPage(filter, page, size); err != nil {
+					return err
+				}
+			}
+		default:
+			filter, err = buildSearchFilterPaged(opsHistoryWhere, opsHistoryLimit, opsHistoryPage, nil, opsHistoryFilter)
+			if err != nil {
+				return err
+			}
+		}
+
+		var ops []opengate.Operation
+		if opsHistoryAll {
+			for op, err := range c.SearchOperationsHistoryAll(cmd.Context(), filter) {
+				if err != nil {
+					return err
+				}
+				ops = append(ops, op)
+			}
+		} else {
+			resp, err := c.SearchOperationsHistory(cmd.Context(), filter)
+			if err != nil {
+				return err
+			}
+			ops = resp.Operations
+		}
+
+		return printOperations(ops)
 	},
+}
+
+// printOperations renders operations as JSON or as a table with a compact
+// per-step summary, which is the column that actually answers "what failed".
+func printOperations(ops []opengate.Operation) error {
+	return output.Print(outFmt, ops,
+		[]string{"Entity", "Operation", "Status", "Result", "Started", "Steps"},
+		func(data any) [][]string {
+			items := data.([]opengate.Operation)
+			rows := make([][]string, len(items))
+			for i, op := range items {
+				started := ""
+				if op.Execution != nil {
+					started = op.Execution.StartedDate
+				}
+				rows[i] = []string{op.EntityID, op.Name, op.Status, op.Result, started, stepsSummary(op)}
+			}
+			return rows
+		},
+	)
+}
+
+// stepsSummary compacts the steps into "NAME=RESULT" pairs, abbreviating the
+// result so a four-step diagnosis still fits a terminal column.
+func stepsSummary(op opengate.Operation) string {
+	if len(op.Steps) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(op.Steps))
+	for _, s := range op.Steps {
+		short := s.Result
+		switch s.Result {
+		case opengate.StepResultSuccessful:
+			short = "OK"
+		case opengate.StepResultError:
+			short = "ERR"
+		case opengate.StepResultSkipped:
+			short = "SKIP"
+		case opengate.StepResultNotExecuted:
+			short = "NOTRUN"
+		}
+		parts = append(parts, s.Name+"="+short)
+	}
+	return strings.Join(parts, " ")
 }
 
 // --- tasks ---
@@ -316,11 +488,23 @@ func init() {
 	jobsCreateCmd.Flags().StringVarP(&jobCreateFile, "file", "f", "", "JSON file with job definition")
 	jobsCreateCmd.MarkFlagRequired("file")
 
+	jobsOpsCmd.Flags().BoolVar(&jobOpsAll, "all", false, "fetch every page instead of just the first")
+	jobsOpsCmd.Flags().IntVar(&jobOpsPage, "page", 0, "page number to fetch (default: the platform's first page)")
+	jobsOpsCmd.Flags().IntVar(&jobOpsLimit, "limit", 0, "page size (max 1000 on this endpoint)")
+
+	jobsHistoryCmd.Flags().StringVar(&opsHistoryJob, "job", "", "shortcut: read back the operations of this job id")
+	jobsHistoryCmd.Flags().StringArrayVarP(&opsHistoryWhere, "where", "w", nil, `filter condition (repeatable)`)
+	jobsHistoryCmd.Flags().StringVar(&opsHistoryFilter, "filter", "", "raw JSON filter")
+	jobsHistoryCmd.Flags().IntVar(&opsHistoryLimit, "limit", 0, "page size (max 2000)")
+	jobsHistoryCmd.Flags().IntVar(&opsHistoryPage, "page", 0, "page number to fetch, counting from 1")
+	jobsHistoryCmd.Flags().BoolVar(&opsHistoryAll, "all", false, "fetch every page instead of just the first")
+
 	jobsCmd.AddCommand(jobsSearchCmd)
 	jobsCmd.AddCommand(jobsGetCmd)
 	jobsCmd.AddCommand(jobsCreateCmd)
 	jobsCmd.AddCommand(jobsCancelCmd)
 	jobsCmd.AddCommand(jobsOpsCmd)
+	jobsCmd.AddCommand(jobsHistoryCmd)
 	rootCmd.AddCommand(jobsCmd)
 
 	tasksSearchCmd.Flags().StringArrayVarP(&taskSearchWhere, "where", "w", nil, `filter condition (repeatable)`)
