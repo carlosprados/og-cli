@@ -120,7 +120,7 @@ arithmetic), not measurements. Revisit them against a real job body.
 ```bash
 og jobs create -f job.json            # single batch, up to 100 entities
 og jobs launch -f job.json --entities-file ids.txt   # any size, batched
-og jobs get <job-id>                  # poll: jobs.report.summary.status
+og jobs get <job-id>                  # poll: report.summary.status
 og jobs operations <job-id> --all     # per-device outcome — the real success signal
 og jobs history --job <job-id> --all  # same, and the dependable one (see SKILL.md)
 ```

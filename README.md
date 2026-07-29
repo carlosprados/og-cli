@@ -602,8 +602,8 @@ Manage OpenGate operation jobs — execute operations on devices.
 # Search
 og jobs search
 og jobs search --limit 10
-og jobs search -w "jobs.report.summary.status eq IN_PROGRESS"
-og jobs search -w "jobs.request.name eq REBOOT_EQUIPMENT"
+og jobs search -w "jobStatus eq IN_PROGRESS"
+og jobs search -w "operationName eq REBOOT_EQUIPMENT"
 
 # Get report / create / cancel
 og jobs get <job-id>

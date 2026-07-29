@@ -121,7 +121,7 @@ og optypes create --org sensehat -f demo/operations/types/calibrate-sensor.json
 og optypes get CALIBRATE_SENSOR --org sensehat
 
 og jobs create -f demo/operations/jobs/calibrate-001.json
-og jobs search -w "jobs.request.name eq CALIBRATE_SENSOR"
+og jobs search -w "operationName eq CALIBRATE_SENSOR"
 og jobs operations <job-id>
 ```
 

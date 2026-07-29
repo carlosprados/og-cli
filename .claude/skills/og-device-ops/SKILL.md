@@ -39,15 +39,20 @@ devices, with schedule/timeout/retry semantics. Lifecycle:
 ```bash
 og jobs create -f job.json          # launch, ONE batch (max 100 entities)
 og jobs launch -f job.json --entities-file ids.txt   # any fleet size, batched
-og jobs get <job-id>                # report: jobs.report.summary.status
+og jobs get <job-id>                # report: report.summary.status
 og jobs operations <job-id> --all   # per-device results — check THIS for partial failures
 og jobs history --job <job-id> --all    # same results, filterable, across jobs
 og jobs cancel <job-id>             # stop a running job
-og jobs search -w "jobs.report.summary.status eq IN_PROGRESS"
-og jobs search -w "jobs.request.name eq REBOOT_EQUIPMENT"
+og jobs search -w "jobStatus eq IN_PROGRESS"
+og jobs search -w "operationName eq REBOOT_EQUIPMENT"
 ```
 
 - Status values: `IN_PROGRESS`, `FINISHED`, `CANCELLED`, `PAUSED`, `CANCELLING_BY_USER`.
+- **`jobs search` filter names differ from the response paths**, same trap as the
+  operation history: use `jobStatus` (alias `job.status`), `operationName`, `jobId`,
+  `taskId`. Filtering on `jobs.report.summary.status` or `jobs.request.name` — the
+  names you *read* in the output — returns HTTP 400 *"Field in filter unknown"*.
+  Verified live: `jobStatus eq IN_PROGRESS` returns results, the response path does not.
 - `FINISHED` does NOT mean every device succeeded — always inspect `jobs operations`
   for per-device outcomes when it matters.
 

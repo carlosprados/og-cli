@@ -116,8 +116,12 @@ unless they ask for historical / time-windowed data.
 - alarm.openingDate — ISO 8601 datetime
 
 ### Jobs (used in jobs_search query)
-- jobs.request.name — operation name (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC, etc.)
-- jobs.report.summary.status — IN_PROGRESS, FINISHED, CANCELLED, PAUSED, CANCELLING_BY_USER
+- jobStatus (alias job.status) — IN_PROGRESS, FINISHED, CANCELLED, PAUSED, CANCELLING_BY_USER
+- operationName — operation name (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC, etc.)
+- jobId, taskId (alias job.id)
+NOTE: these are FILTER names and they differ from the response paths. Filtering on
+jobs.report.summary.status or jobs.request.name returns HTTP 400 "Field in filter
+unknown" — those are projection names, valid only for reading the result.
 
 ### Tasks (used in tasks_search query)
 - tasks.name — task name
@@ -238,7 +242,7 @@ User: "Send pressure 1013 to sense-001" → iot_collect(device_id: "sense-001", 
 User: "Lista las time series" → timeseries_list(organization: "sensehat")
 User: "Datos de la time series X" → timeseries_data(organization: "sensehat", id: "X")
 User: "Datasets disponibles" → datasets_list(organization: "sensehat")
-User: "Jobs en progreso" → jobs_search(query: "jobs.report.summary.status eq IN_PROGRESS")
+User: "Jobs en progreso" → jobs_search(query: "jobStatus eq IN_PROGRESS")
 User: "Lanza un REBOOT al dispositivo sense-001" → jobs_create(body: '{"job":{"request":{"name":"REBOOT_EQUIPMENT","parameters":{"type":"HARDWARE"},"active":true,"schedule":{"stop":{"delayed":90000}},"operationParameters":{"timeout":85000,"retries":0},"target":{"append":{"entities":["sense-001"]}}}}}')
 User: "Estado del job abc-123" → jobs_get(id: "abc-123")
 User: "Operaciones del job abc-123" → jobs_operations(id: "abc-123")

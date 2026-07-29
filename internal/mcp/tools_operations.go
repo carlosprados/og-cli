@@ -29,7 +29,7 @@ func jobsSearchTool() mcp.Tool {
 	return mcp.NewTool("jobs_search",
 		mcp.WithDescription(`Search OpenGate operation jobs. Use 'query' to filter.
 
-Common fields: jobs.request.name, jobs.report.summary.status (IN_PROGRESS, FINISHED, CANCELLED, PAUSED)`),
+Filter fields: jobStatus (alias job.status) with IN_PROGRESS, FINISHED, CANCELLED, PAUSED; operationName; jobId; taskId. These are FILTER names and differ from the response paths — filtering on jobs.report.summary.status or jobs.request.name returns HTTP 400 "Field in filter unknown".`),
 		mcp.WithString("query", mcp.Description("Filter: \"field op value\". Omit to list all.")),
 		mcp.WithNumber("limit", mcp.Description("Max results")),
 		mcp.WithString("filter", mcp.Description("Advanced: raw JSON filter.")),
