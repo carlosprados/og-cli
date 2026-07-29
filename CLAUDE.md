@@ -25,13 +25,31 @@ Version info is injected via ldflags — see Taskfile.yml `LDFLAGS`.
 ```
 main.go              → cmd.Execute()
 cmd/                 → Cobra commands (root, login, version, mcp, datamodels, devices)
-internal/client/     → OpenGate REST API client (HTTP methods, auth, resource methods)
+pkg/opengate/        → OpenGate REST API client (HTTP methods, auth, resource methods)
+pkg/query/           → Search filter parser (-w "field op value", query strings)
 internal/config/     → Viper config, profiles, .env loading
 internal/mcp/        → MCP server (stdio + HTTP transports) + tool definitions
 internal/output/     → JSON/table output formatting
-internal/query/      → Search filter parser (-w "field op value", query strings)
 internal/tui/        → Bubble Tea interactive TUI
+internal/unwrap/     → Workspace/rule/connector unwrap to local dirs
+internal/views/      → Named field views for searches
 ```
+
+`pkg/` is the public library surface: it is consumed by external services (e.g.
+Punto de Luz), so its API is a contract. `internal/` is CLI-private.
+
+**Library conventions for `pkg/`:**
+
+- Every method that performs I/O takes `ctx context.Context` as its **first**
+  parameter, propagated to `http.NewRequestWithContext`. No exceptions.
+- Per-client configuration goes through functional options on `New`
+  (`WithHTTPClient`, `WithTLS`, `WithAPIVersion`, `WithAPIKey`) — never
+  process-wide state. `ConfigureTLS`/`NewHTTPClient` are deprecated leftovers
+  kept for the CLI, which has exactly one endpoint per invocation.
+- North API path constants carry the `{v}` version placeholder, resolved per
+  client. Never hardcode a version segment.
+- A misconfigured client is not a panic and not a second constructor: `New`
+  records the error, and `Err()` plus every request return it.
 
 ### Three interfaces — og has three execution modes:
 
@@ -77,13 +95,24 @@ capability the CLI offers must be reachable from the TUI too (a field, an auto-d
 code from the stored secret, or a challenge prompt). When you touch login on one
 surface, update the other three in the same PR — no "use the CLI instead" shortcuts.
 
+**Deliberate MCP exclusions.** Two operations are CLI-only on purpose, beyond the
+local-filesystem lifecycle verbs:
+
+- `og jobs launch` (batched launch over a large fleet). Firing an irreversible
+  operation at thousands of devices is a decision to take explicitly, not one to
+  hand an LLM a single tool call for. `jobs_create` already covers one batch
+  (≤100 entities) and an agent can call it repeatedly under supervision.
+- `--all` on searches. An unbounded result set is actively harmful in an LLM
+  context window; MCP exposes `page` instead, plus the response's `page` block so
+  the caller knows more pages exist.
+
 **Entity scope (v1.0):** devices have full CRUD across the surfaces. Assets,
 subscribers and subscriptions are provisioned via **provision functions** (`og provision`)
 — direct CRUD for them is intentionally out of v1.0 (revisit post-v1 if demand appears).
 
 ### OpenGate API conventions
 
-- All API paths use the prefix `/north/v80/` (including operations, despite the YAML spec showing `/v80/`)
+- All API paths use the prefix `/north/<version>/` (including operations, despite the YAML spec showing `/v80/`). In code the version is the `{v}` placeholder, resolved per client — `v80` by default
 - Provision endpoints: `/north/v80/provision/organizations/{org}/...`
 - Search endpoints: `/north/v80/search/...`
 - Auth: `POST /north/v80/provision/users/login` with `{"email":"...","password":"..."}` → JWT in `response.user.jwt`
@@ -106,6 +135,22 @@ All data commands support `--output json|table` (default: `table`). Use the `int
 
 - HTTP 204 (No Content) is returned when a search has no results — handle with `client.IsEmptyResponse()` before unmarshaling
 - Device endpoints require `?flattened=true` query parameter
+- **Filter names are not response names.** On several endpoints the field you filter
+  on differs from the path you read in the output, and using the response path
+  returns HTTP 400 *"Field in filter unknown"*. Verified live:
+  - `search/jobs`: filter on `jobStatus` (alias `job.status`), `operationName`,
+    `jobId`, `taskId` — NOT `jobs.report.summary.status` / `jobs.request.name`.
+  - `search/entities/operations/history`: identifiers unprefixed (`jobId`,
+    `entityId`, `operationId`, `resourceType`), the rest `operation`-prefixed
+    (`operationName`, `operationStatus`, `operationResult`, `operationDate`,
+    `operationNotify`) — NOT the bare `status`/`result`, nor any `operations.` prefix.
+  When adding a filterable field, probe it against a live instance AND check it
+  really filters (a bogus value must return nothing): an accepted-but-ignored field
+  is worse than a 400.
+- **Closed work leaves the "current" views.** A FINISHED job was observed absent from
+  `search/jobs` and its `operation/jobs/{id}/operations` returned HTTP 204, while
+  `search/entities/operations/history` returned the operation with its steps. Never
+  read an empty per-job listing as "it had no operations".
 
 ## Conventions
 

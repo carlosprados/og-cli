@@ -2,7 +2,7 @@ version: "3"
 
 vars:
   APP_NAME: og
-  MODULE: github.com/carlosprados/og-cli
+  MODULE: github.com/carlosprados/og-cli/v2
   VERSION:
     sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
   COMMIT:

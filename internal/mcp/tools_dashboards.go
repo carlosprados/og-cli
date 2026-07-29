@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -47,13 +47,13 @@ func dashListHandler(p *provider) server.ToolHandlerFunc {
 
 		var entries []dashListEntry
 		if wsID != "" {
-			w, err := c.GetWorkspace(wsID, true)
+			w, err := c.GetWorkspace(ctx, wsID, true)
 			if err != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("list failed: %v", err)), nil
 			}
 			entries = collectDashEntries(w)
 		} else {
-			wss, err := c.ListWorkspaces(true)
+			wss, err := c.ListWorkspaces(ctx, true)
 			if err != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("list failed: %v", err)), nil
 			}
@@ -107,7 +107,7 @@ func dashGetHandler(p *provider) server.ToolHandlerFunc {
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
 		}
-		d, err := c.GetDashboard(id)
+		d, err := c.GetDashboard(ctx, id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
@@ -134,7 +134,7 @@ func dashExportHandler(p *provider) server.ToolHandlerFunc {
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
 		}
-		data, err := c.ExportDashboard(id)
+		data, err := c.ExportDashboard(ctx, id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("export failed: %v", err)), nil
 		}
@@ -164,7 +164,7 @@ func dashImportHandler(p *provider) server.ToolHandlerFunc {
 		if body == "" {
 			return mcp.NewToolResultError("body is required"), nil
 		}
-		resp, err := c.CreateDashboard(json.RawMessage(body), wsID)
+		resp, err := c.CreateDashboard(ctx, json.RawMessage(body), wsID)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("import failed: %v", err)), nil
 		}
@@ -195,7 +195,7 @@ func dashUpdateHandler(p *provider) server.ToolHandlerFunc {
 		if id == "" || body == "" {
 			return mcp.NewToolResultError("id and body are required"), nil
 		}
-		if err := c.UpdateDashboard(id, json.RawMessage(body)); err != nil {
+		if err := c.UpdateDashboard(ctx, id, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("update failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Dashboard updated successfully."), nil
@@ -220,7 +220,7 @@ func dashDeleteHandler(p *provider) server.ToolHandlerFunc {
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
 		}
-		if err := c.DeleteDashboard(id); err != nil {
+		if err := c.DeleteDashboard(ctx, id); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("delete failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Dashboard deleted successfully."), nil

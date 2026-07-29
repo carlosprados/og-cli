@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/views"
+	"github.com/carlosprados/og-cli/v2/internal/views"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -139,8 +139,10 @@ Alarm fields (alarms_search):
   alarm.openingDate       — ISO 8601 datetime
 
 Job fields (jobs_search):
-  jobs.request.name            — operation name (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC)
-  jobs.report.summary.status   — IN_PROGRESS, FINISHED, CANCELLED, PAUSED
+  jobStatus (alias job.status) — IN_PROGRESS, FINISHED, CANCELLED, PAUSED
+  operationName                — operation name (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC)
+  (filter names differ from the response paths: jobs.report.summary.status and
+   jobs.request.name are projection names and are rejected as filters)
 
 Task fields (tasks_search):
   tasks.name   — task name
@@ -178,7 +180,7 @@ func datamodelFieldsHandler(p *provider) server.ResourceTemplateHandlerFunc {
 			return nil, fmt.Errorf("organization not found in URI: %s", uri)
 		}
 
-		resp, err := c.SearchDatamodels(nil)
+		resp, err := c.SearchDatamodels(ctx, nil)
 		if err != nil {
 			return nil, fmt.Errorf("fetching datamodels: %w", err)
 		}
@@ -206,7 +208,7 @@ func datamodelFieldsHandler(p *provider) server.ResourceTemplateHandlerFunc {
 				continue
 			}
 			if len(dm.Categories) == 0 {
-				detail, err := c.GetDatamodel(orgName, dm.Identifier)
+				detail, err := c.GetDatamodel(ctx, orgName, dm.Identifier)
 				if err != nil {
 					continue
 				}

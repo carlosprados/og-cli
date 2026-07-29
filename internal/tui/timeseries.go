@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -44,7 +44,7 @@ func (m model) fetchTimeSeries() tea.Cmd {
 		if orgName == "" {
 			return timeseriesFetchedMsg{err: fmt.Errorf("organization required")}
 		}
-		resp, err := m.client.ListTimeSeries(orgName)
+		resp, err := m.client.ListTimeSeries(m.ctx, orgName)
 		if err != nil {
 			return timeseriesFetchedMsg{err: err}
 		}
@@ -61,7 +61,7 @@ func (m model) fetchTimeSeriesData(ts *opengate.TimeSeries) tea.Cmd {
 		if orgName == "" {
 			return timeseriesDataFetchedMsg{err: fmt.Errorf("organization required")}
 		}
-		data, err := m.client.QueryTimeSeriesData(orgName, ts.Identifier, nil)
+		data, err := m.client.QueryTimeSeriesData(m.ctx, orgName, ts.Identifier, nil)
 		return timeseriesDataFetchedMsg{ts: ts, data: data, err: err}
 	}
 }

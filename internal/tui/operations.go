@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -21,7 +21,7 @@ type jobsModel struct {
 type jobDetailModel struct {
 	jobID      string
 	jobData    json.RawMessage
-	operations []json.RawMessage
+	operations []opengate.Operation
 	table      table.Model
 	loading    bool
 }
@@ -41,7 +41,7 @@ type jobsFetchedMsg struct {
 type jobDetailFetchedMsg struct {
 	jobID      string
 	jobData    json.RawMessage
-	operations []json.RawMessage
+	operations []opengate.Operation
 	err        error
 }
 
@@ -57,7 +57,7 @@ type tasksFetchedMsg struct {
 
 func (m model) fetchJobs() tea.Cmd {
 	return func() tea.Msg {
-		resp, err := m.client.SearchJobs(nil)
+		resp, err := m.client.SearchJobs(m.ctx, nil)
 		if err != nil {
 			return jobsFetchedMsg{err: err}
 		}
@@ -67,12 +67,12 @@ func (m model) fetchJobs() tea.Cmd {
 
 func (m model) fetchJobDetail(jobID string) tea.Cmd {
 	return func() tea.Msg {
-		jobData, err := m.client.GetJob(jobID)
+		jobData, err := m.client.GetJob(m.ctx, jobID)
 		if err != nil {
 			return jobDetailFetchedMsg{jobID: jobID, err: err}
 		}
-		opsResp, err := m.client.GetJobOperations(jobID)
-		var ops []json.RawMessage
+		opsResp, err := m.client.GetJobOperations(m.ctx, jobID)
+		var ops []opengate.Operation
 		if err == nil && opsResp != nil {
 			ops = opsResp.Operations
 		}
@@ -104,14 +104,14 @@ func (m model) createQuickJob(operationName string, deviceID string) tea.Cmd {
 			},
 		}
 		body, _ := json.Marshal(job)
-		data, err := m.client.CreateJob(body)
+		data, err := m.client.CreateJob(m.ctx, body)
 		return jobCreatedMsg{data: data, err: err}
 	}
 }
 
 func (m model) fetchTasks() tea.Cmd {
 	return func() tea.Msg {
-		resp, err := m.client.SearchTasks(nil)
+		resp, err := m.client.SearchTasks(m.ctx, nil)
 		if err != nil {
 			return tasksFetchedMsg{err: err}
 		}
@@ -337,7 +337,7 @@ func buildJobsTable(items []json.RawMessage, width int) table.Model {
 	return t
 }
 
-func buildOperationsTable(items []json.RawMessage, width int) table.Model {
+func buildOperationsTable(items []opengate.Operation, width int) table.Model {
 	columns := []table.Column{
 		{Title: "Entity", Width: 20},
 		{Title: "Operation", Width: 22},
@@ -353,13 +353,8 @@ func buildOperationsTable(items []json.RawMessage, width int) table.Model {
 	}
 
 	rows := make([]table.Row, len(items))
-	for i, raw := range items {
-		rows[i] = table.Row{
-			extractJobField(raw, "entityId"),
-			extractJobField(raw, "name"),
-			extractJobField(raw, "status"),
-			extractJobField(raw, "date"),
-		}
+	for i, op := range items {
+		rows[i] = table.Row{op.EntityID, op.Name, op.Status, op.Date}
 	}
 
 	t := table.New(table.WithColumns(columns), table.WithRows(rows), table.WithFocused(true), table.WithHeight(min(len(rows)+1, 20)))

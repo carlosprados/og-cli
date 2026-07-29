@@ -83,7 +83,21 @@ og dev search -w "field op value" -w "field2 op value2"   # multiple -w = AND
   datastream: `-w "wt gt 20"` works directly — do NOT reach for timeseries unless
   the user asks for historical/windowed data.
 - OR / nested logic: only via raw JSON `--filter '{"filter":{"or":[...]}}'`.
-- Limit results: `--limit N`.
+- Limit results: `--limit N` — this is the **page size**, not a total cap (platform max 2000).
+
+**Pagination — results are paged, and the default page is not the whole answer.**
+A search returns one page plus a `page` block: `number` (the 1-based page you got)
+and, on most endpoints, `of` (total pages). Without asking for more, you are seeing
+page 1 and nothing tells you in the output that more exist.
+
+- `og dev search ... --page N` fetches page N, counting from **1**. It maps to
+  `limit.start`, which is a **page number, not an element offset** — a frequent
+  and silent mistake.
+- `og dev search ... --all` walks every page and prints the combined result. Use it
+  whenever completeness matters (counting, exporting, auditing a fleet). Combine
+  with `--limit` to set the page size. `--all` and `--page` are mutually exclusive.
+- Rule of thumb: **any count or "how many X" question needs `--all`**, otherwise the
+  answer is "however many fit in one page", which is wrong and looks right.
 
 **Value typing — the search lake is type-strict.** A field stored as a string only
 matches a JSON *string*; sending a number returns 0 silently (HTTP 204). The field's

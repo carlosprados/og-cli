@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/carlosprados/og-cli/internal/config"
+	"github.com/carlosprados/og-cli/v2/internal/config"
 )
 
 // SourceBuiltin marks views embedded in the binary.

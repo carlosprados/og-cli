@@ -1,15 +1,17 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"strings"
 )
 
 const (
-	searchDevicesPath    = "/north/v80/search/devices?flattened=true"
-	provisionDevicesPath = "/north/v80/provision/organizations/%s/devices?flattened=true"
-	devicePath           = "/north/v80/provision/organizations/%s/devices/%s?flattened=true"
+	searchDevicesPath    = "/north/{v}/search/devices?flattened=true"
+	provisionDevicesPath = "/north/{v}/provision/organizations/%s/devices?flattened=true"
+	devicePath           = "/north/{v}/provision/organizations/%s/devices/%s?flattened=true"
 )
 
 // SearchDevicesResponse is the response from the devices search endpoint.
@@ -85,7 +87,7 @@ func ParseDeviceSummary(raw json.RawMessage) DeviceSummary {
 }
 
 // SearchDevices searches for devices using a filter body.
-func (c *Client) SearchDevices(filter json.RawMessage) (*SearchDevicesResponse, error) {
+func (c *Client) SearchDevices(ctx context.Context, filter json.RawMessage) (*SearchDevicesResponse, error) {
 	var body string
 	if filter != nil {
 		body = string(filter)
@@ -93,7 +95,7 @@ func (c *Client) SearchDevices(filter json.RawMessage) (*SearchDevicesResponse, 
 		body = "{}"
 	}
 
-	data, statusCode, err := c.Post(searchDevicesPath, strings.NewReader(body))
+	data, statusCode, err := c.Post(ctx, searchDevicesPath, strings.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("search devices: %w", err)
 	}
@@ -111,11 +113,57 @@ func (c *Client) SearchDevices(filter json.RawMessage) (*SearchDevicesResponse, 
 	return &resp, nil
 }
 
+// SearchDevicesPage searches for devices restricted to one page, overriding any
+// limit already present in filter. page is 1-based; size is capped at
+// MaxPageSize. Use it when you want to drive paging yourself; use
+// SearchDevicesAll to walk every page.
+func (c *Client) SearchDevicesPage(ctx context.Context, filter json.RawMessage, page, size int) (*SearchDevicesResponse, error) {
+	if page < 1 {
+		page = 1
+	}
+	if size <= 0 {
+		size = DefaultPageSize
+	}
+	if size > MaxPageSize {
+		size = MaxPageSize
+	}
+
+	paged, err := withPage(filter, page, size)
+	if err != nil {
+		return nil, err
+	}
+	return c.SearchDevices(ctx, paged)
+}
+
+// SearchDevicesAll walks every page of a device search and yields devices one by
+// one, so a caller never has to know how many pages there are — nor request
+// them all at once, which is how a large fleet turns into an unbounded response.
+//
+// The page size comes from filter's limit.size when set, otherwise
+// DefaultPageSize. Cancelling ctx stops the walk and yields the context error,
+// so a truncated iteration is distinguishable from a complete one:
+//
+//	for dev, err := range c.SearchDevicesAll(ctx, filter) {
+//	    if err != nil {
+//	        return err
+//	    }
+//	    ...
+//	}
+func (c *Client) SearchDevicesAll(ctx context.Context, filter json.RawMessage) iter.Seq2[json.RawMessage, error] {
+	return paginate(ctx, filter, func(ctx context.Context, f json.RawMessage) ([]json.RawMessage, *Page, error) {
+		resp, err := c.SearchDevices(ctx, f)
+		if err != nil {
+			return nil, nil, err
+		}
+		return resp.Devices, resp.Page, nil
+	})
+}
+
 // GetDevice retrieves a single device by organization and identifier (flattened format).
-func (c *Client) GetDevice(orgName, id string) (json.RawMessage, error) {
+func (c *Client) GetDevice(ctx context.Context, orgName, id string) (json.RawMessage, error) {
 	path := fmt.Sprintf(devicePath, orgName, id)
 
-	data, statusCode, err := c.Get(path)
+	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("get device: %w", err)
 	}
@@ -127,10 +175,10 @@ func (c *Client) GetDevice(orgName, id string) (json.RawMessage, error) {
 }
 
 // CreateDevice creates a new device in the given organization.
-func (c *Client) CreateDevice(orgName string, body json.RawMessage) error {
+func (c *Client) CreateDevice(ctx context.Context, orgName string, body json.RawMessage) error {
 	path := fmt.Sprintf(provisionDevicesPath, orgName)
 
-	data, statusCode, err := c.Post(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.Post(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return fmt.Errorf("create device: %w", err)
 	}
@@ -138,10 +186,10 @@ func (c *Client) CreateDevice(orgName string, body json.RawMessage) error {
 }
 
 // UpdateDevice updates an existing device.
-func (c *Client) UpdateDevice(orgName, id string, body json.RawMessage) error {
+func (c *Client) UpdateDevice(ctx context.Context, orgName, id string, body json.RawMessage) error {
 	path := fmt.Sprintf(devicePath, orgName, id)
 
-	data, statusCode, err := c.Put(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.Put(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return fmt.Errorf("update device: %w", err)
 	}
@@ -149,10 +197,10 @@ func (c *Client) UpdateDevice(orgName, id string, body json.RawMessage) error {
 }
 
 // DeleteDevice deletes a device by organization and identifier.
-func (c *Client) DeleteDevice(orgName, id string) error {
+func (c *Client) DeleteDevice(ctx context.Context, orgName, id string) error {
 	path := fmt.Sprintf(devicePath, orgName, id)
 
-	data, statusCode, err := c.Delete(path)
+	data, statusCode, err := c.Delete(ctx, path)
 	if err != nil {
 		return fmt.Errorf("delete device: %w", err)
 	}

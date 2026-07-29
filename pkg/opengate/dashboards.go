@@ -1,6 +1,7 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -100,10 +101,10 @@ type WidgetDefinition struct {
 }
 
 // GetDashboard retrieves a single dashboard by ID.
-func (c *Client) GetDashboard(id string) (*Dashboard, error) {
+func (c *Client) GetDashboard(ctx context.Context, id string) (*Dashboard, error) {
 	path := fmt.Sprintf(dashboardPath, id)
 
-	data, statusCode, err := c.WebGet(path)
+	data, statusCode, err := c.WebGet(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("get dashboard: %w", err)
 	}
@@ -119,10 +120,10 @@ func (c *Client) GetDashboard(id string) (*Dashboard, error) {
 }
 
 // ExportDashboard fetches the export payload for a dashboard as raw JSON.
-func (c *Client) ExportDashboard(id string) ([]byte, error) {
+func (c *Client) ExportDashboard(ctx context.Context, id string) ([]byte, error) {
 	path := fmt.Sprintf(dashboardExportPath, id)
 
-	data, statusCode, err := c.WebGet(path)
+	data, statusCode, err := c.WebGet(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("export dashboard: %w", err)
 	}
@@ -135,13 +136,13 @@ func (c *Client) ExportDashboard(id string) ([]byte, error) {
 // CreateDashboard posts a dashboard definition. If workspaceOverride is
 // non-empty, the "workspaces" field of the body is replaced with that value
 // before sending — useful for cross-tenant migrations.
-func (c *Client) CreateDashboard(body json.RawMessage, workspaceOverride string) ([]byte, error) {
+func (c *Client) CreateDashboard(ctx context.Context, body json.RawMessage, workspaceOverride string) ([]byte, error) {
 	payload, err := applyWorkspaceOverride(body, workspaceOverride)
 	if err != nil {
 		return nil, fmt.Errorf("create dashboard: %w", err)
 	}
 
-	data, statusCode, err := c.WebPost(dashboardsPath, strings.NewReader(string(payload)))
+	data, statusCode, err := c.WebPost(ctx, dashboardsPath, strings.NewReader(string(payload)))
 	if err != nil {
 		return nil, fmt.Errorf("create dashboard: %w", err)
 	}
@@ -152,10 +153,10 @@ func (c *Client) CreateDashboard(body json.RawMessage, workspaceOverride string)
 }
 
 // UpdateDashboard updates an existing dashboard.
-func (c *Client) UpdateDashboard(id string, body json.RawMessage) error {
+func (c *Client) UpdateDashboard(ctx context.Context, id string, body json.RawMessage) error {
 	path := fmt.Sprintf(dashboardPath, id)
 
-	data, statusCode, err := c.WebPut(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.WebPut(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return fmt.Errorf("update dashboard: %w", err)
 	}
@@ -164,10 +165,10 @@ func (c *Client) UpdateDashboard(id string, body json.RawMessage) error {
 
 // DeleteDashboard deletes a dashboard by ID. The Web API exposes DELETE
 // /dashboards with the id in the body, so we send a minimal payload.
-func (c *Client) DeleteDashboard(id string) error {
+func (c *Client) DeleteDashboard(ctx context.Context, id string) error {
 	body := fmt.Sprintf(`{"_id":%q}`, id)
 
-	data, statusCode, err := c.webDoRequest("DELETE", dashboardsPath, strings.NewReader(body))
+	data, statusCode, err := c.webDoRequest(ctx, "DELETE", dashboardsPath, strings.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("delete dashboard: %w", err)
 	}

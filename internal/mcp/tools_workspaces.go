@@ -33,7 +33,7 @@ func wsListHandler(p *provider) server.ToolHandlerFunc {
 		}
 		args := request.GetArguments()
 		full, _ := args["full"].(bool)
-		wss, err := c.ListWorkspaces(full)
+		wss, err := c.ListWorkspaces(ctx, full)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("list failed: %v", err)), nil
 		}
@@ -62,7 +62,7 @@ func wsGetHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("id is required"), nil
 		}
 		full, _ := args["full"].(bool)
-		w, err := c.GetWorkspace(id, full)
+		w, err := c.GetWorkspace(ctx, id, full)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
@@ -89,7 +89,7 @@ func wsExportHandler(p *provider) server.ToolHandlerFunc {
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
 		}
-		data, err := c.ExportWorkspace(id)
+		data, err := c.ExportWorkspace(ctx, id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("export failed: %v", err)), nil
 		}
@@ -115,7 +115,7 @@ func wsImportHandler(p *provider) server.ToolHandlerFunc {
 		if body == "" {
 			return mcp.NewToolResultError("body is required"), nil
 		}
-		resp, err := c.CreateWorkspace(json.RawMessage(body))
+		resp, err := c.CreateWorkspace(ctx, json.RawMessage(body))
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("import failed: %v", err)), nil
 		}
@@ -146,7 +146,7 @@ func wsUpdateHandler(p *provider) server.ToolHandlerFunc {
 		if id == "" || body == "" {
 			return mcp.NewToolResultError("id and body are required"), nil
 		}
-		if err := c.UpdateWorkspace(id, json.RawMessage(body)); err != nil {
+		if err := c.UpdateWorkspace(ctx, id, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("update failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Workspace updated successfully."), nil
@@ -171,7 +171,7 @@ func wsDeleteHandler(p *provider) server.ToolHandlerFunc {
 		if id == "" {
 			return mcp.NewToolResultError("id is required"), nil
 		}
-		if err := c.DeleteWorkspace(id); err != nil {
+		if err := c.DeleteWorkspace(ctx, id); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("delete failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Workspace deleted successfully."), nil

@@ -1,4 +1,4 @@
-module github.com/carlosprados/og-cli
+module github.com/carlosprados/og-cli/v2
 
 go 1.25.6
 

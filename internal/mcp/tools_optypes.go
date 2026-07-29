@@ -30,7 +30,7 @@ func optypesCatalogHandler(p *provider) server.ToolHandlerFunc {
 		if errRes != nil {
 			return errRes, nil
 		}
-		data, err := c.OpTypesCatalog()
+		data, err := c.OpTypesCatalog(ctx)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("catalog failed: %v", err)), nil
 		}
@@ -50,7 +50,7 @@ func optypesSearchHandler(p *provider) server.ToolHandlerFunc {
 		if errRes != nil {
 			return errRes, nil
 		}
-		data, err := c.SearchOpTypes(nil)
+		data, err := c.SearchOpTypes(ctx, nil)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
 		}
@@ -78,7 +78,7 @@ func optypesGetHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || name == "" {
 			return mcp.NewToolResultError("organization and name are required"), nil
 		}
-		data, err := c.GetOpType(org, name)
+		data, err := c.GetOpType(ctx, org, name)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
@@ -113,7 +113,7 @@ func optypesCreateHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || body == "" {
 			return mcp.NewToolResultError("organization and body are required"), nil
 		}
-		if _, err := c.CreateOpType(org, json.RawMessage(body)); err != nil {
+		if _, err := c.CreateOpType(ctx, org, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("create failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Operation type created successfully."), nil
@@ -142,7 +142,7 @@ func optypesUpdateHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || name == "" || body == "" {
 			return mcp.NewToolResultError("organization, name, and body are required"), nil
 		}
-		if err := c.UpdateOpType(org, name, json.RawMessage(body)); err != nil {
+		if err := c.UpdateOpType(ctx, org, name, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("update failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Operation type updated successfully."), nil
@@ -169,7 +169,7 @@ func optypesDeleteHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || name == "" {
 			return mcp.NewToolResultError("organization and name are required"), nil
 		}
-		if err := c.DeleteOpType(org, name); err != nil {
+		if err := c.DeleteOpType(ctx, org, name); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("delete failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Operation type deleted successfully."), nil

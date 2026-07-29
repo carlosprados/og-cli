@@ -48,7 +48,7 @@ func workspacesShareHandler(p *provider) server.ToolHandlerFunc {
 		}
 		users := splitCSV(getString(args, "users"))
 		domains := splitCSV(getString(args, "domains"))
-		if _, err := c.ShareWorkspace(id, users, domains); err != nil {
+		if _, err := c.ShareWorkspace(ctx, id, users, domains); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("share failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText(fmt.Sprintf("Workspace %s sharing set: users=%v domains=%v", id, users, domains)), nil
@@ -77,7 +77,7 @@ func dashboardsShareHandler(p *provider) server.ToolHandlerFunc {
 		}
 		users := splitCSV(getString(args, "users"))
 		domains := splitCSV(getString(args, "domains"))
-		if _, err := c.ShareDashboard(id, users, domains); err != nil {
+		if _, err := c.ShareDashboard(ctx, id, users, domains); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("share failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText(fmt.Sprintf("Dashboard %s sharing set: users=%v domains=%v", id, users, domains)), nil

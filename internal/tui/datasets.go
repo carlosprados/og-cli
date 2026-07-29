@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -44,7 +44,7 @@ func (m model) fetchDatasets() tea.Cmd {
 		if orgName == "" {
 			return datasetsFetchedMsg{err: fmt.Errorf("organization required")}
 		}
-		resp, err := m.client.ListDatasets(orgName)
+		resp, err := m.client.ListDatasets(m.ctx, orgName)
 		if err != nil {
 			return datasetsFetchedMsg{err: err}
 		}
@@ -61,7 +61,7 @@ func (m model) fetchDatasetData(ds *opengate.Dataset) tea.Cmd {
 		if orgName == "" {
 			return datasetsDataFetchedMsg{err: fmt.Errorf("organization required")}
 		}
-		data, err := m.client.QueryDatasetData(orgName, ds.Identifier, nil)
+		data, err := m.client.QueryDatasetData(m.ctx, orgName, ds.Identifier, nil)
 		return datasetsDataFetchedMsg{ds: ds, data: data, err: err}
 	}
 }

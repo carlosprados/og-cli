@@ -1,15 +1,16 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 const (
-	searchDatamodelsPath    = "/north/v80/search/datamodels"
-	provisionDatamodelsPath = "/north/v80/provision/organizations/%s/datamodels"
-	datamodelPath           = "/north/v80/provision/organizations/%s/datamodels/%s"
+	searchDatamodelsPath    = "/north/{v}/search/datamodels"
+	provisionDatamodelsPath = "/north/{v}/provision/organizations/%s/datamodels"
+	datamodelPath           = "/north/{v}/provision/organizations/%s/datamodels/%s"
 )
 
 // Datamodel represents an OpenGate data model.
@@ -69,14 +70,9 @@ type SearchDatamodelsResponse struct {
 	Page       *Page       `json:"page,omitempty"`
 }
 
-// Page holds pagination info.
-type Page struct {
-	Number int `json:"number,omitempty"`
-}
-
 // SearchDatamodels searches for datamodels using a filter body.
 // If filter is nil, all datamodels are returned.
-func (c *Client) SearchDatamodels(filter json.RawMessage) (*SearchDatamodelsResponse, error) {
+func (c *Client) SearchDatamodels(ctx context.Context, filter json.RawMessage) (*SearchDatamodelsResponse, error) {
 	var body string
 	if filter != nil {
 		body = string(filter)
@@ -84,7 +80,7 @@ func (c *Client) SearchDatamodels(filter json.RawMessage) (*SearchDatamodelsResp
 		body = "{}"
 	}
 
-	data, statusCode, err := c.Post(searchDatamodelsPath, strings.NewReader(body))
+	data, statusCode, err := c.Post(ctx, searchDatamodelsPath, strings.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("search datamodels: %w", err)
 	}
@@ -103,10 +99,10 @@ func (c *Client) SearchDatamodels(filter json.RawMessage) (*SearchDatamodelsResp
 }
 
 // GetDatamodel retrieves a single datamodel by organization and identifier.
-func (c *Client) GetDatamodel(orgName, id string) (*Datamodel, error) {
+func (c *Client) GetDatamodel(ctx context.Context, orgName, id string) (*Datamodel, error) {
 	path := fmt.Sprintf(datamodelPath, orgName, id)
 
-	data, statusCode, err := c.Get(path)
+	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("get datamodel: %w", err)
 	}
@@ -123,10 +119,10 @@ func (c *Client) GetDatamodel(orgName, id string) (*Datamodel, error) {
 
 // CreateDatamodel creates a new datamodel in the given organization.
 // The body should be the full JSON datamodel payload.
-func (c *Client) CreateDatamodel(orgName string, body json.RawMessage) error {
+func (c *Client) CreateDatamodel(ctx context.Context, orgName string, body json.RawMessage) error {
 	path := fmt.Sprintf(provisionDatamodelsPath, orgName)
 
-	data, statusCode, err := c.Post(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.Post(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return fmt.Errorf("create datamodel: %w", err)
 	}
@@ -134,10 +130,10 @@ func (c *Client) CreateDatamodel(orgName string, body json.RawMessage) error {
 }
 
 // UpdateDatamodel updates an existing datamodel.
-func (c *Client) UpdateDatamodel(orgName, id string, body json.RawMessage) error {
+func (c *Client) UpdateDatamodel(ctx context.Context, orgName, id string, body json.RawMessage) error {
 	path := fmt.Sprintf(datamodelPath, orgName, id)
 
-	data, statusCode, err := c.Put(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.Put(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return fmt.Errorf("update datamodel: %w", err)
 	}
@@ -145,10 +141,10 @@ func (c *Client) UpdateDatamodel(orgName, id string, body json.RawMessage) error
 }
 
 // DeleteDatamodel deletes a datamodel by organization and identifier.
-func (c *Client) DeleteDatamodel(orgName, id string) error {
+func (c *Client) DeleteDatamodel(ctx context.Context, orgName, id string) error {
 	path := fmt.Sprintf(datamodelPath, orgName, id)
 
-	data, statusCode, err := c.Delete(path)
+	data, statusCode, err := c.Delete(ctx, path)
 	if err != nil {
 		return fmt.Errorf("delete datamodel: %w", err)
 	}

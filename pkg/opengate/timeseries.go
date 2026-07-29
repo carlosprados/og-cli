@@ -1,16 +1,17 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 const (
-	timeseriesBasePath   = "/north/v80/timeseries/provision/organizations/%s"
-	timeseriesPath       = "/north/v80/timeseries/provision/organizations/%s/%s"
-	timeseriesDataPath   = "/north/v80/timeseries/provision/organizations/%s/%s/data"
-	timeseriesExportPath = "/north/v80/timeseries/provision/organizations/%s/%s/export"
+	timeseriesBasePath   = "/north/{v}/timeseries/provision/organizations/%s"
+	timeseriesPath       = "/north/{v}/timeseries/provision/organizations/%s/%s"
+	timeseriesDataPath   = "/north/{v}/timeseries/provision/organizations/%s/%s/data"
+	timeseriesExportPath = "/north/{v}/timeseries/provision/organizations/%s/%s/export"
 )
 
 // TimeSeries represents a time series definition.
@@ -64,10 +65,10 @@ type TimeSeriesDataResponse struct {
 }
 
 // ListTimeSeries returns all time series in an organization.
-func (c *Client) ListTimeSeries(orgName string) (*TimeSeriesListResponse, error) {
+func (c *Client) ListTimeSeries(ctx context.Context, orgName string) (*TimeSeriesListResponse, error) {
 	path := fmt.Sprintf(timeseriesBasePath, orgName) + "?expand=columns,context"
 
-	data, statusCode, err := c.Get(path)
+	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("list timeseries: %w", err)
 	}
@@ -86,10 +87,10 @@ func (c *Client) ListTimeSeries(orgName string) (*TimeSeriesListResponse, error)
 }
 
 // GetTimeSeries retrieves a single time series by org and identifier.
-func (c *Client) GetTimeSeries(orgName, id string) (*TimeSeries, error) {
+func (c *Client) GetTimeSeries(ctx context.Context, orgName, id string) (*TimeSeries, error) {
 	path := fmt.Sprintf(timeseriesPath, orgName, id)
 
-	data, statusCode, err := c.Get(path)
+	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("get timeseries: %w", err)
 	}
@@ -105,10 +106,10 @@ func (c *Client) GetTimeSeries(orgName, id string) (*TimeSeries, error) {
 }
 
 // CreateTimeSeries creates a new time series.
-func (c *Client) CreateTimeSeries(orgName string, body json.RawMessage) error {
+func (c *Client) CreateTimeSeries(ctx context.Context, orgName string, body json.RawMessage) error {
 	path := fmt.Sprintf(timeseriesBasePath, orgName)
 
-	data, statusCode, err := c.Post(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.Post(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return fmt.Errorf("create timeseries: %w", err)
 	}
@@ -116,10 +117,10 @@ func (c *Client) CreateTimeSeries(orgName string, body json.RawMessage) error {
 }
 
 // UpdateTimeSeries updates an existing time series.
-func (c *Client) UpdateTimeSeries(orgName, id string, body json.RawMessage) error {
+func (c *Client) UpdateTimeSeries(ctx context.Context, orgName, id string, body json.RawMessage) error {
 	path := fmt.Sprintf(timeseriesPath, orgName, id)
 
-	data, statusCode, err := c.Put(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.Put(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return fmt.Errorf("update timeseries: %w", err)
 	}
@@ -127,10 +128,10 @@ func (c *Client) UpdateTimeSeries(orgName, id string, body json.RawMessage) erro
 }
 
 // DeleteTimeSeries deletes a time series.
-func (c *Client) DeleteTimeSeries(orgName, id string) error {
+func (c *Client) DeleteTimeSeries(ctx context.Context, orgName, id string) error {
 	path := fmt.Sprintf(timeseriesPath, orgName, id)
 
-	data, statusCode, err := c.Delete(path)
+	data, statusCode, err := c.Delete(ctx, path)
 	if err != nil {
 		return fmt.Errorf("delete timeseries: %w", err)
 	}
@@ -138,7 +139,7 @@ func (c *Client) DeleteTimeSeries(orgName, id string) error {
 }
 
 // QueryTimeSeriesData searches data in a time series with filter/sort/limit.
-func (c *Client) QueryTimeSeriesData(orgName, id string, filter json.RawMessage) (*TimeSeriesDataResponse, error) {
+func (c *Client) QueryTimeSeriesData(ctx context.Context, orgName, id string, filter json.RawMessage) (*TimeSeriesDataResponse, error) {
 	path := fmt.Sprintf(timeseriesDataPath, orgName, id)
 
 	var body string
@@ -148,7 +149,7 @@ func (c *Client) QueryTimeSeriesData(orgName, id string, filter json.RawMessage)
 		body = "{}"
 	}
 
-	data, statusCode, err := c.Post(path, strings.NewReader(body))
+	data, statusCode, err := c.Post(ctx, path, strings.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("query timeseries data: %w", err)
 	}
@@ -167,7 +168,7 @@ func (c *Client) QueryTimeSeriesData(orgName, id string, filter json.RawMessage)
 }
 
 // ExportTimeSeries triggers a Parquet export of a time series.
-func (c *Client) ExportTimeSeries(orgName, id string, filter json.RawMessage) error {
+func (c *Client) ExportTimeSeries(ctx context.Context, orgName, id string, filter json.RawMessage) error {
 	path := fmt.Sprintf(timeseriesExportPath, orgName, id)
 
 	var body string
@@ -177,7 +178,7 @@ func (c *Client) ExportTimeSeries(orgName, id string, filter json.RawMessage) er
 		body = "{}"
 	}
 
-	data, statusCode, err := c.Post(path, strings.NewReader(body))
+	data, statusCode, err := c.Post(ctx, path, strings.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("export timeseries: %w", err)
 	}

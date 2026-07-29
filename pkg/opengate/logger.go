@@ -1,6 +1,7 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -32,7 +33,7 @@ type LogMessage struct {
 // kind is LoggerConnectorFunctions or LoggerRules. Authentication uses the
 // X-ApiKey URL parameter (the device/server API key, not the JWT). level is one
 // of ERROR, WARN, INFO, DEBUG, TRACE; empty defaults to the server's INFO.
-func (c *Client) StreamFunctionLogs(apiKey, kind, org, channel, id, level string, onMessage func(LogMessage), stop <-chan struct{}) error {
+func (c *Client) StreamFunctionLogs(ctx context.Context, apiKey, kind, org, channel, id, level string, onMessage func(LogMessage), stop <-chan struct{}) error {
 	scheme := "wss"
 	host := c.BaseURL
 	switch {
@@ -50,7 +51,7 @@ func (c *Client) StreamFunctionLogs(apiKey, kind, org, channel, id, level string
 	endpoint := fmt.Sprintf("%s://%s"+functionsLoggerPath+"?%s",
 		scheme, host, kind, org, channel, id, q.Encode())
 
-	conn, resp, err := websocket.DefaultDialer.Dial(endpoint, nil)
+	conn, resp, err := websocket.DefaultDialer.DialContext(ctx, endpoint, nil)
 	if err != nil {
 		if resp != nil {
 			return fmt.Errorf("functions-logger dial failed (HTTP %d): %w", resp.StatusCode, err)
@@ -85,7 +86,7 @@ func (c *Client) StreamFunctionLogs(apiKey, kind, org, channel, id, level string
 // CollectFunctionLogs streams logs and accumulates them until stop is signalled
 // or max messages are collected (max <= 0 means unbounded until stop). Returns
 // the messages gathered. Convenience for non-interactive callers (MCP tools).
-func (c *Client) CollectFunctionLogs(apiKey, kind, org, channel, id, level string, max int, stop <-chan struct{}) ([]LogMessage, error) {
+func (c *Client) CollectFunctionLogs(ctx context.Context, apiKey, kind, org, channel, id, level string, max int, stop <-chan struct{}) ([]LogMessage, error) {
 	var msgs []LogMessage
 	done := make(chan struct{})
 	var once int32
@@ -105,7 +106,7 @@ func (c *Client) CollectFunctionLogs(apiKey, kind, org, channel, id, level strin
 		close(relay)
 	}()
 
-	err := c.StreamFunctionLogs(apiKey, kind, org, channel, id, level, func(m LogMessage) {
+	err := c.StreamFunctionLogs(ctx, apiKey, kind, org, channel, id, level, func(m LogMessage) {
 		msgs = append(msgs, m)
 		if max > 0 && len(msgs) >= max {
 			closeDone()

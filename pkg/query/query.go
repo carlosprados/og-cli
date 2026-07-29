@@ -156,16 +156,26 @@ func containsString(ss []string, s string) bool {
 	return false
 }
 
+// MaxPageSize is the largest limit.size OpenGate accepts for a search.
+// Documented in the platform's limit schema; a larger value is rejected by the
+// server, not clamped here.
+const MaxPageSize = 2000
+
 // SearchParams groups all parameters for building a search request.
 type SearchParams struct {
 	Conditions []Condition
-	Limit      int
-	Select     []SelectClause
+	// Limit is limit.size: how many entities one page holds (max MaxPageSize).
+	Limit int
+	// Start is limit.start: the page number to fetch. OpenGate counts pages
+	// from 1, so Start is a page index and not an element offset. Zero means
+	// "unset" and lets the platform serve the first page.
+	Start  int
+	Select []SelectClause
 }
 
 // BuildFilter converts SearchParams into the OpenGate search JSON body.
 func BuildFilter(p SearchParams) (json.RawMessage, error) {
-	if len(p.Conditions) == 0 && p.Limit == 0 && len(p.Select) == 0 {
+	if len(p.Conditions) == 0 && p.Limit == 0 && p.Start == 0 && len(p.Select) == 0 {
 		return json.RawMessage("{}"), nil
 	}
 
@@ -181,8 +191,15 @@ func BuildFilter(p SearchParams) (json.RawMessage, error) {
 		body["filter"] = map[string]any{"and": clauses}
 	}
 
-	if p.Limit > 0 {
-		body["limit"] = map[string]any{"size": p.Limit}
+	if p.Limit > 0 || p.Start > 0 {
+		limit := make(map[string]any)
+		if p.Limit > 0 {
+			limit["size"] = p.Limit
+		}
+		if p.Start > 0 {
+			limit["start"] = p.Start
+		}
+		body["limit"] = limit
 	}
 
 	if len(p.Select) > 0 {
@@ -202,7 +219,7 @@ func MergeWithRaw(p SearchParams, raw string) (json.RawMessage, error) {
 	if raw != "" {
 		return json.RawMessage(raw), nil
 	}
-	if len(p.Conditions) == 0 && p.Limit == 0 && len(p.Select) == 0 {
+	if len(p.Conditions) == 0 && p.Limit == 0 && p.Start == 0 && len(p.Select) == 0 {
 		return nil, nil
 	}
 	return BuildFilter(p)

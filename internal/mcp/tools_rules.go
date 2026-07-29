@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -37,7 +37,7 @@ func rulesCatalogHandler(p *provider) server.ToolHandlerFunc {
 		if errRes != nil {
 			return errRes, nil
 		}
-		data, err := c.RulesCatalog()
+		data, err := c.RulesCatalog(ctx)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("catalog failed: %v", err)), nil
 		}
@@ -70,7 +70,7 @@ func rulesLogsHandler(p *provider) server.ToolHandlerFunc {
 			return errRes, nil
 		}
 		args := request.GetArguments()
-		return functionLogsResult(c, apiKey, opengate.LoggerRules, ruleChannelArg(args), args)
+		return functionLogsResult(ctx, c, apiKey, opengate.LoggerRules, ruleChannelArg(args), args)
 	}
 }
 
@@ -111,7 +111,7 @@ func rulesSearchHandler(p *provider) server.ToolHandlerFunc {
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid query: %v", err)), nil
 		}
-		resp, err := c.SearchRules(filter)
+		resp, err := c.SearchRules(ctx, filter)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
 		}
@@ -146,7 +146,7 @@ func rulesGetHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
-		data, err := c.GetRule(org, ruleChannelArg(args), id)
+		data, err := c.GetRule(ctx, org, ruleChannelArg(args), id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
@@ -188,7 +188,7 @@ func rulesCreateHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || body == "" {
 			return mcp.NewToolResultError("organization and body are required"), nil
 		}
-		if _, err := c.CreateRule(org, ruleChannelArg(args), json.RawMessage(body)); err != nil {
+		if _, err := c.CreateRule(ctx, org, ruleChannelArg(args), json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("create failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Rule created successfully."), nil
@@ -220,7 +220,7 @@ func rulesUpdateHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" || body == "" {
 			return mcp.NewToolResultError("organization, id, and body are required"), nil
 		}
-		if err := c.UpdateRule(org, ruleChannelArg(args), id, json.RawMessage(body)); err != nil {
+		if err := c.UpdateRule(ctx, org, ruleChannelArg(args), id, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("update failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Rule updated successfully."), nil
@@ -250,7 +250,7 @@ func rulesDeleteHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
-		if err := c.DeleteRule(org, ruleChannelArg(args), id); err != nil {
+		if err := c.DeleteRule(ctx, org, ruleChannelArg(args), id); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("delete failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Rule deleted successfully."), nil
@@ -282,7 +282,7 @@ func rulesSetActiveHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" || !ok {
 			return mcp.NewToolResultError("organization, id, and active are required"), nil
 		}
-		if err := c.SetRuleActive(org, ruleChannelArg(args), id, active); err != nil {
+		if err := c.SetRuleActive(ctx, org, ruleChannelArg(args), id, active); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("set active failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText(fmt.Sprintf("Rule active=%v applied.", active)), nil

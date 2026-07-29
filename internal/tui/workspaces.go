@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -34,7 +34,7 @@ type workspaceDetailFetchedMsg struct {
 
 func (m model) fetchWorkspaces() tea.Cmd {
 	return func() tea.Msg {
-		wss, err := m.client.ListWorkspaces(true)
+		wss, err := m.client.ListWorkspaces(m.ctx, true)
 		if err != nil {
 			return workspacesFetchedMsg{err: err}
 		}
@@ -44,7 +44,7 @@ func (m model) fetchWorkspaces() tea.Cmd {
 
 func (m model) fetchWorkspaceDetail(id string) tea.Cmd {
 	return func() tea.Msg {
-		w, err := m.client.GetWorkspace(id, true)
+		w, err := m.client.GetWorkspace(m.ctx, id, true)
 		return workspaceDetailFetchedMsg{ws: w, err: err}
 	}
 }

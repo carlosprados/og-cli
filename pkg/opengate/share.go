@@ -1,6 +1,7 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -22,16 +23,16 @@ type ShareRequest struct {
 // ShareWorkspace shares a workspace with the given users/domains. This is the
 // ONLY mechanism that grants visibility to other users — setting users[] via
 // the regular workspace PUT does not.
-func (c *Client) ShareWorkspace(id string, users, domains []string) (json.RawMessage, error) {
-	return c.share(fmt.Sprintf(shareWorkspacePath, id), "workspace", users, domains)
+func (c *Client) ShareWorkspace(ctx context.Context, id string, users, domains []string) (json.RawMessage, error) {
+	return c.share(ctx, fmt.Sprintf(shareWorkspacePath, id), "workspace", users, domains)
 }
 
 // ShareDashboard shares a single dashboard with the given users/domains.
-func (c *Client) ShareDashboard(id string, users, domains []string) (json.RawMessage, error) {
-	return c.share(fmt.Sprintf(shareDashboardPath, id), "dashboard", users, domains)
+func (c *Client) ShareDashboard(ctx context.Context, id string, users, domains []string) (json.RawMessage, error) {
+	return c.share(ctx, fmt.Sprintf(shareDashboardPath, id), "dashboard", users, domains)
 }
 
-func (c *Client) share(path, kind string, users, domains []string) (json.RawMessage, error) {
+func (c *Client) share(ctx context.Context, path, kind string, users, domains []string) (json.RawMessage, error) {
 	if users == nil {
 		users = []string{}
 	}
@@ -43,7 +44,7 @@ func (c *Client) share(path, kind string, users, domains []string) (json.RawMess
 		return nil, fmt.Errorf("marshaling share request: %w", err)
 	}
 
-	data, statusCode, err := c.WebPut(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.WebPut(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, fmt.Errorf("share %s: %w", kind, err)
 	}

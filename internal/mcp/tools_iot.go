@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -36,7 +36,10 @@ NOTE: if the device does not exist, the South API returns HTTP 401 0x04 "Unautho
 
 func iotCollectRawHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		host := p.host
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		apiKey, errRes := p.apiKey(ctx)
 		if errRes != nil {
 			return errRes, nil
@@ -53,7 +56,7 @@ func iotCollectRawHandler(p *provider) server.ToolHandlerFunc {
 		}
 		contentType, _ := args["content_type"].(string)
 
-		data, status, err := opengate.CollectRaw(host, apiKey, deviceID, route, []byte(body), contentType)
+		data, status, err := c.CollectRaw(ctx, apiKey, deviceID, route, []byte(body), contentType)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("collect-raw failed: %v", err)), nil
 		}
@@ -90,7 +93,10 @@ Examples:
 
 func iotCollectHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		host := p.host
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		apiKey, errRes := p.apiKey(ctx)
 		if errRes != nil {
 			return errRes, nil
@@ -110,7 +116,7 @@ func iotCollectHandler(p *provider) server.ToolHandlerFunc {
 
 		value := mcpParseValue(rawValue)
 
-		if err := opengate.CollectSimple(host, apiKey, deviceID, datastreamID, value); err != nil {
+		if err := c.CollectSimple(ctx, apiKey, deviceID, datastreamID, value); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("collect failed: %v", err)), nil
 		}
 
@@ -137,7 +143,10 @@ The payload follows the OpenGate collection format with version, datastreams, an
 
 func iotCollectPayloadHandler(p *provider) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		host := p.host
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
 		apiKey, errRes := p.apiKey(ctx)
 		if errRes != nil {
 			return errRes, nil
@@ -159,7 +168,7 @@ func iotCollectPayloadHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid payload: %v", err)), nil
 		}
 
-		if err := opengate.CollectIoT(host, apiKey, deviceID, payload); err != nil {
+		if err := c.CollectIoT(ctx, apiKey, deviceID, payload); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("collect failed: %v", err)), nil
 		}
 

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/carlosprados/og-cli/internal/output"
-	"github.com/carlosprados/og-cli/internal/query"
-	"github.com/carlosprados/og-cli/internal/views"
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/internal/output"
+	"github.com/carlosprados/og-cli/v2/internal/views"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/query"
 	"github.com/spf13/cobra"
 )
 
@@ -47,6 +47,8 @@ var (
 	devSearchFilter string
 	devSearchWhere  []string
 	devSearchLimit  int
+	devSearchPage   int
+	devSearchAll    bool
 	devSearchSelect []string
 	devSearchView   []string
 	devSearchAt     bool
@@ -57,7 +59,7 @@ func runDevicesSearch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	selectClauses := query.SelectFromFields(devSearchSelect, devSearchAt)
 	if len(devSearchView) > 0 {
@@ -71,21 +73,38 @@ func runDevicesSearch(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	filter, err := buildSearchFilter(devSearchWhere, devSearchLimit, selectClauses, devSearchFilter)
+	if devSearchAll && devSearchPage > 0 {
+		return fmt.Errorf("--all walks every page; it cannot be combined with --page")
+	}
+
+	filter, err := buildSearchFilterPaged(devSearchWhere, devSearchLimit, devSearchPage, selectClauses, devSearchFilter)
 	if err != nil {
 		return err
 	}
 
-	resp, err := c.SearchDevices(filter)
-	if err != nil {
-		return err
+	var devices []json.RawMessage
+	if devSearchAll {
+		// Walk every page instead of returning whatever the platform's default
+		// page happens to hold — otherwise a large fleet is truncated silently.
+		for dev, err := range c.SearchDevicesAll(cmd.Context(), filter) {
+			if err != nil {
+				return err
+			}
+			devices = append(devices, dev)
+		}
+	} else {
+		resp, err := c.SearchDevices(cmd.Context(), filter)
+		if err != nil {
+			return err
+		}
+		devices = resp.Devices
 	}
 
 	if len(selectClauses) > 0 {
-		return printSelectedDevices(resp.Devices, selectClauses)
+		return printSelectedDevices(devices, selectClauses)
 	}
 
-	return output.Print(outFmt, resp.Devices,
+	return output.Print(outFmt, devices,
 		[]string{"Identifier", "Name", "Organization", "State"},
 		func(data any) [][]string {
 			devices := data.([]json.RawMessage)
@@ -101,6 +120,12 @@ func runDevicesSearch(cmd *cobra.Command, args []string) error {
 
 // buildSearchFilter is shared by all search commands.
 func buildSearchFilter(where []string, limit int, sel []query.SelectClause, rawFilter string) (json.RawMessage, error) {
+	return buildSearchFilterPaged(where, limit, 0, sel, rawFilter)
+}
+
+// buildSearchFilterPaged is buildSearchFilter with an explicit page number.
+// start is a 1-based page index (limit.start), not an element offset.
+func buildSearchFilterPaged(where []string, limit, start int, sel []query.SelectClause, rawFilter string) (json.RawMessage, error) {
 	var conditions []query.Condition
 	for _, w := range where {
 		// ParseQuery supports "cond AND cond" inside one -w, matching the
@@ -114,6 +139,7 @@ func buildSearchFilter(where []string, limit int, sel []query.SelectClause, rawF
 	return query.MergeWithRaw(query.SearchParams{
 		Conditions: conditions,
 		Limit:      limit,
+		Start:      start,
 		Select:     sel,
 	}, rawFilter)
 }
@@ -176,9 +202,9 @@ func runDevicesGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
-	data, err := c.GetDevice(orgName, args[0])
+	data, err := c.GetDevice(cmd.Context(), orgName, args[0])
 	if err != nil {
 		return err
 	}
@@ -228,8 +254,8 @@ func runDevicesCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
-	if err := c.CreateDevice(orgName, body); err != nil {
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
+	if err := c.CreateDevice(cmd.Context(), orgName, body); err != nil {
 		return err
 	}
 
@@ -263,8 +289,8 @@ func runDevicesUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
-	if err := c.UpdateDevice(orgName, args[0], body); err != nil {
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
+	if err := c.UpdateDevice(cmd.Context(), orgName, args[0], body); err != nil {
 		return err
 	}
 
@@ -294,8 +320,8 @@ func runDevicesDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := opengate.New(p.Host, p.Token)
-	if err := c.DeleteDevice(orgName, args[0]); err != nil {
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
+	if err := c.DeleteDevice(cmd.Context(), orgName, args[0]); err != nil {
 		return err
 	}
 
@@ -310,7 +336,9 @@ func init() {
 	devicesSearchCmd.Flags().StringArrayVarP(&devSearchSelect, "select", "s", nil, "fields to return (repeatable; append @at/@date/@source for sub-fields, e.g. -s wt@at@date)")
 	devicesSearchCmd.Flags().BoolVar(&devSearchAt, "at", false, "include the at timestamp for every selected field")
 	devicesSearchCmd.Flags().StringSliceVar(&devSearchView, "view", nil, "named views to project (comma-separated or repeatable, e.g. --view summary,power); see 'og views list'")
-	devicesSearchCmd.Flags().IntVar(&devSearchLimit, "limit", 0, "max number of results")
+	devicesSearchCmd.Flags().IntVar(&devSearchLimit, "limit", 0, "page size (max number of results per request; platform max 2000)")
+	devicesSearchCmd.Flags().IntVar(&devSearchPage, "page", 0, "page number to fetch, counting from 1 (default: first page)")
+	devicesSearchCmd.Flags().BoolVar(&devSearchAll, "all", false, "fetch every page instead of just the first (uses --limit as the page size)")
 	devicesSearchCmd.Flags().StringVar(&devSearchFilter, "filter", "", "raw search filter as JSON (overrides -w)")
 
 	devicesCreateCmd.Flags().StringVarP(&devCreateFile, "file", "f", "", "path to JSON file with device definition")

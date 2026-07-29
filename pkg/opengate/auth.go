@@ -1,6 +1,7 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +13,7 @@ import (
 )
 
 const (
-	loginPath     = "/north/v80/provision/users/login"
+	loginPath     = "/north/{v}/provision/users/login"
 	webSignInPath = "/api/auth/signin/internal"
 )
 
@@ -76,7 +77,7 @@ type WebSignInResult struct {
 // WebSignIn exchanges the north-API bearer token (already set on the Client)
 // for a Web API JWT. The body fields email/domain/profile/workgroup are all
 // required by the server.
-func (c *Client) WebSignIn(req WebSignInRequest) (*WebSignInResult, error) {
+func (c *Client) WebSignIn(ctx context.Context, req WebSignInRequest) (*WebSignInResult, error) {
 	if c.Token == "" {
 		return nil, fmt.Errorf("web signin requires a north API token (run og login first)")
 	}
@@ -89,7 +90,7 @@ func (c *Client) WebSignIn(req WebSignInRequest) (*WebSignInResult, error) {
 		return nil, fmt.Errorf("marshaling web signin: %w", err)
 	}
 
-	data, statusCode, err := c.Post(webSignInPath, strings.NewReader(string(payload)))
+	data, statusCode, err := c.Post(ctx, webSignInPath, strings.NewReader(string(payload)))
 	if err != nil {
 		return nil, fmt.Errorf("web signin request: %w", err)
 	}
@@ -141,7 +142,7 @@ func GenerateTOTPCode(secret string) (string, error) {
 // domain. twoFaCode is the 6-digit TOTP code for accounts with 2FA enabled;
 // pass "" when the account has no 2FA. When 2FA is required but the code is
 // missing or invalid, the returned error satisfies Is2FAChallenge.
-func (c *Client) Login(email, password, twoFaCode string) (*LoginResult, error) {
+func (c *Client) Login(ctx context.Context, email, password, twoFaCode string) (*LoginResult, error) {
 	if _, err := mail.ParseAddress(email); err != nil {
 		return nil, fmt.Errorf("invalid email address %q", email)
 	}
@@ -151,7 +152,7 @@ func (c *Client) Login(email, password, twoFaCode string) (*LoginResult, error) 
 		return nil, fmt.Errorf("marshaling login request: %w", err)
 	}
 
-	data, statusCode, err := c.Post(loginPath, strings.NewReader(string(payload)))
+	data, statusCode, err := c.Post(ctx, loginPath, strings.NewReader(string(payload)))
 	if err != nil {
 		return nil, fmt.Errorf("login request: %w", err)
 	}

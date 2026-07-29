@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 )
 
 // Wrap reconstructs a workspace from a previously-unwrapped directory tree.

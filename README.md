@@ -31,7 +31,7 @@ task clean      # remove build artifacts
 Or install directly:
 
 ```bash
-go install github.com/carlosprados/og-cli@latest
+go install github.com/carlosprados/og-cli/v2@latest
 ```
 
 ## Configuration
@@ -48,7 +48,15 @@ profiles:
   staging:
     host: https://staging-api.opengate.es
     organization: my-org-staging
+  on-prem:
+    host: https://opengate.customer.local
+    api_version: v79        # instance pinned to another API version
+    retries: 3              # retry 429/5xx with exponential backoff
+    ca_file: /etc/ssl/customer-ca.pem
 ```
+
+Global flags override the profile: `--api-version`, `--retry N`, `--insecure`,
+`--ca-file`. `--api-version` applies to both REST planes (North and South).
 
 Environment variables (prefix `OG_`) override config values:
 
@@ -64,6 +72,8 @@ Environment variables (prefix `OG_`) override config values:
 | `OG_2FA_SECRET` | base32 TOTP secret; og derives the code itself (not persisted) |
 | `OG_INSECURE` | Skip TLS verification (`true`/`false`) |
 | `OG_CA_FILE` | Path to an extra CA/chain PEM to trust |
+| `OG_API_VERSION` | API version segment (default `v80`; for on-premises instances) |
+| `OG_RETRIES` | Attempts per request; retries HTTP 429 and 5xx with backoff |
 
 A `.env` file in the current directory is also loaded automatically.
 
@@ -108,13 +118,35 @@ og dev search -w "provision.device.administrativeState eq ACTIVE"
 # Multiple conditions (AND)
 og dev search -w "provision.device.identifier like sense" -w "provision.device.administrativeState eq TESTING"
 
-# With limit
+# With a page size
 og dev search -w "provision.device.identifier like sense" --limit 10
 ```
 
 **Operators:** `eq`, `neq`, `like`, `gt`, `lt`, `gte`, `lte`, `in`, `exists`
 
 Multiple `-w` flags are combined with AND. For OR or nested queries, use `--filter` with raw JSON.
+
+### Pagination
+
+OpenGate searches are paged, so **the first page is not necessarily the whole
+answer**. Responses carry a `page` block with `number` (the 1-based page you got)
+and, on most endpoints, `of` (total pages).
+
+```bash
+# Page size (limit.size) — the platform maximum is 2000
+og dev search --limit 500
+
+# A specific page. --page is a PAGE NUMBER counting from 1, not an element offset
+og dev search --limit 500 --page 3
+
+# Every page, combined into one result — use this whenever completeness matters
+og dev search --all
+og dev search --all --limit 500        # --limit becomes the page size
+```
+
+`--all` and `--page` are mutually exclusive. Any question of the form "how many
+devices…" needs `--all`, otherwise the answer is silently "as many as fit in one
+page".
 
 ## Views — project fields by intent
 
@@ -314,6 +346,11 @@ og dev search -s provision.device.identifier -s wt@at -s wp \
 # Named views — common field sets without memorizing paths (see "Views" above)
 og dev search --view summary
 og dev search --view summary,power -s wt
+
+# Pagination (see "Pagination" above): one page, a given page, or all of them
+og dev search --limit 500
+og dev search --limit 500 --page 2
+og dev search --all --view summary
 
 # Get
 og dev get sense-001
@@ -565,17 +602,52 @@ Manage OpenGate operation jobs — execute operations on devices.
 # Search
 og jobs search
 og jobs search --limit 10
-og jobs search -w "jobs.report.summary.status eq IN_PROGRESS"
-og jobs search -w "jobs.request.name eq REBOOT_EQUIPMENT"
+og jobs search -w "jobStatus eq IN_PROGRESS"
+og jobs search -w "operationName eq REBOOT_EQUIPMENT"
 
 # Get report / create / cancel
 og jobs get <job-id>
-og jobs create -f job.json
+og jobs create -f job.json                     # single batch: up to 100 entities
 og jobs cancel <job-id>
 
-# List per-device operations within a job
+# Launch over a large fleet: creates inactive, appends targets in batches, activates last
+og jobs launch -f job.json --entities-file meters.txt
+og jobs launch -f job.json --entity dev-1 --entity dev-2 --batch 50
+
+# List per-device operations within a job, with their execution steps
 og jobs operations <job-id>
+og jobs operations <job-id> --all              # every page — a job over a big fleet is paged
+og jobs operations <job-id> --page 2 --limit 100
+
+# Operation history: closed operations across jobs, filterable
+og jobs history --job <job-id> --all           # read back one job's results
+og jobs history -w "operationName eq DIAGNOSIS" --limit 100
+og jobs history -w "operationResult eq ERROR" --all      # only the failures
+og jobs history -w "entityId eq dev-1" --output json
 ```
+
+Each operation carries `status` (lifecycle, e.g. `FINISHED`) and `result` (outcome,
+e.g. `SUCCESSFUL`), plus `steps[]` where every step has a `name`, a `result`
+(`SUCCESSFUL`, `ERROR`, `SKIPPED`, `NOT_EXECUTED`) and a `description`. The table
+output compacts the steps into `NAME=OK/ERR/SKIP/NOTRUN`; use `--output json` for
+the descriptions, which is where the reason for a failure is written.
+
+`jobs operations` lists one job by id and caps its page size at 1000; `jobs history`
+takes a filter and caps at 2000. **A `FINISHED` job does not mean every device
+succeeded, and the first page is not the whole job** — pass `--all` when the question
+is "did they all work" or "how many failed".
+
+**The history filter field names do not match the response field names.** Identifiers go
+unprefixed — `jobId`, `entityId`, `operationId`, `resourceType` — while the rest take an
+`operation` prefix: `operationName` (or `operation.name`), `operationStatus`,
+`operationResult` (or `operation.result`), `operationDate`, `operationNotify`. Anything
+else is rejected with HTTP 400 *"Field in filter unknown"*, including a bare `result` or
+`status`, any `operations.` prefix, and `operation.status`. Outcome **is** filterable, so
+ask for the failures rather than fetching everything.
+
+Note that `jobs operations` has been observed returning HTTP 204 (no content) for a
+job whose operations do exist and are returned by `jobs history`. When results matter,
+prefer `og jobs history --job <id>`.
 
 Example job JSON for REBOOT_EQUIPMENT:
 
@@ -1227,6 +1299,134 @@ touches the skills `og` manages — other skills in the destination are left
 alone. If a skill already exists it **aborts and lists** what it would replace;
 re-run with `--force` to overwrite, adding `--backup` to keep a `<skill>.bak`
 copy of the previous version.
+
+## Use as a Go library
+
+Besides the CLI, TUI and MCP server, `og` exposes its OpenGate client as an
+importable library. `pkg/opengate` is the API client and `pkg/query` the search
+filter builder; everything under `internal/` is CLI-private.
+
+```bash
+go get github.com/carlosprados/og-cli/v2/pkg/opengate
+```
+
+> The module path carries `/v2`. Version 2 broke the library API deliberately — every
+> I/O method now takes a `context.Context` first, `New` accepts options, and the South
+> API calls became client methods. Code on v1 keeps working on v1; it does not compile
+> against v2 without those changes.
+
+```go
+import (
+    "github.com/carlosprados/og-cli/v2/pkg/opengate"
+    "github.com/carlosprados/og-cli/v2/pkg/query"
+)
+
+// Options configure this client only — nothing is process-wide.
+c := opengate.New("https://api.opengate.es", jwtToken,
+    opengate.WithHTTPClient(&http.Client{Timeout: 15 * time.Second}),
+    opengate.WithTLS(false, "/etc/ssl/extra-ca.pem"), // --insecure / --ca-file equivalents
+    opengate.WithAPIVersion("v80"),                   // for an on-premises instance on another version
+)
+if err := c.Err(); err != nil {
+    return err // e.g. an unreadable ca-file: New defers the error instead of panicking
+}
+
+filter, err := query.BuildFilter(query.SearchParams{
+    Conditions: []query.Condition{{Field: "provision.device.identifier", Op: "eq", Value: "dev-1"}},
+    Limit:      100,
+})
+
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+devices, err := c.SearchDevices(ctx, filter)
+```
+
+Searches are paged. Walk them with the iterator rather than asking for
+everything at once:
+
+```go
+for dev, err := range c.SearchDevicesAll(ctx, filter) {
+    if err != nil {
+        return err // includes ctx cancellation, so a partial walk is never silent
+    }
+    process(dev)
+}
+```
+
+`SearchDevicesAll` requests `limit.size` from your filter (or
+`opengate.DefaultPageSize`) and stops at the last page. For manual control use
+`SearchDevicesPage(ctx, filter, page, size)`; `page` counts from **1** and is a
+page number, not an element offset.
+
+Launching an operation over a fleet larger than one target list (100 entities) uses
+the batched pattern, with activation merged into the last batch so the job is never
+active with a partial target:
+
+```go
+res, err := c.LaunchJob(ctx, opengate.JobRequest{
+    Name:     "DIAGNOSIS",
+    Callback: "https://my-service/jobs/callback",
+    Notify:   opengate.Ptr(true),
+    Schedule: &opengate.JobSchedule{
+        Stop:       &opengate.JobScheduleTime{Delayed: 21_600_000}, // 6 h window
+        Scattering: opengate.DefaultScattering(),                   // maxSpread 80
+    },
+    OperationParameters: &opengate.OperationParams{
+        Timeout: 60_000, AckTimeout: 5_000, Retries: opengate.Ptr(0),
+    },
+}, meterIDs, opengate.LaunchOptions{
+    OnProgress: func(p opengate.LaunchProgress) {
+        // The id arrives before the first batch, so it can be persisted and resumed.
+        log.Printf("job %s: %d/%d", p.JobID, p.Appended, p.Total)
+    },
+})
+if !res.Rejected.Empty() {
+    // notProvisioned / notAllowed / duplicated arrive inside SUCCESSFUL responses:
+    // ignore them and the job silently covers fewer devices than requested.
+}
+```
+
+`scattering.maxSpread` is a percentage of the job's window and **must never be 100** —
+the last operations would be launched exactly as the window expires and never run, since
+the platform does not measure durations to reserve that margin. The library refuses
+anything above `MaxScatteringSpread` (90); `DefaultScattering()` uses 80.
+
+For a service making thousands of calls against someone else's instance, enable
+retries — they are **off by default**, because a library must not silently multiply
+a caller's writes:
+
+```go
+c := opengate.New(host, "", 
+    opengate.WithAPIKey(key),
+    opengate.WithRetry(opengate.DefaultRetryPolicy()), // 3 attempts, backoff + jitter
+)
+```
+
+The policy honours `Retry-After` when the server sends one, and applies full jitter
+so a fleet of throttled clients does not come back in lockstep. What it retries:
+
+| Outcome | Retried? |
+|---|---|
+| HTTP 429 | always — a rate-limited request was never processed |
+| 5xx or a transport error, on `GET`/`PUT`/`DELETE` | yes |
+| 5xx on a **search** `POST` (`/search/…`, history, summaries) | yes — those change nothing |
+| 5xx on a mutating `POST` (create job, create task, login, alarm action) | **no** |
+| any other 4xx | no |
+
+That last distinction is the point: a 500 does not tell you whether the server acted
+before failing, so repeating a job creation can launch the operation twice, and an
+operation already sent to a device cannot be recalled. Set
+`RetryPolicy.RetryNonIdempotent` if you accept that risk. Bulk provisioning uploads
+are never retried.
+
+Two more things worth knowing for long-running services:
+
+- **Every I/O method takes a `context.Context` first**, propagated down to the
+  HTTP request, so cancellation and per-request deadlines work end to end.
+- **Prefer an API key over a JWT for service accounts.** A JWT obtained at
+  start-up may be dead by the time a deferred phase runs hours later; an API key
+  does not expire. `opengate.WithAPIKey(key)` switches North API calls to the
+  `X-ApiKey` header. It never applies to the Web API, which has its own token.
 
 ## Documentation
 

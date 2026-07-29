@@ -2,8 +2,9 @@
 package tui
 
 import (
-	"github.com/carlosprados/og-cli/internal/config"
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"context"
+	"github.com/carlosprados/og-cli/v2/internal/config"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -36,6 +37,10 @@ const (
 
 // model is the top-level Bubble Tea model.
 type model struct {
+	// ctx is the command's context: it carries the CLI's signal cancellation, so
+	// a SIGTERM aborts in-flight requests instead of leaving them running.
+	ctx context.Context
+
 	view     view
 	prevView view
 	width    int
@@ -83,14 +88,15 @@ type model struct {
 
 // Run starts the interactive TUI. profileName is the selected profile (from
 // --profile); empty means the config's default profile.
-func Run(cfg *config.Config, profile *config.Profile, profileName, cfgPath string) error {
-	c := opengate.New(profile.Host, profile.Token).WithWebToken(profile.WebToken)
+func Run(ctx context.Context, cfg *config.Config, profile *config.Profile, profileName, cfgPath string) error {
+	c := opengate.New(profile.Host, profile.Token, profile.ClientOptions()...).WithWebToken(profile.WebToken)
 
 	if profileName == "" {
 		profileName = cfg.DefaultProfile
 	}
 
 	m := model{
+		ctx:         ctx,
 		view:        viewMenu,
 		cfg:         cfg,
 		profile:     profile,

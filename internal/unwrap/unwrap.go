@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 )
 
 // Unwrap creates the workspace root directory and writes workspace.json

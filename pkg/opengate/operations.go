@@ -1,6 +1,7 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -8,14 +9,14 @@ import (
 
 // Operations API uses /v80/ prefix (not /north/v80/)
 const (
-	searchJobsPath    = "/north/v80/search/jobs"
-	searchTasksPath   = "/north/v80/search/tasks"
-	jobsPath          = "/north/v80/operation/jobs"
-	jobPath           = "/north/v80/operation/jobs/%s"
-	jobOperationsPath = "/north/v80/operation/jobs/%s/operations"
-	tasksPath         = "/north/v80/operation/tasks"
-	taskPath          = "/north/v80/operation/tasks/%s"
-	taskJobsPath      = "/north/v80/operation/tasks/%s/jobs"
+	searchJobsPath    = "/north/{v}/search/jobs"
+	searchTasksPath   = "/north/{v}/search/tasks"
+	jobsPath          = "/north/{v}/operation/jobs"
+	jobPath           = "/north/{v}/operation/jobs/%s"
+	jobOperationsPath = "/north/{v}/operation/jobs/%s/operations"
+	tasksPath         = "/north/{v}/operation/tasks"
+	taskPath          = "/north/{v}/operation/tasks/%s"
+	taskJobsPath      = "/north/{v}/operation/tasks/%s/jobs"
 )
 
 // Job represents an OpenGate operation job.
@@ -52,12 +53,12 @@ type SearchTasksResponse struct {
 
 // JobOperationsResponse is the response listing operations within a job.
 type JobOperationsResponse struct {
-	Operations []json.RawMessage `json:"operations"`
-	Page       *Page             `json:"page,omitempty"`
+	Operations []Operation `json:"operations"`
+	Page       *Page       `json:"page,omitempty"`
 }
 
 // SearchJobs searches for jobs.
-func (c *Client) SearchJobs(filter json.RawMessage) (*SearchJobsResponse, error) {
+func (c *Client) SearchJobs(ctx context.Context, filter json.RawMessage) (*SearchJobsResponse, error) {
 	var body string
 	if filter != nil {
 		body = string(filter)
@@ -65,7 +66,7 @@ func (c *Client) SearchJobs(filter json.RawMessage) (*SearchJobsResponse, error)
 		body = "{}"
 	}
 
-	data, statusCode, err := c.Post(searchJobsPath, strings.NewReader(body))
+	data, statusCode, err := c.Post(ctx, searchJobsPath, strings.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("search jobs: %w", err)
 	}
@@ -84,7 +85,7 @@ func (c *Client) SearchJobs(filter json.RawMessage) (*SearchJobsResponse, error)
 }
 
 // SearchTasks searches for tasks.
-func (c *Client) SearchTasks(filter json.RawMessage) (*SearchTasksResponse, error) {
+func (c *Client) SearchTasks(ctx context.Context, filter json.RawMessage) (*SearchTasksResponse, error) {
 	var body string
 	if filter != nil {
 		body = string(filter)
@@ -92,7 +93,7 @@ func (c *Client) SearchTasks(filter json.RawMessage) (*SearchTasksResponse, erro
 		body = "{}"
 	}
 
-	data, statusCode, err := c.Post(searchTasksPath, strings.NewReader(body))
+	data, statusCode, err := c.Post(ctx, searchTasksPath, strings.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("search tasks: %w", err)
 	}
@@ -111,8 +112,8 @@ func (c *Client) SearchTasks(filter json.RawMessage) (*SearchTasksResponse, erro
 }
 
 // CreateJob creates a new operation job.
-func (c *Client) CreateJob(body json.RawMessage) (json.RawMessage, error) {
-	data, statusCode, err := c.Post(jobsPath, strings.NewReader(string(body)))
+func (c *Client) CreateJob(ctx context.Context, body json.RawMessage) (json.RawMessage, error) {
+	data, statusCode, err := c.Post(ctx, jobsPath, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, fmt.Errorf("create job: %w", err)
 	}
@@ -123,10 +124,10 @@ func (c *Client) CreateJob(body json.RawMessage) (json.RawMessage, error) {
 }
 
 // GetJob retrieves a job report.
-func (c *Client) GetJob(jobID string) (json.RawMessage, error) {
+func (c *Client) GetJob(ctx context.Context, jobID string) (json.RawMessage, error) {
 	path := fmt.Sprintf(jobPath, jobID)
 
-	data, statusCode, err := c.Get(path)
+	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("get job: %w", err)
 	}
@@ -137,10 +138,10 @@ func (c *Client) GetJob(jobID string) (json.RawMessage, error) {
 }
 
 // UpdateJob updates an existing job (add/remove targets, pause/resume, etc).
-func (c *Client) UpdateJob(jobID string, body json.RawMessage) (json.RawMessage, error) {
+func (c *Client) UpdateJob(ctx context.Context, jobID string, body json.RawMessage) (json.RawMessage, error) {
 	path := fmt.Sprintf(jobPath, jobID)
 
-	data, statusCode, err := c.Put(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.Put(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, fmt.Errorf("update job: %w", err)
 	}
@@ -151,10 +152,10 @@ func (c *Client) UpdateJob(jobID string, body json.RawMessage) (json.RawMessage,
 }
 
 // CancelJob cancels (deletes) a job.
-func (c *Client) CancelJob(jobID string) error {
+func (c *Client) CancelJob(ctx context.Context, jobID string) error {
 	path := fmt.Sprintf(jobPath, jobID)
 
-	data, statusCode, err := c.Delete(path)
+	data, statusCode, err := c.Delete(ctx, path)
 	if err != nil {
 		return fmt.Errorf("cancel job: %w", err)
 	}
@@ -162,10 +163,14 @@ func (c *Client) CancelJob(jobID string) error {
 }
 
 // GetJobOperations lists operations within a job.
-func (c *Client) GetJobOperations(jobID string) (*JobOperationsResponse, error) {
-	path := fmt.Sprintf(jobOperationsPath, jobID)
+func (c *Client) GetJobOperations(ctx context.Context, jobID string) (*JobOperationsResponse, error) {
+	return c.getJobOperations(ctx, fmt.Sprintf(jobOperationsPath, jobID))
+}
 
-	data, statusCode, err := c.Get(path)
+// getJobOperations fetches and decodes a job operations listing from a fully
+// built path, shared by the plain and the paged variants.
+func (c *Client) getJobOperations(ctx context.Context, path string) (*JobOperationsResponse, error) {
+	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("get job operations: %w", err)
 	}
@@ -184,8 +189,8 @@ func (c *Client) GetJobOperations(jobID string) (*JobOperationsResponse, error) 
 }
 
 // CreateTask creates a new operation task.
-func (c *Client) CreateTask(body json.RawMessage) (json.RawMessage, error) {
-	data, statusCode, err := c.Post(tasksPath, strings.NewReader(string(body)))
+func (c *Client) CreateTask(ctx context.Context, body json.RawMessage) (json.RawMessage, error) {
+	data, statusCode, err := c.Post(ctx, tasksPath, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, fmt.Errorf("create task: %w", err)
 	}
@@ -196,10 +201,10 @@ func (c *Client) CreateTask(body json.RawMessage) (json.RawMessage, error) {
 }
 
 // GetTask retrieves a task.
-func (c *Client) GetTask(taskID string) (json.RawMessage, error) {
+func (c *Client) GetTask(ctx context.Context, taskID string) (json.RawMessage, error) {
 	path := fmt.Sprintf(taskPath, taskID)
 
-	data, statusCode, err := c.Get(path)
+	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("get task: %w", err)
 	}
@@ -210,10 +215,10 @@ func (c *Client) GetTask(taskID string) (json.RawMessage, error) {
 }
 
 // CancelTask cancels (deletes) a task.
-func (c *Client) CancelTask(taskID string) error {
+func (c *Client) CancelTask(ctx context.Context, taskID string) error {
 	path := fmt.Sprintf(taskPath, taskID)
 
-	data, statusCode, err := c.Delete(path)
+	data, statusCode, err := c.Delete(ctx, path)
 	if err != nil {
 		return fmt.Errorf("cancel task: %w", err)
 	}
@@ -221,10 +226,10 @@ func (c *Client) CancelTask(taskID string) error {
 }
 
 // GetTaskJobs lists jobs within a task.
-func (c *Client) GetTaskJobs(taskID string) (*SearchJobsResponse, error) {
+func (c *Client) GetTaskJobs(ctx context.Context, taskID string) (*SearchJobsResponse, error) {
 	path := fmt.Sprintf(taskJobsPath, taskID)
 
-	data, statusCode, err := c.Get(path)
+	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("get task jobs: %w", err)
 	}

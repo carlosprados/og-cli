@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -35,7 +35,7 @@ type ruleToggledMsg struct {
 
 func (m model) fetchRules() tea.Cmd {
 	return func() tea.Msg {
-		resp, err := m.client.SearchRules(nil)
+		resp, err := m.client.SearchRules(m.ctx, nil)
 		if err != nil {
 			return rulesFetchedMsg{err: err}
 		}
@@ -54,7 +54,7 @@ func (m model) toggleRule(raw json.RawMessage) tea.Cmd {
 			return ruleToggledMsg{err: fmt.Errorf("organization required (set it in the profile)")}
 		}
 		target := !s.Active
-		err := m.client.SetRuleActive(org, tuiDefaultChannel, s.Identifier, target)
+		err := m.client.SetRuleActive(m.ctx, org, tuiDefaultChannel, s.Identifier, target)
 		return ruleToggledMsg{id: s.Identifier, active: target, err: err}
 	}
 }
@@ -186,7 +186,7 @@ type optypesFetchedMsg struct {
 
 func (m model) fetchOpTypes() tea.Cmd {
 	return func() tea.Msg {
-		data, err := m.client.SearchOpTypes(nil)
+		data, err := m.client.SearchOpTypes(m.ctx, nil)
 		if err != nil {
 			return optypesFetchedMsg{err: err}
 		}

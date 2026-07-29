@@ -18,7 +18,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/query"
+	"github.com/carlosprados/og-cli/v2/pkg/query"
 	"go.yaml.in/yaml/v3"
 )
 

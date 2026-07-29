@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -13,7 +13,7 @@ import (
 // registerLoginTool registers the login tool (single-tenant only — it returns a
 // JWT in its result text, which must never reach the LLM in multi-tenant mode).
 func registerLoginTool(r *registrar) {
-	r.tool(tsLogin, loginTool(), loginHandler(r.host))
+	r.tool(tsLogin, loginTool(), loginHandler(r.host, r.p.clientOpts))
 }
 
 // registerDatamodelTools registers datamodel tools (parity with the CLI).
@@ -51,7 +51,7 @@ func loginTool() mcp.Tool {
 	)
 }
 
-func loginHandler(defaultHost string) server.ToolHandlerFunc {
+func loginHandler(defaultHost string, clientOpts []opengate.Option) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := request.GetArguments()
 
@@ -77,8 +77,8 @@ func loginHandler(defaultHost string) server.ToolHandlerFunc {
 			host = h
 		}
 
-		c := opengate.New(host, "")
-		result, err := c.Login(email, password, twoFaCode)
+		c := opengate.New(host, "", clientOpts...)
+		result, err := c.Login(ctx, email, password, twoFaCode)
 		if err != nil {
 			if opengate.Is2FAChallenge(err) {
 				return mcp.NewToolResultError("this account has 2FA enabled — re-call the login tool with a fresh 6-digit '2FaCode' from the authenticator app"), nil
@@ -134,7 +134,7 @@ func datamodelsSearchHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid query: %v", err)), nil
 		}
 
-		resp, err := c.SearchDatamodels(filter)
+		resp, err := c.SearchDatamodels(ctx, filter)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
 		}
@@ -177,7 +177,7 @@ func datamodelsGetHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
 
-		dm, err := c.GetDatamodel(orgName, id)
+		dm, err := c.GetDatamodel(ctx, orgName, id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
@@ -220,7 +220,7 @@ func datamodelsCreateHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("organization and body are required"), nil
 		}
 
-		if err := c.CreateDatamodel(orgName, json.RawMessage(body)); err != nil {
+		if err := c.CreateDatamodel(ctx, orgName, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("create failed: %v", err)), nil
 		}
 
@@ -263,7 +263,7 @@ func datamodelsUpdateHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("organization, id, and body are required"), nil
 		}
 
-		if err := c.UpdateDatamodel(orgName, id, json.RawMessage(body)); err != nil {
+		if err := c.UpdateDatamodel(ctx, orgName, id, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("update failed: %v", err)), nil
 		}
 
@@ -301,7 +301,7 @@ func datamodelsDeleteHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
 
-		if err := c.DeleteDatamodel(orgName, id); err != nil {
+		if err := c.DeleteDatamodel(ctx, orgName, id); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("delete failed: %v", err)), nil
 		}
 

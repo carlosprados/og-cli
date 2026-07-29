@@ -120,8 +120,12 @@ Read opengate://organizations/{org}/datamodel-fields when the user asks about sp
 - alarm.openingDate — ISO 8601 datetime
 
 ### Jobs (used in jobs_search query)
-- jobs.request.name — operation name (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC, etc.)
-- jobs.report.summary.status — IN_PROGRESS, FINISHED, CANCELLED, PAUSED, CANCELLING_BY_USER
+- jobStatus (alias job.status) — IN_PROGRESS, FINISHED, CANCELLED, PAUSED, CANCELLING_BY_USER
+- operationName — operation name (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC, etc.)
+- jobId, taskId (alias job.id)
+NOTE: these are FILTER names and they differ from the response paths. Filtering on
+jobs.report.summary.status or jobs.request.name returns HTTP 400 "Field in filter
+unknown" — those are projection names, valid only for reading the result.
 
 ### Tasks (used in tasks_search query)
 - tasks.name — task name

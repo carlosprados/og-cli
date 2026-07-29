@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/carlosprados/og-cli/internal/output"
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/internal/output"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -41,8 +41,8 @@ var optypesCatalogCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
-		data, err := c.OpTypesCatalog()
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
+		data, err := c.OpTypesCatalog(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -58,8 +58,8 @@ var optypesSearchCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := opengate.New(p.Host, p.Token)
-		data, err := c.SearchOpTypes(nil)
+		c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
+		data, err := c.SearchOpTypes(cmd.Context(), nil)
 		if err != nil {
 			return err
 		}
@@ -76,7 +76,7 @@ var optypesGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		data, err := c.GetOpType(orgName, args[0])
+		data, err := c.GetOpType(cmd.Context(), orgName, args[0])
 		if err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ var optypesCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if _, err := c.CreateOpType(orgName, body); err != nil {
+		if _, err := c.CreateOpType(cmd.Context(), orgName, body); err != nil {
 			return err
 		}
 		fmt.Println("Operation type created successfully.")
@@ -117,7 +117,7 @@ var optypesUpdateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := c.UpdateOpType(orgName, args[0], body); err != nil {
+		if err := c.UpdateOpType(cmd.Context(), orgName, args[0], body); err != nil {
 			return err
 		}
 		fmt.Println("Operation type updated successfully.")
@@ -137,7 +137,7 @@ var optypesDeleteCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := c.DeleteOpType(orgName, args[0]); err != nil {
+		if err := c.DeleteOpType(cmd.Context(), orgName, args[0]); err != nil {
 			return err
 		}
 		fmt.Println("Operation type deleted successfully.")

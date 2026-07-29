@@ -7,13 +7,10 @@ import (
 	"testing"
 )
 
-// resetTLS restores the package-wide TLS state so tests don't leak into each other.
+// resetTLS restores the process-wide TLS state so tests don't leak into each other.
 func resetTLS(t *testing.T) {
 	t.Helper()
-	t.Cleanup(func() {
-		tlsInsecure = false
-		tlsCAFile = ""
-	})
+	t.Cleanup(func() { processTLS = tlsSettings{} })
 }
 
 func TestConfigureTLS(t *testing.T) {
@@ -23,7 +20,7 @@ func TestConfigureTLS(t *testing.T) {
 	if err := ConfigureTLS(false, ""); err != nil {
 		t.Fatalf("default: unexpected error: %v", err)
 	}
-	if tlsInsecure || tlsCAFile != "" {
+	if !processTLS.isDefault() {
 		t.Error("default ConfigureTLS should leave secure state")
 	}
 
@@ -31,7 +28,7 @@ func TestConfigureTLS(t *testing.T) {
 	if err := ConfigureTLS(true, ""); err != nil {
 		t.Fatalf("insecure: unexpected error: %v", err)
 	}
-	if !tlsInsecure {
+	if !processTLS.insecure {
 		t.Error("insecure not recorded")
 	}
 

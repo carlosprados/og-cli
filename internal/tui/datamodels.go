@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -35,7 +35,7 @@ type datamodelDetailFetchedMsg struct {
 
 func (m model) fetchDatamodels() tea.Cmd {
 	return func() tea.Msg {
-		resp, err := m.client.SearchDatamodels(nil)
+		resp, err := m.client.SearchDatamodels(m.ctx, nil)
 		if err != nil {
 			return datamodelsFetchedMsg{err: err}
 		}
@@ -45,7 +45,7 @@ func (m model) fetchDatamodels() tea.Cmd {
 
 func (m model) fetchDatamodelDetail(orgName, id string) tea.Cmd {
 	return func() tea.Msg {
-		dm, err := m.client.GetDatamodel(orgName, id)
+		dm, err := m.client.GetDatamodel(m.ctx, orgName, id)
 		return datamodelDetailFetchedMsg{dm: dm, err: err}
 	}
 }

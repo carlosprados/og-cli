@@ -1,15 +1,16 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 const (
-	searchAlarmsPath  = "/north/v80/search/entities/alarms"
-	summaryAlarmsPath = "/north/v80/search/entities/alarms/summary"
-	alarmsActionPath  = "/north/v80/alarms"
+	searchAlarmsPath  = "/north/{v}/search/entities/alarms"
+	summaryAlarmsPath = "/north/{v}/search/entities/alarms/summary"
+	alarmsActionPath  = "/north/{v}/alarms"
 )
 
 // Alarm represents an OpenGate alarm instance.
@@ -88,7 +89,7 @@ type AlarmActionResponse struct {
 }
 
 // SearchAlarms searches for alarms using a filter body.
-func (c *Client) SearchAlarms(filter json.RawMessage) (*SearchAlarmsResponse, error) {
+func (c *Client) SearchAlarms(ctx context.Context, filter json.RawMessage) (*SearchAlarmsResponse, error) {
 	var body string
 	if filter != nil {
 		body = string(filter)
@@ -96,7 +97,7 @@ func (c *Client) SearchAlarms(filter json.RawMessage) (*SearchAlarmsResponse, er
 		body = "{}"
 	}
 
-	data, statusCode, err := c.Post(searchAlarmsPath, strings.NewReader(body))
+	data, statusCode, err := c.Post(ctx, searchAlarmsPath, strings.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("search alarms: %w", err)
 	}
@@ -116,7 +117,7 @@ func (c *Client) SearchAlarms(filter json.RawMessage) (*SearchAlarmsResponse, er
 }
 
 // SummaryAlarms returns a summary of alarms grouped by severity, status, rule, name.
-func (c *Client) SummaryAlarms(filter json.RawMessage) (*AlarmSummaryResponse, error) {
+func (c *Client) SummaryAlarms(ctx context.Context, filter json.RawMessage) (*AlarmSummaryResponse, error) {
 	var body string
 	if filter != nil {
 		body = string(filter)
@@ -124,7 +125,7 @@ func (c *Client) SummaryAlarms(filter json.RawMessage) (*AlarmSummaryResponse, e
 		body = "{}"
 	}
 
-	data, statusCode, err := c.Post(summaryAlarmsPath, strings.NewReader(body))
+	data, statusCode, err := c.Post(ctx, summaryAlarmsPath, strings.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("alarms summary: %w", err)
 	}
@@ -144,16 +145,16 @@ func (c *Client) SummaryAlarms(filter json.RawMessage) (*AlarmSummaryResponse, e
 }
 
 // AttendAlarms marks alarms as attended.
-func (c *Client) AttendAlarms(ids []string, notes string) (*AlarmActionResponse, error) {
-	return c.alarmAction("ATTEND", ids, notes)
+func (c *Client) AttendAlarms(ctx context.Context, ids []string, notes string) (*AlarmActionResponse, error) {
+	return c.alarmAction(ctx, "ATTEND", ids, notes)
 }
 
 // CloseAlarms marks alarms as closed.
-func (c *Client) CloseAlarms(ids []string, notes string) (*AlarmActionResponse, error) {
-	return c.alarmAction("CLOSE", ids, notes)
+func (c *Client) CloseAlarms(ctx context.Context, ids []string, notes string) (*AlarmActionResponse, error) {
+	return c.alarmAction(ctx, "CLOSE", ids, notes)
 }
 
-func (c *Client) alarmAction(action string, ids []string, notes string) (*AlarmActionResponse, error) {
+func (c *Client) alarmAction(ctx context.Context, action string, ids []string, notes string) (*AlarmActionResponse, error) {
 	req := AlarmActionRequest{
 		Action: action,
 		Alarms: ids,
@@ -164,7 +165,7 @@ func (c *Client) alarmAction(action string, ids []string, notes string) (*AlarmA
 		return nil, fmt.Errorf("marshaling alarm action: %w", err)
 	}
 
-	data, statusCode, err := c.Post(alarmsActionPath, strings.NewReader(string(payload)))
+	data, statusCode, err := c.Post(ctx, alarmsActionPath, strings.NewReader(string(payload)))
 	if err != nil {
 		return nil, fmt.Errorf("alarm %s: %w", action, err)
 	}

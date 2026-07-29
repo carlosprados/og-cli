@@ -1,14 +1,15 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/carlosprados/og-cli/internal/output"
-	"github.com/carlosprados/og-cli/internal/unwrap"
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/internal/output"
+	"github.com/carlosprados/og-cli/v2/internal/unwrap"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -53,13 +54,13 @@ func runDashboardList(cmd *cobra.Command, args []string) error {
 
 	var rows []dashboardRow
 	if dashboardListWorkspace != "" {
-		w, err := c.GetWorkspace(dashboardListWorkspace, true)
+		w, err := c.GetWorkspace(cmd.Context(), dashboardListWorkspace, true)
 		if err != nil {
 			return err
 		}
 		rows = collectDashboardRows(w)
 	} else {
-		wss, err := c.ListWorkspaces(true)
+		wss, err := c.ListWorkspaces(cmd.Context(), true)
 		if err != nil {
 			return err
 		}
@@ -119,7 +120,7 @@ func runDashboardGet(cmd *cobra.Command, args []string) error {
 	}
 	c := newWebClient(p)
 
-	d, err := c.GetDashboard(args[0])
+	d, err := c.GetDashboard(cmd.Context(), args[0])
 	if err != nil {
 		return err
 	}
@@ -171,7 +172,7 @@ func runDashboardExport(cmd *cobra.Command, args []string) error {
 	}
 	c := newWebClient(p)
 
-	data, err := fetchDashboardExportData(c, args[0], dashboardExportFull)
+	data, err := fetchDashboardExportData(cmd.Context(), c, args[0], dashboardExportFull)
 	if err != nil {
 		return err
 	}
@@ -192,9 +193,9 @@ func runDashboardExport(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func fetchDashboardExportData(c *opengate.Client, id string, full bool) ([]byte, error) {
+func fetchDashboardExportData(ctx context.Context, c *opengate.Client, id string, full bool) ([]byte, error) {
 	if full {
-		d, err := c.GetDashboard(id)
+		d, err := c.GetDashboard(ctx, id)
 		if err != nil {
 			return nil, err
 		}
@@ -204,7 +205,7 @@ func fetchDashboardExportData(c *opengate.Client, id string, full bool) ([]byte,
 		}
 		return data, nil
 	}
-	return c.ExportDashboard(id)
+	return c.ExportDashboard(ctx, id)
 }
 
 // --- export-all ---
@@ -239,13 +240,13 @@ func runDashboardExportAll(cmd *cobra.Command, args []string) error {
 
 	var rows []dashboardRow
 	if dashboardExportAllWorkspace != "" {
-		w, err := c.GetWorkspace(dashboardExportAllWorkspace, true)
+		w, err := c.GetWorkspace(cmd.Context(), dashboardExportAllWorkspace, true)
 		if err != nil {
 			return err
 		}
 		rows = collectDashboardRows(w)
 	} else {
-		wss, err := c.ListWorkspaces(true)
+		wss, err := c.ListWorkspaces(cmd.Context(), true)
 		if err != nil {
 			return err
 		}
@@ -259,7 +260,7 @@ func runDashboardExportAll(cmd *cobra.Command, args []string) error {
 		if r.DashboardID == "" {
 			continue
 		}
-		data, err := fetchDashboardExportData(c, r.DashboardID, dashboardExportAllFull)
+		data, err := fetchDashboardExportData(cmd.Context(), c, r.DashboardID, dashboardExportAllFull)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", r.DashboardID, err)
 			failed++
@@ -318,7 +319,7 @@ func runDashboardUnwrap(cmd *cobra.Command, args []string) error {
 	}
 	c := newWebClient(p)
 
-	d, err := c.GetDashboard(args[0])
+	d, err := c.GetDashboard(cmd.Context(), args[0])
 	if err != nil {
 		return err
 	}
@@ -375,13 +376,13 @@ func runDashboardUnwrapAll(cmd *cobra.Command, args []string) error {
 
 	var rows []dashboardRow
 	if dashboardUnwrapAllWorkspace != "" {
-		w, err := c.GetWorkspace(dashboardUnwrapAllWorkspace, true)
+		w, err := c.GetWorkspace(cmd.Context(), dashboardUnwrapAllWorkspace, true)
 		if err != nil {
 			return err
 		}
 		rows = collectDashboardRows(w)
 	} else {
-		wss, err := c.ListWorkspaces(true)
+		wss, err := c.ListWorkspaces(cmd.Context(), true)
 		if err != nil {
 			return err
 		}
@@ -396,7 +397,7 @@ func runDashboardUnwrapAll(cmd *cobra.Command, args []string) error {
 		if r.DashboardID == "" {
 			continue
 		}
-		d, err := c.GetDashboard(r.DashboardID)
+		d, err := c.GetDashboard(cmd.Context(), r.DashboardID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", r.DashboardID, err)
 			failed++
@@ -590,14 +591,14 @@ func runDashboardDeploy(cmd *cobra.Command, args []string) error {
 	c := newWebClient(p)
 
 	if dashboardDeployUpdate {
-		if err := c.UpdateDashboard(full.ID, body); err != nil {
+		if err := c.UpdateDashboard(cmd.Context(), full.ID, body); err != nil {
 			return err
 		}
 		fmt.Printf("Dashboard %s deployed (%d widget(s) updated).\n", full.ID, len(full.Grid))
 		return nil
 	}
 
-	if _, err := c.CreateDashboard(body, dashboardDeployWorkspace); err != nil {
+	if _, err := c.CreateDashboard(cmd.Context(), body, dashboardDeployWorkspace); err != nil {
 		if isDuplicateKeyError(err) {
 			return fmt.Errorf("%w\n\nThe dashboard _id already exists. Re-run with --update to overwrite it via PUT", err)
 		}
@@ -658,14 +659,14 @@ func runDashboardImport(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("--update requires the file to contain an _id: %w", err)
 		}
-		if err := c.UpdateDashboard(id, body); err != nil {
+		if err := c.UpdateDashboard(cmd.Context(), id, body); err != nil {
 			return err
 		}
 		fmt.Printf("Dashboard %s updated successfully.\n", id)
 		return nil
 	}
 
-	resp, err := c.CreateDashboard(body, dashboardImportWorkspace)
+	resp, err := c.CreateDashboard(cmd.Context(), body, dashboardImportWorkspace)
 	if err != nil {
 		if isDuplicateKeyError(err) {
 			return fmt.Errorf("%w\n\nThe dashboard _id already exists. Re-run with --update to overwrite it via PUT", err)
@@ -704,7 +705,7 @@ func runDashboardUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	c := newWebClient(p)
-	if err := c.UpdateDashboard(args[0], body); err != nil {
+	if err := c.UpdateDashboard(cmd.Context(), args[0], body); err != nil {
 		return err
 	}
 
@@ -731,7 +732,7 @@ func runDashboardDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	c := newWebClient(p)
-	if err := c.DeleteDashboard(args[0]); err != nil {
+	if err := c.DeleteDashboard(cmd.Context(), args[0]); err != nil {
 		return err
 	}
 

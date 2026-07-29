@@ -38,7 +38,7 @@ When the user says...          → Use this tool
 "alarm", "alarma"              → alarms_search, alarms_summary, alarms_attend, alarms_close
 "time series", "serie temporal" → timeseries_list, timeseries_get, timeseries_data, timeseries_create, timeseries_update, timeseries_delete, timeseries_export
 "dataset", "conjunto de datos"  → datasets_list, datasets_get, datasets_data, datasets_create, datasets_update, datasets_delete
-"job", "operation", "operación", "ejecutar", "lanzar" → jobs_search, jobs_get, jobs_create, jobs_cancel, jobs_operations
+"job", "operation", "operación", "ejecutar", "lanzar" → jobs_search, jobs_get, jobs_create, jobs_cancel, jobs_operations, operations_history (filterable history of closed operations with their per-step results)
 "rule", "regla", "automation", "automatización" → rules_search, rules_get, rules_create, rules_update, rules_delete, rules_set_active
 "connector function", "función de conector", "REQUEST/RESPONSE/COLLECTION function" → connectors_list, connectors_get, connectors_create, connectors_update, connectors_delete, connectors_set_status
 "provision function", "provision processor", "bulk provisioning", "provisión masiva", "procesador de provisión" → provision_list, provision_get, provision_create, provision_update, provision_delete, provision_plan, provision_bulk, provision_bulk_status, provision_bulk_details (org-scoped; script in scriptProcessor.script with normalizeRawObject + actionsPlanning; ALWAYS provision_plan first to dry-run an Excel before provision_bulk mutates data)
@@ -116,8 +116,12 @@ unless they ask for historical / time-windowed data.
 - alarm.openingDate — ISO 8601 datetime
 
 ### Jobs (used in jobs_search query)
-- jobs.request.name — operation name (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC, etc.)
-- jobs.report.summary.status — IN_PROGRESS, FINISHED, CANCELLED, PAUSED, CANCELLING_BY_USER
+- jobStatus (alias job.status) — IN_PROGRESS, FINISHED, CANCELLED, PAUSED, CANCELLING_BY_USER
+- operationName — operation name (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC, etc.)
+- jobId, taskId (alias job.id)
+NOTE: these are FILTER names and they differ from the response paths. Filtering on
+jobs.report.summary.status or jobs.request.name returns HTTP 400 "Field in filter
+unknown" — those are projection names, valid only for reading the result.
 
 ### Tasks (used in tasks_search query)
 - tasks.name — task name
@@ -184,6 +188,22 @@ For REBOOT_EQUIPMENT, add "parameters": {"type": "HARDWARE"}
 
 After creating a job, use jobs_get to check its status and jobs_operations to see per-device results.
 
+Reading back results: jobs_operations lists ONE job by id; operations_history takes a
+filter, so use it to select across jobs (by entity, operation name or result) or to pull
+one job's outcome with job: "<job-id>". Each operation carries status (lifecycle) and
+result (outcome), plus steps[] where every step has name, result (SUCCESSFUL, ERROR,
+SKIPPED, NOT_EXECUTED) and description — the steps are where "why did this device fail"
+is answered.
+
+Both are PAGED. The first page is not the whole answer, so never report a count from a
+single page. page.of is NOT always present (a live instance returns only page.number),
+so treat a page shorter than the requested limit as the end rather than relying on it.
+
+operations_history filter names do NOT match the response names: identifiers are
+unprefixed (jobId, entityId, operationId, resourceType) and the rest take an "operation"
+prefix (operationName, operationStatus, operationResult, operationDate, operationNotify).
+A bare "result" or "status" is HTTP 400. Outcome IS filterable: operationResult eq ERROR.
+
 ## Sending IoT data (South API)
 
 Use iot_collect to send a single value to a device datastream:
@@ -222,10 +242,12 @@ User: "Send pressure 1013 to sense-001" → iot_collect(device_id: "sense-001", 
 User: "Lista las time series" → timeseries_list(organization: "sensehat")
 User: "Datos de la time series X" → timeseries_data(organization: "sensehat", id: "X")
 User: "Datasets disponibles" → datasets_list(organization: "sensehat")
-User: "Jobs en progreso" → jobs_search(query: "jobs.report.summary.status eq IN_PROGRESS")
+User: "Jobs en progreso" → jobs_search(query: "jobStatus eq IN_PROGRESS")
 User: "Lanza un REBOOT al dispositivo sense-001" → jobs_create(body: '{"job":{"request":{"name":"REBOOT_EQUIPMENT","parameters":{"type":"HARDWARE"},"active":true,"schedule":{"stop":{"delayed":90000}},"operationParameters":{"timeout":85000,"retries":0},"target":{"append":{"entities":["sense-001"]}}}}}')
 User: "Estado del job abc-123" → jobs_get(id: "abc-123")
 User: "Operaciones del job abc-123" → jobs_operations(id: "abc-123")
+User: "Resultados del job abc-123" → operations_history(job: "abc-123")
+User: "Qué dispositivos fallaron el diagnóstico" → operations_history(query: "operationName eq DIAGNOSIS AND operationResult eq ERROR")
 User: "Cancela el job abc-123" → jobs_cancel(id: "abc-123")
 User: "Qué reglas de automatización tengo" → rules_search()
 User: "Reglas avanzadas activas" → rules_search(query: "rule.mode eq ADVANCED AND rule.active eq true")

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -8,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -45,7 +46,7 @@ func printLogLine(m opengate.LogMessage) {
 
 // streamFunctionLogs runs the live logger for a connector function or rule,
 // printing colourised traces until the user interrupts with Ctrl-C.
-func streamFunctionLogs(kind, channel, id string) error {
+func streamFunctionLogs(ctx context.Context, kind, channel, id string) error {
 	p, err := activeProfile()
 	if err != nil {
 		return err
@@ -57,7 +58,7 @@ func streamFunctionLogs(kind, channel, id string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	stop := make(chan struct{})
 	sig := make(chan os.Signal, 1)
@@ -70,5 +71,5 @@ func streamFunctionLogs(kind, channel, id string) error {
 	level := strings.ToUpper(logsLevel)
 	fmt.Fprintf(os.Stderr, "Streaming %s logs for %s (channel %s, level %s) — Ctrl-C to stop\n",
 		kind, id, channel, level)
-	return c.StreamFunctionLogs(p.APIKey, kind, orgName, channel, id, level, printLogLine, stop)
+	return c.StreamFunctionLogs(ctx, p.APIKey, kind, orgName, channel, id, level, printLogLine, stop)
 }

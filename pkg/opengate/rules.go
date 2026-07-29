@@ -1,16 +1,17 @@
 package opengate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 const (
-	searchRulesPath  = "/north/v80/rules/search"
-	rulesCatalogPath = "/north/v80/rules/catalog"
-	rulesPath        = "/north/v80/rules/provision/organizations/%s/channels/%s"
-	rulePath         = "/north/v80/rules/provision/organizations/%s/channels/%s/%s"
+	searchRulesPath  = "/north/{v}/rules/search"
+	rulesCatalogPath = "/north/{v}/rules/catalog"
+	rulesPath        = "/north/{v}/rules/provision/organizations/%s/channels/%s"
+	rulePath         = "/north/{v}/rules/provision/organizations/%s/channels/%s/%s"
 )
 
 // RuleSummary extracts key fields from a rule for display.
@@ -51,7 +52,7 @@ func ParseRuleSummary(raw json.RawMessage) RuleSummary {
 }
 
 // SearchRules searches for rules using a filter body.
-func (c *Client) SearchRules(filter json.RawMessage) (*SearchRulesResponse, error) {
+func (c *Client) SearchRules(ctx context.Context, filter json.RawMessage) (*SearchRulesResponse, error) {
 	var body string
 	if filter != nil {
 		body = string(filter)
@@ -59,7 +60,7 @@ func (c *Client) SearchRules(filter json.RawMessage) (*SearchRulesResponse, erro
 		body = "{}"
 	}
 
-	data, statusCode, err := c.Post(searchRulesPath, strings.NewReader(body))
+	data, statusCode, err := c.Post(ctx, searchRulesPath, strings.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("search rules: %w", err)
 	}
@@ -78,8 +79,8 @@ func (c *Client) SearchRules(filter json.RawMessage) (*SearchRulesResponse, erro
 }
 
 // RulesCatalog returns the platform rules catalog (predefined rule templates).
-func (c *Client) RulesCatalog() (json.RawMessage, error) {
-	data, statusCode, err := c.Get(rulesCatalogPath)
+func (c *Client) RulesCatalog(ctx context.Context) (json.RawMessage, error) {
+	data, statusCode, err := c.Get(ctx, rulesCatalogPath)
 	if err != nil {
 		return nil, fmt.Errorf("rules catalog: %w", err)
 	}
@@ -90,10 +91,10 @@ func (c *Client) RulesCatalog() (json.RawMessage, error) {
 }
 
 // GetRule retrieves a rule by identifier.
-func (c *Client) GetRule(org, channel, id string) (json.RawMessage, error) {
+func (c *Client) GetRule(ctx context.Context, org, channel, id string) (json.RawMessage, error) {
 	path := fmt.Sprintf(rulePath, org, channel, id)
 
-	data, statusCode, err := c.Get(path)
+	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("get rule: %w", err)
 	}
@@ -104,10 +105,10 @@ func (c *Client) GetRule(org, channel, id string) (json.RawMessage, error) {
 }
 
 // CreateRule creates a rule in an organization channel.
-func (c *Client) CreateRule(org, channel string, body json.RawMessage) (json.RawMessage, error) {
+func (c *Client) CreateRule(ctx context.Context, org, channel string, body json.RawMessage) (json.RawMessage, error) {
 	path := fmt.Sprintf(rulesPath, org, channel)
 
-	data, statusCode, err := c.Post(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.Post(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, fmt.Errorf("create rule: %w", err)
 	}
@@ -118,10 +119,10 @@ func (c *Client) CreateRule(org, channel string, body json.RawMessage) (json.Raw
 }
 
 // UpdateRule updates an existing rule.
-func (c *Client) UpdateRule(org, channel, id string, body json.RawMessage) error {
+func (c *Client) UpdateRule(ctx context.Context, org, channel, id string, body json.RawMessage) error {
 	path := fmt.Sprintf(rulePath, org, channel, id)
 
-	data, statusCode, err := c.Put(path, strings.NewReader(string(body)))
+	data, statusCode, err := c.Put(ctx, path, strings.NewReader(string(body)))
 	if err != nil {
 		return fmt.Errorf("update rule: %w", err)
 	}
@@ -129,10 +130,10 @@ func (c *Client) UpdateRule(org, channel, id string, body json.RawMessage) error
 }
 
 // DeleteRule deletes a rule.
-func (c *Client) DeleteRule(org, channel, id string) error {
+func (c *Client) DeleteRule(ctx context.Context, org, channel, id string) error {
 	path := fmt.Sprintf(rulePath, org, channel, id)
 
-	data, statusCode, err := c.Delete(path)
+	data, statusCode, err := c.Delete(ctx, path)
 	if err != nil {
 		return fmt.Errorf("delete rule: %w", err)
 	}
@@ -140,8 +141,8 @@ func (c *Client) DeleteRule(org, channel, id string) error {
 }
 
 // SetRuleActive enables or disables a rule (GET + patch active + PUT).
-func (c *Client) SetRuleActive(org, channel, id string, active bool) error {
-	raw, err := c.GetRule(org, channel, id)
+func (c *Client) SetRuleActive(ctx context.Context, org, channel, id string, active bool) error {
+	raw, err := c.GetRule(ctx, org, channel, id)
 	if err != nil {
 		return err
 	}
@@ -157,5 +158,5 @@ func (c *Client) SetRuleActive(org, channel, id string, active bool) error {
 	if err != nil {
 		return fmt.Errorf("marshaling rule: %w", err)
 	}
-	return c.UpdateRule(org, channel, id, body)
+	return c.UpdateRule(ctx, org, channel, id, body)
 }

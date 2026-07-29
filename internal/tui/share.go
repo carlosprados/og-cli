@@ -34,7 +34,7 @@ func newSharePrompt(workspaceID, name string) sharePromptModel {
 
 func (m model) shareWorkspace(id string, users []string) tea.Cmd {
 	return func() tea.Msg {
-		_, err := m.client.ShareWorkspace(id, users, nil)
+		_, err := m.client.ShareWorkspace(m.ctx, id, users, nil)
 		return workspaceSharedMsg{id: id, users: users, err: err}
 	}
 }

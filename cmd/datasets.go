@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/carlosprados/og-cli/internal/output"
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/internal/output"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -32,9 +32,9 @@ func runDSList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
-	resp, err := c.ListDatasets(orgName)
+	resp, err := c.ListDatasets(cmd.Context(), orgName)
 	if err != nil {
 		return err
 	}
@@ -70,9 +70,9 @@ func runDSGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
-	ds, err := c.GetDataset(orgName, args[0])
+	ds, err := c.GetDataset(cmd.Context(), orgName, args[0])
 	if err != nil {
 		return err
 	}
@@ -121,8 +121,8 @@ func runDSCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
-	if err := c.CreateDataset(orgName, body); err != nil {
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
+	if err := c.CreateDataset(cmd.Context(), orgName, body); err != nil {
 		return err
 	}
 
@@ -156,8 +156,8 @@ func runDSUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	c := opengate.New(p.Host, p.Token)
-	if err := c.UpdateDataset(orgName, args[0], body); err != nil {
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
+	if err := c.UpdateDataset(cmd.Context(), orgName, args[0], body); err != nil {
 		return err
 	}
 
@@ -187,8 +187,8 @@ func runDSDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := opengate.New(p.Host, p.Token)
-	if err := c.DeleteDataset(orgName, args[0]); err != nil {
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
+	if err := c.DeleteDataset(cmd.Context(), orgName, args[0]); err != nil {
 		return err
 	}
 
@@ -226,14 +226,14 @@ func runDSData(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c := opengate.New(p.Host, p.Token)
+	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
 
 	filter, err := buildSearchFilter(dsDataWhere, dsDataLimit, nil, dsDataFilter)
 	if err != nil {
 		return err
 	}
 
-	resp, err := c.QueryDatasetData(orgName, args[0], filter)
+	resp, err := c.QueryDatasetData(cmd.Context(), orgName, args[0], filter)
 	if err != nil {
 		return err
 	}

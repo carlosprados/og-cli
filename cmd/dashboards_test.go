@@ -3,7 +3,7 @@ package cmd
 import (
 	"testing"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 )
 
 func TestCollectDashboardRows_FullDashboards(t *testing.T) {

@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/carlosprados/og-cli/internal/output"
-	"github.com/carlosprados/og-cli/internal/unwrap"
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/internal/output"
+	"github.com/carlosprados/og-cli/v2/internal/unwrap"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -68,7 +68,7 @@ var provisionListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		items, err := c.ListProvisionProcessors(orgName)
+		items, err := c.ListProvisionProcessors(cmd.Context(), orgName)
 		if err != nil {
 			return err
 		}
@@ -99,7 +99,7 @@ var provisionGetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		data, err := c.GetProvisionProcessor(orgName, args[0])
+		data, err := c.GetProvisionProcessor(cmd.Context(), orgName, args[0])
 		if err != nil {
 			return err
 		}
@@ -121,7 +121,7 @@ var provisionCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if _, err := c.CreateProvisionProcessor(orgName, body); err != nil {
+		if _, err := c.CreateProvisionProcessor(cmd.Context(), orgName, body); err != nil {
 			return err
 		}
 		fmt.Println("Provision function created successfully.")
@@ -142,7 +142,7 @@ var provisionUpdateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := c.UpdateProvisionProcessor(orgName, args[0], body); err != nil {
+		if err := c.UpdateProvisionProcessor(cmd.Context(), orgName, args[0], body); err != nil {
 			return err
 		}
 		fmt.Println("Provision function updated successfully.")
@@ -162,7 +162,7 @@ var provisionDeleteCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := c.DeleteProvisionProcessor(orgName, args[0]); err != nil {
+		if err := c.DeleteProvisionProcessor(cmd.Context(), orgName, args[0]); err != nil {
 			return err
 		}
 		fmt.Println("Provision function deleted successfully.")
@@ -182,7 +182,7 @@ var provisionPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		raw, err := c.GetProvisionProcessor(orgName, args[0])
+		raw, err := c.GetProvisionProcessor(cmd.Context(), orgName, args[0])
 		if err != nil {
 			return err
 		}
@@ -204,7 +204,7 @@ var provisionPullAllCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		items, err := c.ListProvisionProcessors(orgName)
+		items, err := c.ListProvisionProcessors(cmd.Context(), orgName)
 		if err != nil {
 			return err
 		}
@@ -268,14 +268,14 @@ var provisionDeployCmd = &cobra.Command{
 			if err := json.Unmarshal(body, &pp); err != nil || pp.ProvisionProcessorID == "" {
 				return fmt.Errorf("--update requires a 'provisionProcessorId' field in provisionfunction.json (pull the provision function first)")
 			}
-			if err := c.UpdateProvisionProcessor(orgName, pp.ProvisionProcessorID, body); err != nil {
+			if err := c.UpdateProvisionProcessor(cmd.Context(), orgName, pp.ProvisionProcessorID, body); err != nil {
 				return err
 			}
 			fmt.Printf("Provision function %s updated successfully.\n", pp.ProvisionProcessorID)
 			return nil
 		}
 
-		if _, err := c.CreateProvisionProcessor(orgName, body); err != nil {
+		if _, err := c.CreateProvisionProcessor(cmd.Context(), orgName, body); err != nil {
 			return err
 		}
 		fmt.Println("Provision function created successfully.")
@@ -294,7 +294,7 @@ var provisionPlanCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		data, err := c.PlanProvisionBulk(orgName, args[0], ppPlanFile, ppPlanRows)
+		data, err := c.PlanProvisionBulk(cmd.Context(), orgName, args[0], ppPlanFile, ppPlanRows)
 		if err != nil {
 			return err
 		}
@@ -311,7 +311,7 @@ var provisionBulkCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		bulkID, err := c.RunProvisionBulk(orgName, args[0], ppBulkFile)
+		bulkID, err := c.RunProvisionBulk(cmd.Context(), orgName, args[0], ppBulkFile)
 		if err != nil {
 			return err
 		}
@@ -330,7 +330,7 @@ var provisionBulkStatusCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		data, err := c.GetProvisionBulkStatus(orgName, args[0])
+		data, err := c.GetProvisionBulkStatus(cmd.Context(), orgName, args[0])
 		if err != nil {
 			return err
 		}
@@ -347,7 +347,7 @@ var provisionBulkDetailsCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		data, ready, err := c.GetProvisionBulkDetails(orgName, args[0])
+		data, ready, err := c.GetProvisionBulkDetails(cmd.Context(), orgName, args[0])
 		if err != nil {
 			return err
 		}
@@ -378,7 +378,7 @@ func provisionClient() (*opengate.Client, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	return opengate.New(p.Host, p.Token), orgName, nil
+	return opengate.New(p.Host, p.Token, p.ClientOptions()...), orgName, nil
 }
 
 func unwrapProvisionTo(raw json.RawMessage, dir string) (string, error) {

@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/spf13/cobra"
 )
 
@@ -103,7 +103,7 @@ func runIoTCollectRaw(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("provide a body with --body or -f <file>")
 	}
 
-	data, status, err := opengate.CollectRaw(p.Host, p.APIKey, deviceID, rawRoute, body, rawContentType)
+	data, status, err := opengate.New(p.Host, p.Token, p.ClientOptions()...).CollectRaw(cmd.Context(), p.APIKey, deviceID, rawRoute, body, rawContentType)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func runIoTCollect(cmd *cobra.Command, args []string) error {
 	// Try to parse as number, bool, or keep as string
 	value := parseValue(rawValue)
 
-	if err := opengate.CollectSimple(p.Host, p.APIKey, deviceID, datastreamID, value); err != nil {
+	if err := opengate.New(p.Host, p.Token, p.ClientOptions()...).CollectSimple(cmd.Context(), p.APIKey, deviceID, datastreamID, value); err != nil {
 		return err
 	}
 
@@ -159,7 +159,7 @@ func runIoTCollectFile(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("parsing IoT payload: %w", err)
 	}
 
-	if err := opengate.CollectIoT(p.Host, p.APIKey, deviceID, payload); err != nil {
+	if err := opengate.New(p.Host, p.Token, p.ClientOptions()...).CollectIoT(cmd.Context(), p.APIKey, deviceID, payload); err != nil {
 		return err
 	}
 

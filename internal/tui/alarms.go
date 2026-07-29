@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/carlosprados/og-cli/pkg/opengate"
+	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -31,7 +31,7 @@ type alarmActionMsg struct {
 
 func (m model) fetchAlarms() tea.Cmd {
 	return func() tea.Msg {
-		resp, err := m.client.SearchAlarms(nil)
+		resp, err := m.client.SearchAlarms(m.ctx, nil)
 		if err != nil {
 			return alarmsFetchedMsg{err: err}
 		}
@@ -44,9 +44,9 @@ func (m model) doAlarmAction(action string, id string) tea.Cmd {
 		var resp *opengate.AlarmActionResponse
 		var err error
 		if action == "attend" {
-			resp, err = m.client.AttendAlarms([]string{id}, "")
+			resp, err = m.client.AttendAlarms(m.ctx, []string{id}, "")
 		} else {
-			resp, err = m.client.CloseAlarms([]string{id}, "")
+			resp, err = m.client.CloseAlarms(m.ctx, []string{id}, "")
 		}
 		return alarmActionMsg{action: action, resp: resp, err: err}
 	}

@@ -42,7 +42,7 @@ func tsListHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" {
 			return mcp.NewToolResultError("organization is required"), nil
 		}
-		resp, err := c.ListTimeSeries(org)
+		resp, err := c.ListTimeSeries(ctx, org)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("list failed: %v", err)), nil
 		}
@@ -73,7 +73,7 @@ func tsGetHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
-		ts, err := c.GetTimeSeries(org, id)
+		ts, err := c.GetTimeSeries(ctx, org, id)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
@@ -104,7 +104,7 @@ func tsCreateHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || body == "" {
 			return mcp.NewToolResultError("organization and body are required"), nil
 		}
-		if err := c.CreateTimeSeries(org, json.RawMessage(body)); err != nil {
+		if err := c.CreateTimeSeries(ctx, org, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("create failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Time series created successfully."), nil
@@ -135,7 +135,7 @@ func tsUpdateHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" || body == "" {
 			return mcp.NewToolResultError("organization, id, and body are required"), nil
 		}
-		if err := c.UpdateTimeSeries(org, id, json.RawMessage(body)); err != nil {
+		if err := c.UpdateTimeSeries(ctx, org, id, json.RawMessage(body)); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("update failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Time series updated successfully."), nil
@@ -164,7 +164,7 @@ func tsDeleteHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
-		if err := c.DeleteTimeSeries(org, id); err != nil {
+		if err := c.DeleteTimeSeries(ctx, org, id); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("delete failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Time series deleted successfully."), nil
@@ -214,7 +214,7 @@ func tsDataHandler(p *provider) server.ToolHandlerFunc {
 			}
 		}
 
-		resp, err := c.QueryTimeSeriesData(org, id, filter)
+		resp, err := c.QueryTimeSeriesData(ctx, org, id, filter)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("query failed: %v", err)), nil
 		}
@@ -246,7 +246,7 @@ func tsExportHandler(p *provider) server.ToolHandlerFunc {
 		if org == "" || id == "" {
 			return mcp.NewToolResultError("organization and id are required"), nil
 		}
-		if err := c.ExportTimeSeries(org, id, nil); err != nil {
+		if err := c.ExportTimeSeries(ctx, org, id, nil); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("export failed: %v", err)), nil
 		}
 		return mcp.NewToolResultText("Export triggered successfully."), nil

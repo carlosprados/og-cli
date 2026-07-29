@@ -29,6 +29,15 @@ type Profile struct {
 	Insecure bool   `mapstructure:"insecure"` // skip TLS certificate verification
 	CAFile   string `mapstructure:"ca_file"`  // extra CA/chain PEM to trust
 
+	// APIVersion overrides the API version segment of every path, for an
+	// on-premises instance pinned to a version other than the default.
+	APIVersion string `mapstructure:"api_version"`
+
+	// Retries is the total number of attempts per request (not the number of
+	// retries). 0 or 1 disables retrying, which is the default: a retry is only
+	// worth it against a rate-limited or flaky instance.
+	Retries int `mapstructure:"retries"`
+
 	// TOTPSecret is the base32 2FA seed. When set, og derives the 6-digit TOTP
 	// code itself on login (no interactive prompt). Stored in clear text, so the
 	// config file is forced to 0600 — treat it as a master credential.
@@ -145,6 +154,14 @@ func (c *Config) ActiveProfile(name string) (*Profile, error) {
 	}
 	if cf := os.Getenv(EnvPrefix + "_CA_FILE"); cf != "" {
 		p.CAFile = cf
+	}
+	if v := os.Getenv(EnvPrefix + "_API_VERSION"); v != "" {
+		p.APIVersion = v
+	}
+	if v := os.Getenv(EnvPrefix + "_RETRIES"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			p.Retries = n
+		}
 	}
 	// OG_2FA_SECRET overrides (but never persists) the stored TOTP seed —
 	// the env-only path for CI where writing the secret to disk is undesirable.
