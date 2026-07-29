@@ -60,21 +60,23 @@ type OperationAttempts struct {
 // Status is the lifecycle state (e.g. FINISHED) and Result the outcome (e.g.
 // SUCCESSFUL); Steps carries the per-step detail.
 type Operation struct {
-	OperationID  string              `json:"operationId,omitempty"`
-	JobID        string              `json:"jobId,omitempty"`
-	Name         string              `json:"name,omitempty"`
-	EntityID     string              `json:"entityId,omitempty"`
-	ResourceType string              `json:"resourceType,omitempty"`
-	Status       string              `json:"status,omitempty"`
-	Result       string              `json:"result,omitempty"`
-	Description  string              `json:"description,omitempty"`
-	User         string              `json:"user,omitempty"`
-	Notify       bool                `json:"notify,omitempty"`
-	Date         string              `json:"date,omitempty"`
-	Attempts     *OperationAttempts  `json:"attempts,omitempty"`
-	Execution    *OperationExecution `json:"execution,omitempty"`
-	Steps        []OperationStep     `json:"steps,omitempty"`
-	Parameters   json.RawMessage     `json:"parameters,omitempty"`
+	OperationID  string `json:"operationId,omitempty"`
+	JobID        string `json:"jobId,omitempty"`
+	Name         string `json:"name,omitempty"`
+	EntityID     string `json:"entityId,omitempty"`
+	ResourceType string `json:"resourceType,omitempty"`
+	Status       string `json:"status,omitempty"`
+	Result       string `json:"result,omitempty"`
+	Description  string `json:"description,omitempty"`
+	User         string `json:"user,omitempty"`
+	// Notify has no omitempty: a false value must stay visible in the output
+	// rather than looking like a field the platform never sent.
+	Notify     bool                `json:"notify"`
+	Date       string              `json:"date,omitempty"`
+	Attempts   *OperationAttempts  `json:"attempts,omitempty"`
+	Execution  *OperationExecution `json:"execution,omitempty"`
+	Steps      []OperationStep     `json:"steps,omitempty"`
+	Parameters json.RawMessage     `json:"parameters,omitempty"`
 }
 
 // StepResult returns the result of the named step and whether it was present.
@@ -104,12 +106,23 @@ type SearchOperationsResponse struct {
 // It also takes a filter, so an entire job's outcome can be pulled with
 // JobIDFilter and paged with limit, or many operations selected at once.
 //
-// Filter fields are unprefixed and the accepted set is narrow — probed live:
-// jobId, entityId, operationId, resourceType and operationName (alias
-// operation.name). Anything else, including status, result, user, date and any
-// "operations." prefix, is rejected with HTTP 400 "Field in filter unknown".
-// There is therefore no server-side filter by outcome: fetch and inspect Result
-// or Steps yourself.
+// Filter field names are inconsistent and do not match the response field names.
+// Confirmed by the OpenGate team and verified live:
+//
+//	identifiers, unprefixed:  jobId, entityId, operationId, resourceType
+//	the rest, prefixed:       operationName (or operation.name)
+//	                         operationStatus
+//	                         operationResult (or operation.result)
+//	                         operationDate, operationNotify
+//
+// Everything else is rejected with HTTP 400 "Field in filter unknown" — including
+// the bare name, status, result, user, date, notify and description, any
+// "operations." prefix (those are the projection/CSV names, not filter names),
+// and the near-misses operation.status, operation.entityId, operationUser,
+// operationEntityId and operationJobId.
+//
+// So outcome IS filterable server-side: use operationResult to ask only for the
+// failures rather than pulling the whole result set.
 //
 // It requests JSON explicitly. The endpoint can also emit text/plain CSV, but
 // that format is unusable here: the separator collides with the contents of

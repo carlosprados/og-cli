@@ -195,15 +195,16 @@ Use this to answer "what happened to these operations": unlike jobs_operations, 
 
 Each operation carries entityId, name, status, result, execution.startedDate and steps[] (name, result, description). Step results are SUCCESSFUL, ERROR, SKIPPED and NOT_EXECUTED.
 
-Filter fields are UNPREFIXED and the set is narrow (verified against a live instance): jobId, entityId, operationId, resourceType, operationName (alias operation.name). Anything else — name, status, result, user, date, or an "operations." prefix — returns HTTP 400 "Field in filter unknown".
+Filter field names do NOT match the response field names. Confirmed set: identifiers are unprefixed (jobId, entityId, operationId, resourceType); everything else takes an "operation" prefix — operationName (or operation.name), operationStatus, operationResult (or operation.result), operationDate, operationNotify. Anything else returns HTTP 400 "Field in filter unknown", including the bare name/status/result/user/date/description, any "operations." prefix, and operation.status.
 
-There is NO server-side filter for status or result. To answer "which entities failed", fetch the operations and inspect result/steps yourself.
+To answer "which devices failed", filter server-side with operationResult eq ERROR instead of fetching everything.
 
 Results are paged; the response includes page.number. Note page.of is NOT always present, so do not rely on it to decide whether more pages exist — a page shorter than 'limit' is the end.
 
 Examples:
   job: "<job-id>"                          # read back one job's results
-  query: "operationName eq DIAGNOSIS"
+  query: "operationResult eq ERROR"                  # only the failures
+  query: "operationName eq DIAGNOSIS AND operationStatus eq FINISHED"
   query: "entityId eq dev-1"`),
 		mcp.WithString("job", mcp.Description("Shortcut: read back the operations of this job id. Do not combine with 'query' or 'filter'.")),
 		mcp.WithString("query", mcp.Description("Filter using: \"field op value\", conditions joined with AND. Omit to search all.")),

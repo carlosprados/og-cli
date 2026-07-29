@@ -122,6 +122,135 @@ func runJobsCreate(cmd *cobra.Command, args []string) error {
 	return output.PrintJSON(os.Stdout, json.RawMessage(resp))
 }
 
+// --- launch (batched) ---
+
+var (
+	jobLaunchFile         string
+	jobLaunchEntities     []string
+	jobLaunchEntitiesFile string
+	jobLaunchBatch        int
+)
+
+var jobsLaunchCmd = &cobra.Command{
+	Use:   "launch -f <job.json> --entities-file <devices.txt>",
+	Short: "Launch a job over a large fleet, appending targets in batches",
+	Long: `Launch a job on more entities than one target list accepts (100).
+
+A job target list holds at most 100 entities, so a large fleet needs the pattern
+the platform prescribes: create the job INACTIVE, append the entities in batches,
+and activate it. This command does that, merging the activation into the last
+batch so the job is never active with a partial target — a job that goes live
+early runs the operation on whichever devices happen to be attached, and an
+operation already sent to a device cannot be recalled.
+
+The job id is printed as soon as it exists, before the first batch, so you can
+resume by hand if the command is interrupted.
+
+The job file is the usual job JSON; any "target" it carries is ignored, since the
+targets come from --entity/--entities-file.
+
+Entities come from repeated --entity flags or from --entities-file, one
+identifier per line (blank lines and # comments ignored).
+
+Examples:
+  og jobs launch -f diagnosis.json --entities-file meters.txt
+  og jobs launch -f diagnosis.json --entity dev-1 --entity dev-2
+  og jobs launch -f diagnosis.json --entities-file meters.txt --batch 50`,
+	RunE: runJobsLaunch,
+}
+
+func runJobsLaunch(cmd *cobra.Command, args []string) error {
+	p, err := activeProfile()
+	if err != nil {
+		return err
+	}
+
+	raw, err := os.ReadFile(jobLaunchFile)
+	if err != nil {
+		return fmt.Errorf("reading job file: %w", err)
+	}
+
+	// Accept both the wrapped {"job":{"request":{...}}} form and a bare request.
+	var container opengate.JobContainer
+	if err := json.Unmarshal(raw, &container); err != nil {
+		return fmt.Errorf("parsing job file: %w", err)
+	}
+	req := container.Job.Request
+	if req.Name == "" {
+		if err := json.Unmarshal(raw, &req); err != nil {
+			return fmt.Errorf("parsing job file: %w", err)
+		}
+	}
+
+	entities, err := collectEntities(jobLaunchEntities, jobLaunchEntitiesFile)
+	if err != nil {
+		return err
+	}
+
+	if err := confirmDestructive(fmt.Sprintf("launch %q on %d entities", req.Name, len(entities))); err != nil {
+		return err
+	}
+
+	c := opengate.New(p.Host, p.Token)
+	res, err := c.LaunchJob(cmd.Context(), req, entities, opengate.LaunchOptions{
+		BatchSize: jobLaunchBatch,
+		OnProgress: func(pr opengate.LaunchProgress) {
+			if pr.Batch == 0 {
+				fmt.Fprintf(os.Stderr, "Job %s created (inactive) — %d entities to append\n", pr.JobID, pr.Total)
+				return
+			}
+			state := ""
+			if pr.Active {
+				state = " — activated"
+			}
+			fmt.Fprintf(os.Stderr, "  batch %d: %d/%d appended%s\n", pr.Batch, pr.Appended, pr.Total, state)
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Rejected entities arrive inside successful responses, so report them loudly.
+	if !res.Rejected.Empty() {
+		fmt.Fprintf(os.Stderr, "\nWarning: the platform refused %d entities — the job runs on fewer devices than requested:\n", res.Rejected.Total())
+		for label, list := range map[string][]string{
+			"not provisioned (unknown or in another workgroup)": res.Rejected.NotProvisioned,
+			"not allowed": res.Rejected.NotAllowed,
+			"duplicated":  res.Rejected.Duplicated,
+		} {
+			if len(list) > 0 {
+				fmt.Fprintf(os.Stderr, "  %s: %s\n", label, strings.Join(list, ", "))
+			}
+		}
+	}
+
+	return output.PrintJSON(os.Stdout, res)
+}
+
+// collectEntities merges --entity flags with an --entities-file listing.
+func collectEntities(flags []string, path string) ([]string, error) {
+	entities := append([]string(nil), flags...)
+
+	if path != "" {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("reading entities file: %w", err)
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			entities = append(entities, line)
+		}
+	}
+
+	if len(entities) == 0 {
+		return nil, fmt.Errorf("no entities given: use --entity (repeatable) or --entities-file")
+	}
+	return entities, nil
+}
+
 var jobsCancelCmd = &cobra.Command{
 	Use:   "cancel <job-id>",
 	Short: "Cancel a job",
@@ -219,17 +348,22 @@ common case of reading back a single job's results.
 
 Results are paged; use --all to walk every page.
 
-Filter fields are UNPREFIXED and the set is narrow (verified live): jobId, entityId,
-operationId, resourceType and operationName (alias operation.name). Anything else —
-including name, status, result, user, date and any "operations." prefix — is rejected
-with HTTP 400 "Field in filter unknown".
+Filter field names do NOT match the response field names, and the set is narrow
+(confirmed by the OpenGate team and verified live):
 
-There is NO server-side filter for status or result: fetch with --all and filter the
-output yourself (e.g. jq) when you need "which entities failed".
+  identifiers, unprefixed:  jobId, entityId, operationId, resourceType
+  everything else prefixed: operationName (or operation.name), operationStatus,
+                            operationResult (or operation.result), operationDate,
+                            operationNotify
+
+Anything else is HTTP 400 "Field in filter unknown" — including the bare name,
+status, result, user, date and description, any "operations." prefix, and the
+near-misses operation.status, operationEntityId and operationJobId.
 
 Examples:
   og jobs history --job <job-id> --all
-  og jobs history -w "operationName eq DIAGNOSIS" --limit 100
+  og jobs history -w "operationResult eq ERROR" --all         # just the failures
+  og jobs history -w "operationName eq DIAGNOSIS" -w "operationStatus eq FINISHED"
   og jobs history -w "entityId eq dev-1" --output json
   og jobs history --filter '{"filter":{"and":[{"eq":{"jobId":"<id>"}}]}}'`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -488,6 +622,14 @@ func init() {
 	jobsCreateCmd.Flags().StringVarP(&jobCreateFile, "file", "f", "", "JSON file with job definition")
 	jobsCreateCmd.MarkFlagRequired("file")
 
+	jobsLaunchCmd.Flags().StringVarP(&jobLaunchFile, "file", "f", "", "JSON file with the job definition (target is ignored)")
+	jobsLaunchCmd.Flags().StringArrayVar(&jobLaunchEntities, "entity", nil, "entity identifier to target (repeatable)")
+	jobsLaunchCmd.Flags().StringVar(&jobLaunchEntitiesFile, "entities-file", "", "file with one entity identifier per line")
+	jobsLaunchCmd.Flags().IntVar(&jobLaunchBatch, "batch", 0, "entities per append (default and maximum 100)")
+	if err := jobsLaunchCmd.MarkFlagRequired("file"); err != nil {
+		panic(err)
+	}
+
 	jobsOpsCmd.Flags().BoolVar(&jobOpsAll, "all", false, "fetch every page instead of just the first")
 	jobsOpsCmd.Flags().IntVar(&jobOpsPage, "page", 0, "page number to fetch (default: the platform's first page)")
 	jobsOpsCmd.Flags().IntVar(&jobOpsLimit, "limit", 0, "page size (max 1000 on this endpoint)")
@@ -502,6 +644,7 @@ func init() {
 	jobsCmd.AddCommand(jobsSearchCmd)
 	jobsCmd.AddCommand(jobsGetCmd)
 	jobsCmd.AddCommand(jobsCreateCmd)
+	jobsCmd.AddCommand(jobsLaunchCmd)
 	jobsCmd.AddCommand(jobsCancelCmd)
 	jobsCmd.AddCommand(jobsOpsCmd)
 	jobsCmd.AddCommand(jobsHistoryCmd)

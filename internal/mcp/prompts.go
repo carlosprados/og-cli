@@ -195,8 +195,10 @@ Both are PAGED. The first page is not the whole answer, so never report a count 
 single page. page.of is NOT always present (a live instance returns only page.number),
 so treat a page shorter than the requested limit as the end rather than relying on it.
 
-operations_history filter fields are UNPREFIXED and few: jobId, entityId, operationId,
-resourceType, operationName. There is no filter for status or result — fetch and inspect.
+operations_history filter names do NOT match the response names: identifiers are
+unprefixed (jobId, entityId, operationId, resourceType) and the rest take an "operation"
+prefix (operationName, operationStatus, operationResult, operationDate, operationNotify).
+A bare "result" or "status" is HTTP 400. Outcome IS filterable: operationResult eq ERROR.
 
 ## Sending IoT data (South API)
 
@@ -241,7 +243,7 @@ User: "Lanza un REBOOT al dispositivo sense-001" → jobs_create(body: '{"job":{
 User: "Estado del job abc-123" → jobs_get(id: "abc-123")
 User: "Operaciones del job abc-123" → jobs_operations(id: "abc-123")
 User: "Resultados del job abc-123" → operations_history(job: "abc-123")
-User: "Qué dispositivos fallaron el diagnóstico" → operations_history(query: "operationName eq DIAGNOSIS") and then inspect result/steps in the output — the endpoint has NO server-side filter for result or status
+User: "Qué dispositivos fallaron el diagnóstico" → operations_history(query: "operationName eq DIAGNOSIS AND operationResult eq ERROR")
 User: "Cancela el job abc-123" → jobs_cancel(id: "abc-123")
 User: "Qué reglas de automatización tengo" → rules_search()
 User: "Reglas avanzadas activas" → rules_search(query: "rule.mode eq ADVANCED AND rule.active eq true")

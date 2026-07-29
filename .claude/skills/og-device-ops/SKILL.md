@@ -37,7 +37,8 @@ A job = an operation (REBOOT_EQUIPMENT, EQUIPMENT_DIAGNOSTIC, ...) targeted at N
 devices, with schedule/timeout/retry semantics. Lifecycle:
 
 ```bash
-og jobs create -f job.json          # launch (see job-templates.md for ready JSONs)
+og jobs create -f job.json          # launch, ONE batch (max 100 entities)
+og jobs launch -f job.json --entities-file ids.txt   # any fleet size, batched
 og jobs get <job-id>                # report: jobs.report.summary.status
 og jobs operations <job-id> --all   # per-device results — check THIS for partial failures
 og jobs history --job <job-id> --all    # same results, filterable, across jobs
@@ -63,12 +64,29 @@ for a FINISHED job while `jobs history` returned its operation with full steps. 
 conclude "the job had no operations" from an empty `jobs operations`: cross-check with
 `og jobs history --job <id>`. Treat `jobs history` as the reliable way to read results.
 
-**History filter fields are UNPREFIXED and the set is narrow** (probed live): `jobId`,
-`entityId`, `operationId`, `resourceType`, `operationName` (alias `operation.name`).
-Everything else — `name`, `status`, `result`, `user`, `date`, `notify`, `description`,
-and anything with an `operations.` prefix — returns HTTP 400 *"Field in filter unknown"*.
-There is **no server-side filter for status or result**, so "which devices failed" means
-fetching with `--all` and filtering the output yourself.
+**History filter names do NOT match the response field names.** Confirmed by the OpenGate
+team and verified live:
+
+| What you filter on | Field name |
+|---|---|
+| job, entity, operation id, resource type | `jobId`, `entityId`, `operationId`, `resourceType` — **unprefixed** |
+| operation name | `operationName` or `operation.name` |
+| lifecycle state | `operationStatus` |
+| outcome | `operationResult` or `operation.result` |
+| date, notify | `operationDate`, `operationNotify` |
+
+Everything else is HTTP 400 *"Field in filter unknown"*: the bare `name`, `status`,
+`result`, `user`, `date`, `description`, anything with an `operations.` prefix (those are
+projection/CSV names), and the near-misses `operation.status`, `operationEntityId`,
+`operationJobId`, `operationUser`.
+
+So **filter failures server-side** instead of pulling everything:
+
+```bash
+og jobs history -w "operationResult eq ERROR" --all               # only the failures
+og jobs history --job <id> -w "operationResult eq ERROR"          # ...within one job
+og jobs history -w "operationName eq DIAGNOSIS" -w "operationStatus eq FINISHED"
+```
 
 **Both are paged, and the first page is not the whole job.** Pass `--all` whenever the
 question is "did every device succeed" or "how many failed" — otherwise you are counting
@@ -81,6 +99,20 @@ a `name`, a `result` and a `description`. The step `result` values are `SUCCESSF
 that `NOT_EXECUTED` exists. The table output shows a compact `NAME=OK/ERR/SKIP/NOTRUN`
 summary; use `--output json` for the full descriptions, which is where the actual reason
 for a failure is written.
+**More than 100 entities needs `og jobs launch`.** A target list caps at 100, so a big
+fleet requires create-inactive → append in batches → activate. `og jobs launch` does it
+and merges the activation into the LAST batch, so the job never goes live with a partial
+target (an active job operates on whatever is attached at that moment, and an operation
+already sent cannot be recalled). It also surfaces the entities the platform refused —
+`notProvisioned`/`notAllowed`/`duplicated` arrive inside SUCCESSFUL responses, so a job
+can silently cover fewer devices than you asked for.
+
+**Scattering: `maxSpread` is a percentage of the job window and must never be 100** — the
+last operations would be launched exactly as the window expires and never run. Use 80,
+ceiling 90. And `strategy` is lowercase on the wire despite the schema saying `Strategy`;
+a capitalised key is ignored and the job runs unscattered. Details and the window-sizing
+rule: [job-templates.md](job-templates.md).
+
 - Job JSON anatomy and per-operation templates with realistic timeouts:
   [job-templates.md](job-templates.md).
 - DESTRUCTIVE: rebooting production devices needs explicit user confirmation. Never

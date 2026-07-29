@@ -597,8 +597,12 @@ og jobs search -w "jobs.request.name eq REBOOT_EQUIPMENT"
 
 # Get report / create / cancel
 og jobs get <job-id>
-og jobs create -f job.json
+og jobs create -f job.json                     # single batch: up to 100 entities
 og jobs cancel <job-id>
+
+# Launch over a large fleet: creates inactive, appends targets in batches, activates last
+og jobs launch -f job.json --entities-file meters.txt
+og jobs launch -f job.json --entity dev-1 --entity dev-2 --batch 50
 
 # List per-device operations within a job, with their execution steps
 og jobs operations <job-id>
@@ -608,6 +612,7 @@ og jobs operations <job-id> --page 2 --limit 100
 # Operation history: closed operations across jobs, filterable
 og jobs history --job <job-id> --all           # read back one job's results
 og jobs history -w "operationName eq DIAGNOSIS" --limit 100
+og jobs history -w "operationResult eq ERROR" --all      # only the failures
 og jobs history -w "entityId eq dev-1" --output json
 ```
 
@@ -622,11 +627,13 @@ takes a filter and caps at 2000. **A `FINISHED` job does not mean every device
 succeeded, and the first page is not the whole job** — pass `--all` when the question
 is "did they all work" or "how many failed".
 
-The history filter accepts a narrow, unprefixed set of fields, verified against a live
-instance: `jobId`, `entityId`, `operationId`, `resourceType` and `operationName` (alias
-`operation.name`). Anything else — including `status`, `result` and any `operations.`
-prefix — is rejected with HTTP 400 *"Field in filter unknown"*, so there is no
-server-side filter by outcome: fetch with `--all` and filter the output.
+**The history filter field names do not match the response field names.** Identifiers go
+unprefixed — `jobId`, `entityId`, `operationId`, `resourceType` — while the rest take an
+`operation` prefix: `operationName` (or `operation.name`), `operationStatus`,
+`operationResult` (or `operation.result`), `operationDate`, `operationNotify`. Anything
+else is rejected with HTTP 400 *"Field in filter unknown"*, including a bare `result` or
+`status`, any `operations.` prefix, and `operation.status`. Outcome **is** filterable, so
+ask for the failures rather than fetching everything.
 
 Note that `jobs operations` has been observed returning HTTP 204 (no content) for a
 job whose operations do exist and are returned by `jobs history`. When results matter,
@@ -1335,6 +1342,39 @@ for dev, err := range c.SearchDevicesAll(ctx, filter) {
 `opengate.DefaultPageSize`) and stops at the last page. For manual control use
 `SearchDevicesPage(ctx, filter, page, size)`; `page` counts from **1** and is a
 page number, not an element offset.
+
+Launching an operation over a fleet larger than one target list (100 entities) uses
+the batched pattern, with activation merged into the last batch so the job is never
+active with a partial target:
+
+```go
+res, err := c.LaunchJob(ctx, opengate.JobRequest{
+    Name:     "DIAGNOSIS",
+    Callback: "https://my-service/jobs/callback",
+    Notify:   opengate.Ptr(true),
+    Schedule: &opengate.JobSchedule{
+        Stop:       &opengate.JobScheduleTime{Delayed: 21_600_000}, // 6 h window
+        Scattering: opengate.DefaultScattering(),                   // maxSpread 80
+    },
+    OperationParameters: &opengate.OperationParams{
+        Timeout: 60_000, AckTimeout: 5_000, Retries: opengate.Ptr(0),
+    },
+}, meterIDs, opengate.LaunchOptions{
+    OnProgress: func(p opengate.LaunchProgress) {
+        // The id arrives before the first batch, so it can be persisted and resumed.
+        log.Printf("job %s: %d/%d", p.JobID, p.Appended, p.Total)
+    },
+})
+if !res.Rejected.Empty() {
+    // notProvisioned / notAllowed / duplicated arrive inside SUCCESSFUL responses:
+    // ignore them and the job silently covers fewer devices than requested.
+}
+```
+
+`scattering.maxSpread` is a percentage of the job's window and **must never be 100** —
+the last operations would be launched exactly as the window expires and never run, since
+the platform does not measure durations to reserve that margin. The library refuses
+anything above `MaxScatteringSpread` (90); `DefaultScattering()` uses 80.
 
 Two more things worth knowing for long-running services:
 
