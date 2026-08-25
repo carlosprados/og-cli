@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/carlosprados/og-cli/v2/internal/output"
+	"github.com/carlosprados/og-cli/v2/internal/typegen"
 	"github.com/carlosprados/og-cli/v2/internal/unwrap"
 	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/spf13/cobra"
@@ -45,6 +46,7 @@ var (
 	ruleUpdateFile    string
 	rulePullDir       string
 	rulePullForce     bool
+	ruleNoTypings     bool
 	ruleWrapOut       string
 	ruleDeployUpdate  bool
 )
@@ -240,6 +242,14 @@ var rulesPullCmd = &cobra.Command{
 			return err
 		}
 		fmt.Printf("Rule unwrapped to %s\n", dir)
+
+		if !ruleNoTypings {
+			p, perr := activeProfile()
+			if perr == nil {
+				writeTypings(dir, typegen.ContextRuleAdvanced,
+					datamodelForTypings(cmd, p, orgName), orgName, typegen.ParametersFrom(raw))
+			}
+		}
 		return nil
 	},
 }
@@ -266,6 +276,15 @@ var rulesPullAllCmd = &cobra.Command{
 		// One Options for the whole batch: slug deduplication only works when
 		// every artifact sees the slugs its siblings already claimed.
 		opts := &unwrap.Options{Force: rulePullForce, Warn: hintWarner()}
+
+		// Resolve the datamodel once, not per rule: the typings only differ in
+		// each rule's own parameters.
+		var dm *opengate.Datamodel
+		orgName, orgErr := resolveOrg(p)
+		if !ruleNoTypings && orgErr == nil {
+			dm = datamodelForTypings(cmd, p, orgName)
+		}
+
 		count := 0
 		for _, raw := range resp.Rules {
 			dir, err := unwrapRuleTo(raw, rulePullDir, opts)
@@ -273,6 +292,9 @@ var rulesPullAllCmd = &cobra.Command{
 				return err
 			}
 			fmt.Printf("  %s\n", dir)
+			if !ruleNoTypings && orgErr == nil {
+				writeTypings(dir, typegen.ContextRuleAdvanced, dm, orgName, typegen.ParametersFrom(raw))
+			}
 			count++
 		}
 		fmt.Printf("%d rules unwrapped to %s\n", count, rulePullDir)
@@ -409,8 +431,10 @@ func init() {
 
 	rulesPullCmd.Flags().StringVar(&rulePullDir, "dir", "rules", "destination directory")
 	rulesPullCmd.Flags().BoolVar(&rulePullForce, "force", false, "overwrite existing destination")
+	rulesPullCmd.Flags().BoolVar(&ruleNoTypings, "no-typings", false, "skip generating og-globals.d.ts and jsconfig.json")
 	rulesPullAllCmd.Flags().StringVar(&rulePullDir, "dir", "rules", "destination directory")
 	rulesPullAllCmd.Flags().BoolVar(&rulePullForce, "force", false, "overwrite existing destinations")
+	rulesPullAllCmd.Flags().BoolVar(&ruleNoTypings, "no-typings", false, "skip generating og-globals.d.ts and jsconfig.json")
 
 	rulesWrapCmd.Flags().StringVar(&ruleWrapOut, "out", "", "write rule JSON to this file (default: stdout)")
 
