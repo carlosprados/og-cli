@@ -657,3 +657,61 @@ declared widget fields cover the real corpus. Lint stays at the 42-issue baselin
 Not addressed here, still open for Phase 4: `Hash(Explode → Implode) == Hash(original)` as a
 property test over the corpus. The two data-loss paths it was meant to catch are now fixed and
 covered by unit tests, but the corpus-wide property test does not exist yet.
+
+---
+
+## 11. Phase 2 as built (2026-08-25)
+
+`internal/typegen` + `og typegen`, and `og rules pull` writes the two files next to the code
+(`--no-typings` opts out).
+
+Two halves, as designed in §5.7:
+
+- **Platform catalogue** — `templates/rule-advanced.d.ts`, embedded with `go:embed`, hand-derived
+  from the vendored `rules-js-reference.md`: ~65 functions and objects (`alarm`, `notification`,
+  `operation`, `collect`, `provision`, `logger`, `utils`, `location`, `http.client`, the date and
+  counter helpers), the entity value shape, and `OGSeverity`/`OGPriority` as real unions.
+- **Generated from the tenant** — the organization's datamodel becomes the `OGDatastreamID` union
+  and the `OGEntity` keys, each typed from its JSON Schema (`{"type":"number"}` → `number`), with
+  the datastream's name, description, unit and category as its doc comment.
+
+Two things went beyond the plan:
+
+1. **Rule parameters are typed too.** A rule declares `parameters: [{name, value, schema}]`, so
+   `parameterObject` gets a real interface instead of `Record<string, unknown>` — a mistyped
+   parameter name is an error, and arithmetic against a numeric parameter type-checks. Discovered
+   because the *demo rule* failed to type-check against the first version of the declarations:
+   `Record<string, unknown>` made `temp > tempThreshold` an error on correct code.
+2. **Indexed datastreams are declared as arrays** of `{_index, _value}`, and `_current` carries
+   `date`/`at`/`source`/`sourceInfo`/`provType` — the corrections noted in §5.7.
+
+### Verified with a real type-checker
+
+Not "should work": `tsc 5.9` was run against the generated files.
+
+| Case | Result |
+|---|---|
+| `entity['sensro.temperature']` | `Property 'sensro.temperature' does not exist on type 'OGEntity'. Did you mean 'sensor.temperature'?` |
+| `entity['device.pressure']` (not in this datamodel) | `TS7053: … can't be used to index type 'OGEntity'` |
+| `alarm.open({severity: 'HIGH'})` | `Type '"HIGH"' is not assignable to type 'OGSeverity'` |
+| `alarm.opne(...)` | `Property 'opne' does not exist` |
+| `._curent.value` | `Did you mean '_current'?` |
+| `loger.info(...)` | `Cannot find name 'loger'. Did you mean 'logger'?` |
+| **the demo's real rule** (`env-anomaly/javascript.js`, unmodified) | **clean, exit 0** |
+
+### Two decisions worth recording
+
+- **`noImplicitAny: true` in the generated `jsconfig.json` is load-bearing.** With `strict: false`
+  alone, TypeScript silently types an unknown index as `any` and the single most valuable check —
+  the mistyped datastream identifier — never fires. Found because the first run caught only 4 of
+  the 6 seeded errors. `strict` itself stays off: `strictNullChecks` would flag every read of an
+  optional datastream, which is noise a user would silence by deleting the file.
+- **`getVariableValue` is typed as `(v: T) => T`, not `T | ''`.** The honest union (it does return
+  `''` for undefined) makes every arithmetic use of a rule parameter an error, putting correct code
+  in red. The deviation is documented in the declaration itself.
+
+`og typegen` is CLI-only, consistent with the surface split: it writes to arbitrary local
+directories, which is the one category deliberately kept out of MCP.
+
+Still open from §5.7: contexts other than `rule/ADVANCED` (connector functions per protocol,
+provision functions, widget formatters) — that is Phase 10.

@@ -425,8 +425,12 @@ og rules disable <rule-id> --org sensehat
 # Local editing cycle — ADVANCED rules' JavaScript becomes a real .js file
 og rules pull <rule-id> --dir rules/ --org sensehat
 #   → rules/<rule-slug>/rule.json + javascript.js
+#     + og-globals.d.ts + jsconfig.json  (editor completion & diagnostics)
 $EDITOR rules/<rule-slug>/javascript.js
 og rules deploy rules/<rule-slug> --update --org sensehat
+
+# --no-typings skips the two generated files (and the datamodel lookup)
+og rules pull <rule-id> --dir rules/ --org sensehat --no-typings
 
 # pull-all / wrap mirror the workspace verbs
 og rules pull-all --dir rules/ --org sensehat
@@ -438,6 +442,35 @@ ADVANCED rule JavaScript context: `entity['<datastream>']._value._current.value`
 `openAlarm(null, name, ruleName, severity, priority, message)`. See
 [demo/rules/](demo/rules/default_channel/env-anomaly/javascript.js) for a working
 multi-datastream rule with hysteresis.
+
+**Editor support.** `pull` also writes `og-globals.d.ts` and `jsconfig.json` next
+to the code, so any LSP-capable editor — Neovim, VS Code, Cursor, Zed — gives
+completion and diagnostics through `tsserver` with no editor-specific setup. The
+declarations are generated from **your** platform: the organization's datamodel
+becomes the set of valid datastream identifiers with their value types, and the
+rule's own `parameters` become a typed `parameterObject`. So this is an error in
+the editor, before deploying:
+
+```js
+entity['sensro.temperature']   // Property 'sensro.temperature' does not exist
+                               // on type 'OGEntity'. Did you mean
+                               // 'sensor.temperature'?
+alarm.open({ severity: 'HIGH' })   // 'HIGH' is not assignable to OGSeverity
+                                    // ('INFORMATIVE' | 'URGENT' | 'CRITICAL')
+```
+
+Regenerate standalone after a datamodel change — the header records what each
+file was generated from:
+
+```bash
+og typegen --context rule/ADVANCED --org sensehat --out rules/<rule-slug>/
+og typegen --context rule/ADVANCED --org sensehat --datamodel multisensor --out .
+og typegen --help        # available contexts
+```
+
+Both generated files are safe to keep in the artifact directory: `wrap` and
+`deploy` ignore everything they do not declare as a code path, so they never
+reach the platform. Commit them or gitignore them, as you prefer.
 
 ### connectors (alias: cf)
 

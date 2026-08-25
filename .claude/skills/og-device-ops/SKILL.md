@@ -160,6 +160,15 @@ javascript (read-only byproduct — don't edit it, edit condition/actions).
 
 ```bash
 og rules pull <rule-id> --dir rules/ --org <org>   # → rules/<slug>/rule.json + javascript.js
+#                                                   + og-globals.d.ts + jsconfig.json
+# pull also generates TypeScript declarations so tsserver (Neovim/VS Code/Cursor/
+# Zed) type-checks the rule. They are generated from THIS org: every datastream id
+# in the datamodel with its value type, plus the rule's own parameters typed from
+# their schema. entity['sensro.temperature'] and severity:'HIGH' become editor
+# errors instead of silent runtime undefined. Both files are ignored by wrap and
+# deploy — they never reach the platform.
+og typegen --context rule/ADVANCED --org <org> --out rules/<slug>/   # regenerate after a datamodel change
+og rules pull <rule-id> --dir rules/ --org <org> --no-typings        # skip them
 # edit javascript.js in the IDE
 og rules deploy rules/<slug> --update --org <org>  # PUT (requires identifier in rule.json)
 og rules deploy rules/<slug> --org <org>           # POST: create new (no identifier needed)
