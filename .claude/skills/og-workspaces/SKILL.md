@@ -31,12 +31,26 @@ Rules:
 - `workspace.json` MUST NOT embed the `dashboards` array — the CLI derives it from subdirectories.
 - `dashboard.json` MUST include `_workspaceLayout` (`x`,`y`,`w`,`h`,`id`) linking it to the workspace grid.
 - `widget.json` MUST be a full GridItem (layout coords AND `definition`), not a bare widget config.
-- JS extraction: fields named `formatter`, `script`, `operation`, `code`, `fn`,
-  `expression`, `_widgetConfigCode` — or any long string containing JS keywords
-  (`function`, `return`, `=>`, `const`, `let`, `var`) — become sibling `.js` files;
-  nested fields keep their keypath in the filename (e.g. `columns__0__formatter.js`).
-  Edit the `.js` files, NOT the JSON copies.
-- The cycle is content-lossless: `wrap` reproduces identical widget configs (same SHA256).
+- JS extraction is DECLARED, not guessed. Widget code fields, matched at any depth:
+  `_widgetConfigCode`, `_formatterCode`, `formatter`, `script`, `code`, `fn`,
+  `expression`. A declared field becomes a sibling `.js` file whenever present —
+  even when empty — so its filename never moves because you edited the code.
+  Nested fields keep their keypath in the filename (`columns__0__formatter.js`,
+  `columns__2___formatterCode.js`). Edit the `.js` files, NOT the JSON copies.
+- `operation` is NOT a code field: it carries an operation name (`REFRESH_INFO`).
+- Transitional fallback (widgets only): an UNDECLARED field whose content looks
+  like JavaScript (long, with `function`/`return`/`=>`/`const`/`let`/`var`) is
+  still extracted, but `pull` prints a `hint:` on stderr naming it. Report those
+  so the field gets declared — the heuristic misses code written as a bare
+  assignment, and fires on prose.
+- A `.js` file the family does not declare (your own `helper.js`, generated
+  typings) is IGNORED by wrap — reported with a `hint:`, never uploaded as a
+  payload field.
+- The cycle is content-lossless in the sense that `wrap` reproduces an equivalent
+  widget config: the decoded JSON trees compare equal. It is NOT a byte-for-byte
+  or SHA256 match — key order and null/default serialisation differ. Two real
+  round-trip defects (an object keyed by number turning into an array; a key
+  containing `__` colliding with the separator) were fixed in v2.1.0.
 
 JSON shape details: [reference/workspaces.md](reference/workspaces.md),
 [reference/dashboards.md](reference/dashboards.md),

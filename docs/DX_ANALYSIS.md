@@ -28,7 +28,7 @@ this first, because it changes the plan's shape and its cost.
 | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | Connector functions are unimplemented (Phase 2)                       | Shipped in v0.9.0 as `og connectors` (alias **`og cf`** already exists)                                                                                                          | `cmd/connectors.go`, `verified-code`                                |
 | Provision functions are unimplemented (Phase 3)                       | Shipped in v0.9.0 as `og provision`, including `plan` (dry-run) and `bulk`                                                                                                       | `cmd/provision.go`, `verified-code`                                 |
-| "Locate the SHA256 config comparison used to assert wrap is lossless" | **No SHA256 exists anywhere in the repo.** Losslessness is asserted by `reflect.DeepEqual` over decoded trees in tests only                                                      | `grep sha256` → no Go matches, `verified-code`                      |
+| "Locate the SHA256 config comparison used to assert wrap is lossless" | **No SHA256 exists anywhere in the repo.** Losslessness is asserted by `reflect.DeepEqual` over decoded trees in tests only. **Source of the confusion found** (2026-08-25): the `og-workspaces` skill claimed *"wrap reproduces identical widget configs (same SHA256)"* — a documentation overstatement, now corrected there                                                      | `grep sha256` → no Go matches, `verified-code`                      |
 | Three divergent `pull`/`wrap`/`deploy` implementations                | One shared core (`ExtractJSFields`/`ReinjectJSFields`/`Slugify`) plus **three byte-identical adapters** and one genuinely different nested pipeline (workspace→dashboard→widget) | `internal/unwrap/{rules,connectors,provisions}.go`, `verified-code` |
 | Connector functions have `REQUEST` and `RESPONSE` variants            | Three types: `REQUEST`, `RESPONSE`, **`COLLECTION`**                                                                                                                             | `pkg/opengate/connectors.go`, `verified-live`                       |
 | Helper is `collectCF()`                                               | Concatenation helpers are **`responseCF`** and **`collectionCF`**; `collectCF` does not exist                                                                                    | JS reference §concatenation, `from-docs`                            |
@@ -390,17 +390,24 @@ period. `_formatterCode` goes in the allowlist on day one (§2.2).
 
 ### 5.3 Filename encoding — fix before building on it
 
-The `__`-joined keypath (§2.3) is ambiguous in two directions. Proposal:
+The `__`-joined keypath (§2.3) is ambiguous in two directions. **Implemented 2026-08-25, and
+cheaper than this section originally proposed** — no file in any existing tree is renamed:
 
-- Percent-escape `_` and any separator inside a key segment before joining, so `a__b` and
-  `a`/`b` no longer collide.
-- Tag array indices distinctly from object keys (e.g. `[0]` vs `0`) so `setAt` reconstructs the
-  original container type.
-- Keep reading the current unescaped form (no re-pull required for existing trees), write the new
-  form. A one-shot `og <family> pull --force` normalizes.
+- **Numeric object keys.** Tagging array indices as `[0]` turns out to be unnecessary. The cleaned
+  document still carries the original container at each position — `walkExtract` only removes leaf
+  strings, so `{"series":{"0":{…}}}` stays an object — which means `setAt` can read the container's
+  concrete type instead of inferring it from the segment's spelling. It only has to guess when the
+  container is absent, and there a numeric segment does mean an array. `columns__0__formatter.js`
+  keeps its name.
+- **Separator collision.** Percent-escaping is applied only to runs of *two or more* underscores
+  inside a segment (and to `%`, to keep the escape unambiguous). A lone underscore cannot be
+  confused with the separator, so `_widgetConfigCode.js` and `columns__2___formatterCode.js` are
+  spelled exactly as before. Files written before escaping existed contain no `%`, so they parse
+  unchanged.
 
-Cost is small and it is a prerequisite: `Hash(Explode → Implode) == Hash(original)` cannot hold
-over a corpus containing either pattern.
+So B3 is not the disruptive layout change §9.2 assumed: no migration note, no re-pull. What *does*
+change shape is the extraction contract below, and only for fields that were being extracted by
+accident.
 
 ### 5.4 Canonicalization and base state
 
@@ -609,3 +616,44 @@ editor is not a patch. Options:
 
 Under (a) the round-trip property test of Phase 4 must be written to **fail** on the §2.3 cases
 from day one, so the debt stays visible rather than being quietly deferred.
+
+---
+
+## 10. Phase 1 as built (2026-08-25)
+
+Branch `og-cli/dx-extraction-contract`, on top of v2.0.2.
+
+`internal/unwrap/contract.go` introduces `CodeContract`, which each family supplies:
+
+| Family | Declared code path(s) | Execution context |
+|---|---|---|
+| Rule | `javascript` → `javascript.js` | `rule/ADVANCED` |
+| Connector function | `javascript` → `javascript.js` | `connector-function/{REQUEST,RESPONSE,COLLECTION}`, from the artifact's `type` |
+| Provision function | `scriptProcessor.script` → `scriptProcessor__script.js` | `provision-function` |
+| Widget | field names at any depth: `_widgetConfigCode`, `_formatterCode`, `formatter`, `script`, `code`, `fn`, `expression` | `widget` |
+
+Behaviour changes:
+
+1. **A declared field is always extracted**, even when empty or when its content does not look
+   like code. This is the point: the path stops depending on the contents (§2.2).
+2. **`operation` is no longer a code field.** It holds an operation name (`REFRESH_INFO`); it was
+   producing one-word `.js` files.
+3. **Undeclared strings that look like code** are left inline and reported on stderr for the flat
+   families, whose paths are exhaustive. For **widgets** the heuristic still extracts them — with a
+   warning naming the field — because the per-widget-type census is incomplete and refusing would
+   cost a user their editable file. Per the decision in §8b.4 (transition period), with one
+   deliberate deviation from the option as worded: the fallback still *writes* the file for
+   widgets rather than only warning.
+4. **A `.js` file the contract does not declare is never injected** as a payload field on wrap; it
+   is reported and skipped. That makes `helper.js` and generated typings safe to keep in an
+   artifact directory — a precondition for Phase 8 (typegen) and for any future shared modules.
+5. The execution context is recorded per extracted file (`ExecCtx`), which is what Phase 8 will
+   consume. It is computed and currently discarded by the callers; nothing persists it yet.
+
+Verification: the whole `demo/` corpus wraps **byte-identically** to v2.0.2 (workspace with 7
+widgets and 5 column formatters, both ADVANCED rules), and the run emits **zero warnings** — the
+declared widget fields cover the real corpus. Lint stays at the 42-issue baseline.
+
+Not addressed here, still open for Phase 4: `Hash(Explode → Implode) == Hash(original)` as a
+property test over the corpus. The two data-loss paths it was meant to catch are now fixed and
+covered by unit tests, but the corpus-wide property test does not exist yet.

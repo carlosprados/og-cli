@@ -224,6 +224,13 @@ og connectors pull-all --dir connectors/ --org <org>         # whole channel
 # of overwriting the first — so the directory name is not always Slugify(name).
 # Resolve a directory back to its artifact by reading `identifier` from the
 # metadata JSON, never by assuming the slug.
+#
+# Code paths are declared, not guessed. A connector function's code is always
+# `javascript` → javascript.js; a rule's is `javascript` → javascript.js; a
+# provision function's is `scriptProcessor.script` → scriptProcessor__script.js.
+# The file is written even when the field is empty, so its path never moves.
+# Any other .js you drop in the directory is IGNORED by wrap/deploy (reported
+# with a `hint:`) — it will not reach the platform.
 ```
 
 COLLECTION JS uses the `collection` global (`addDatapoint`, `setFeed`, `send`,

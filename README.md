@@ -716,6 +716,19 @@ og workspace pull-file ws.json --dir wsroot/
 # widget directory with a missing or unparseable widget.json fails the wrap,
 # naming the offending directory. Dot-directories (.og/, .git/) are ignored.
 
+# Which fields become .js files is declared per artifact family, not guessed
+# from the content: a rule's `javascript`, a connector function's `javascript`,
+# a provision function's `scriptProcessor.script`, and the widget code fields
+# (_widgetConfigCode, _formatterCode, formatter, ...). A declared field is
+# always extracted — even when empty — so the file's path stays put across
+# edits. Widget configs additionally keep a content heuristic as a transitional
+# fallback: an unlisted field that looks like code is still extracted, with a
+# `hint:` on stderr naming it (please report those).
+#
+# A .js file the family does not declare — your own helper.js, generated
+# typings — is left alone on wrap and never deployed as a payload field. It is
+# reported with a `hint:` so it is clear it is not being uploaded.
+
 # Ownership filter: unwrap only writes items you can actually edit. A workspace
 # (or nested dashboard) whose `owner` is not the active profile's email is not
 # editable by you — re-importing it would fail or clobber someone else's work.
