@@ -712,6 +712,10 @@ og workspace pull-file ws.json --dir wsroot/
 # disambiguates them by appending a short identifier suffix to the slug of the
 # second and later ones — it never writes two artifacts into the same directory.
 
+# wrap refuses a malformed artifact tree rather than deploying a partial one: a
+# widget directory with a missing or unparseable widget.json fails the wrap,
+# naming the offending directory. Dot-directories (.og/, .git/) are ignored.
+
 # Ownership filter: unwrap only writes items you can actually edit. A workspace
 # (or nested dashboard) whose `owner` is not the active profile's email is not
 # editable by you — re-importing it would fail or clobber someone else's work.

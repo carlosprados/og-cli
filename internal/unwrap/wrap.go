@@ -30,19 +30,16 @@ func Wrap(dir string) (*opengate.Workspace, error) {
 		return nil, fmt.Errorf("parsing workspace.json: %w", err)
 	}
 
-	dashEntries, err := os.ReadDir(dir)
+	names, err := artifactSubdirs(dir)
 	if err != nil {
-		return nil, fmt.Errorf("listing workspace dir: %w", err)
+		return nil, err
 	}
 
 	var dashboards []opengate.WorkspaceDashboard
-	for _, e := range dashEntries {
-		if !e.IsDir() {
-			continue
-		}
-		wd, err := wrapDashboard(filepath.Join(dir, e.Name()))
+	for _, name := range names {
+		wd, err := wrapDashboard(filepath.Join(dir, name))
 		if err != nil {
-			return nil, fmt.Errorf("dashboard %s: %w", e.Name(), err)
+			return nil, fmt.Errorf("dashboard %s: %w", name, err)
 		}
 		dashboards = append(dashboards, wd)
 	}
@@ -66,7 +63,11 @@ func WrapDashboard(dir string) (*opengate.Dashboard, *opengate.WorkspaceDashboar
 		return nil, nil, err
 	}
 
-	full.Grid = collectGrid(dir)
+	grid, err := collectGrid(dir)
+	if err != nil {
+		return nil, nil, err
+	}
+	full.Grid = grid
 
 	return full, &wd, nil
 }
@@ -107,7 +108,11 @@ func wrapDashboard(dir string) (opengate.WorkspaceDashboard, error) {
 
 	// Reassemble the grid from the widget sub-folders. This is the inverse of
 	// UnwrapDashboardFull which separates each grid item into its own folder.
-	simplified.Grid = collectGrid(dir)
+	grid, err := collectGrid(dir)
+	if err != nil {
+		return opengate.WorkspaceDashboard{}, err
+	}
+	simplified.Grid = grid
 
 	layout.Dashboard = &simplified
 	if layout.ID == "" {
@@ -141,29 +146,44 @@ func readFullDashboard(dir string) (*opengate.Dashboard, error) {
 
 // collectGrid walks widget sub-directories in alphabetical order and rebuilds
 // each GridItem, re-injecting any .js files back into the config.
-func collectGrid(dir string) []opengate.GridItem {
-	entries, err := os.ReadDir(dir)
+//
+// A malformed widget directory is an error, not something to skip: silently
+// dropping it produces a successful deploy with that widget missing from the
+// dashboard, which is far worse than refusing to wrap.
+func collectGrid(dir string) ([]opengate.GridItem, error) {
+	names, err := artifactSubdirs(dir)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	var names []string
-	for _, e := range entries {
-		if e.IsDir() {
-			names = append(names, e.Name())
-		}
-	}
-	sort.Strings(names)
 
 	var grid []opengate.GridItem
 	for _, name := range names {
 		item, err := wrapWidget(filepath.Join(dir, name))
 		if err != nil {
-			// Skip malformed widget directories rather than fail the whole wrap.
-			continue
+			return nil, fmt.Errorf("widget %s: %w", name, err)
 		}
 		grid = append(grid, *item)
 	}
-	return grid
+	return grid, nil
+}
+
+// artifactSubdirs lists the sub-directories of dir that hold artifact content,
+// sorted. Dot-directories are metadata (the .og/ sync cache, .git, editor
+// state) and are never artifacts.
+func artifactSubdirs(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("listing %s: %w", dir, err)
+	}
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		names = append(names, e.Name())
+	}
+	sort.Strings(names)
+	return names, nil
 }
 
 // wrapWidget reads widget.json + every <field>.js sibling and produces a
