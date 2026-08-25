@@ -78,6 +78,10 @@ always" (see `docs/v1-readiness-audit.md` §2):
   browseable resource).
 
 When adding a new endpoint:
+0. If it is a new **artifact family** with a pull/edit/deploy cycle (a single JSON
+   document with code in known fields), declare it as an `unwrap.Descriptor` —
+   metadata filename, name keys, id key, code contract — rather than copying an
+   existing family's adapter. The lifecycle is written once against that struct.
 1. Add the client method in `pkg/opengate/`.
 2. Add the CLI command in `cmd/` (always).
 3. Add the MCP tool in `internal/mcp/` (unless it is purely a local-fs lifecycle verb).

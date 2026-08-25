@@ -715,3 +715,60 @@ directories, which is the one category deliberately kept out of MCP.
 
 Still open from §5.7: contexts other than `rule/ADVANCED` (connector functions per protocol,
 provision functions, widget formatters) — that is Phase 10.
+
+---
+
+## 12. Phase 3 as built (2026-08-25)
+
+### Deviation from §5.1: no new package
+
+§5.1 proposed `internal/artifact`. Built instead as `internal/unwrap/descriptor.go`, deliberately:
+
+`internal/unwrap` **is** the artifact package — its doc comment already says so, and the shared
+machinery (`CodeContract`, `Options`, `DedupedSlug`, `ExtractJSFields`, the nested widget walker)
+all lives there. A sibling `internal/artifact` would have to either import `unwrap` for all of it
+(leaving the family declarations in one package and the lifecycle in another) or move 1500 lines
+across. Renaming the package `unwrap` → `artifact` would be cleaner conceptually and is pure churn
+across 20 files for no functional gain. Same benefit, a fraction of the risk. Revisit only if a
+second consumer of the abstraction appears.
+
+### What it does
+
+`Descriptor` declares the three literals that distinguish a flat family, plus a contract resolver:
+
+| | MetaFile | NameKeys | IDKey |
+|---|---|---|---|
+| `RuleDescriptor()` | `rule.json` | `name` | `identifier` |
+| `ConnectorFunctionDescriptor()` | `connectorfunction.json` | `name`, `connectorFunctionName` | `identifier` |
+| `ProvisionFunctionDescriptor()` | `provisionfunction.json` | `name` | `provisionProcessorId` |
+
+`Descriptor.Unwrap` / `Descriptor.Wrap` implement the lifecycle once. `Contract` is a function of
+the decoded payload rather than a constant, because a connector function's execution context
+follows its `type` field — which also removed the `cfTypeOf` helper that re-read the metadata file
+from disk just to resolve it.
+
+In `cmd/`, the three near-identical `unwrapXTo` helpers collapse into one `unwrapArtifactTo` taking
+a descriptor; the descriptor knows which key holds the name, so the error message no longer needs a
+per-family summary parser.
+
+The existing exported functions (`UnwrapRule`, `WrapConnectorFunction`, …) survive as two-line
+wrappers. That is what makes the refactor behaviour-preserving by construction: no call site and no
+test changed.
+
+### Honest accounting
+
+This does **not** reduce the line count — 168 lines removed, 168 added in `descriptor.go`, roughly
+neutral. What it buys is a single place where the flat lifecycle lives, and a new family becoming a
+ten-line declaration. It is a prerequisite for Phases 4, 6 and 7, which need to iterate over
+families rather than special-case three of them.
+
+Two fields §5.1 proposed are **not** implemented: `Scope` and `Volatile`. Nothing consumes them
+yet, and `Volatile` would have to be invented rather than verified — it arrives in Phase 4, from
+real payloads.
+
+### Verification
+
+Beyond the suite: the Phase 2 binary and the Phase 3 binary were run side by side over nine cases —
+the two demo rules, a connector function, a provision function, a workspace, a dashboard, two
+error paths (missing metadata file, nonexistent directory) and `rules --help`. **stdout, stderr and
+exit code are byte-identical in all nine.** Lint stays at 42.
