@@ -21,7 +21,7 @@ const requestConnectorFunction = `{
 
 func TestUnwrapConnectorFunction(t *testing.T) {
 	dir := t.TempDir()
-	cfDir, err := UnwrapConnectorFunction(json.RawMessage(requestConnectorFunction), dir)
+	cfDir, err := UnwrapConnectorFunction(json.RawMessage(requestConnectorFunction), dir, &Options{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestUnwrapConnectorFunction(t *testing.T) {
 
 func TestWrapConnectorFunctionRoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	cfDir, err := UnwrapConnectorFunction(json.RawMessage(requestConnectorFunction), dir)
+	cfDir, err := UnwrapConnectorFunction(json.RawMessage(requestConnectorFunction), dir, &Options{})
 	if err != nil {
 		t.Fatalf("unwrap: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestWrapConnectorFunctionRoundTrip(t *testing.T) {
 
 func TestWrapConnectorFunctionEditedJS(t *testing.T) {
 	dir := t.TempDir()
-	cfDir, _ := UnwrapConnectorFunction(json.RawMessage(requestConnectorFunction), dir)
+	cfDir, _ := UnwrapConnectorFunction(json.RawMessage(requestConnectorFunction), dir, &Options{})
 
 	edited := "function buildRequest(operation) { return {}; }"
 	os.WriteFile(filepath.Join(cfDir, "javascript.js"), []byte(edited), 0o644)

@@ -219,6 +219,11 @@ og connectors pull <cf-id> --dir connectors/ --org <org>
 og connectors deploy connectors/<slug> --update --org <org>  # PUT (needs identifier)
 og connectors deploy connectors/<slug> --org <org>           # POST: create new
 og connectors pull-all --dir connectors/ --org <org>         # whole channel
+# Two connector functions may legitimately share a name (the identifier is the
+# key). pull-all suffixes the slug of the second with a short identifier instead
+# of overwriting the first — so the directory name is not always Slugify(name).
+# Resolve a directory back to its artifact by reading `identifier` from the
+# metadata JSON, never by assuming the slug.
 ```
 
 COLLECTION JS uses the `collection` global (`addDatapoint`, `setFeed`, `send`,

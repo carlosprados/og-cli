@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/carlosprados/og-cli/v2/internal/output"
@@ -244,7 +243,7 @@ var connectorsPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		dir, err := unwrapConnectorTo(raw, cfPullDir)
+		dir, err := unwrapConnectorTo(raw, cfPullDir, &unwrap.Options{Force: cfPullForce})
 		if err != nil {
 			return err
 		}
@@ -270,9 +269,12 @@ var connectorsPullAllCmd = &cobra.Command{
 			fmt.Println("No connector functions found.")
 			return nil
 		}
+		// One Options for the whole batch: slug deduplication only works when
+		// every artifact sees the slugs its siblings already claimed.
+		opts := &unwrap.Options{Force: cfPullForce}
 		count := 0
 		for _, raw := range resp.ConnectorFunctions {
-			dir, err := unwrapConnectorTo(raw, cfPullDir)
+			dir, err := unwrapConnectorTo(raw, cfPullDir, opts)
 			if err != nil {
 				return err
 			}
@@ -378,20 +380,13 @@ func connectorsClient() (*opengate.Client, string, error) {
 	return opengate.New(p.Host, p.Token, p.ClientOptions()...), orgName, nil
 }
 
-func unwrapConnectorTo(raw json.RawMessage, dir string) (string, error) {
+func unwrapConnectorTo(raw json.RawMessage, dir string, opts *unwrap.Options) (string, error) {
 	s := opengate.ParseConnectorFunctionSummary(raw)
-
-	slug := unwrap.DedupedSlug(s.DisplayName(), s.Identifier, map[string]bool{})
-	target := filepath.Join(dir, slug)
-	if _, err := os.Stat(target); err == nil && !cfPullForce {
-		return "", fmt.Errorf("destination %s already exists (use --force to overwrite)", target)
-	}
-
-	cfDir, err := unwrap.UnwrapConnectorFunction(raw, dir)
+	artifactDir, err := unwrap.UnwrapConnectorFunction(raw, dir, opts)
 	if err != nil {
-		return "", fmt.Errorf("unwrapping connector function %s: %w", s.DisplayName(), err)
+		return "", fmt.Errorf("connector function %s: %w", s.DisplayName(), err)
 	}
-	return cfDir, nil
+	return artifactDir, nil
 }
 
 // --- init ---

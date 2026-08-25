@@ -25,7 +25,7 @@ const sampleProvisionProcessor = `{
 
 func TestUnwrapProvisionProcessor(t *testing.T) {
 	dir := t.TempDir()
-	ppDir, err := UnwrapProvisionProcessor(json.RawMessage(sampleProvisionProcessor), dir)
+	ppDir, err := UnwrapProvisionProcessor(json.RawMessage(sampleProvisionProcessor), dir, &Options{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestUnwrapProvisionProcessor(t *testing.T) {
 
 func TestWrapProvisionProcessorRoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	ppDir, err := UnwrapProvisionProcessor(json.RawMessage(sampleProvisionProcessor), dir)
+	ppDir, err := UnwrapProvisionProcessor(json.RawMessage(sampleProvisionProcessor), dir, &Options{})
 	if err != nil {
 		t.Fatalf("unwrap: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestWrapProvisionProcessorRoundTrip(t *testing.T) {
 
 func TestWrapProvisionProcessorEditedJS(t *testing.T) {
 	dir := t.TempDir()
-	ppDir, _ := UnwrapProvisionProcessor(json.RawMessage(sampleProvisionProcessor), dir)
+	ppDir, _ := UnwrapProvisionProcessor(json.RawMessage(sampleProvisionProcessor), dir, &Options{})
 
 	edited := "function normalizeRawObject(o) { return o; }\nfunction actionsPlanning(o) { return []; }"
 	os.WriteFile(filepath.Join(ppDir, "scriptProcessor__script.js"), []byte(edited), 0o644)
