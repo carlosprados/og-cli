@@ -1,13 +1,6 @@
 package unwrap
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
-// provisionProcessorMetaFile is the metadata file produced/consumed by the
-// provision processor wrap/unwrap cycle.
-const provisionProcessorMetaFile = "provisionfunction.json"
+import "encoding/json"
 
 // UnwrapProvisionProcessor explodes a provision processor JSON into an editable
 // directory:
@@ -19,30 +12,11 @@ const provisionProcessorMetaFile = "provisionfunction.json"
 // Returns the created provision processor directory. Pass one shared Options
 // across a batch so slug deduplication works.
 func UnwrapProvisionProcessor(raw json.RawMessage, dir string, opts *Options) (string, error) {
-	var node any
-	if err := json.Unmarshal(raw, &node); err != nil {
-		return "", fmt.Errorf("parsing provision processor: %w", err)
-	}
-
-	contract := ProvisionFunctionContract()
-	cleaned, jsFiles, _ := contract.Extract(node, opts.Warn)
-
-	m, _ := node.(map[string]any)
-	name, _ := m["name"].(string)
-	id, _ := m["provisionProcessorId"].(string)
-
-	ppDir, err := opts.claim(name, id, dir)
-	if err != nil {
-		return "", err
-	}
-	if err := writeArtifact(ppDir, provisionProcessorMetaFile, cleaned, jsFiles); err != nil {
-		return "", err
-	}
-	return ppDir, nil
+	return ProvisionFunctionDescriptor().Unwrap(raw, dir, opts)
 }
 
 // WrapProvisionProcessor rebuilds the provision processor JSON from an unwrapped
-// directory, reinjecting every .js file at its original keypath.
+// directory, reinjecting its code file.
 func WrapProvisionProcessor(dir string, warn WarnFunc) (json.RawMessage, error) {
-	return wrapFlatArtifact(dir, provisionProcessorMetaFile, "provision processor", ProvisionFunctionContract(), warn)
+	return ProvisionFunctionDescriptor().Wrap(dir, warn)
 }

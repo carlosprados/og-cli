@@ -1,7 +1,6 @@
 package unwrap
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -84,29 +83,11 @@ func readJSFiles(dir string) (map[string]string, error) {
 	return jsFiles, nil
 }
 
-// wrapFlatArtifact rebuilds a flat artifact's JSON from its directory,
-// reinjecting the code files the contract declares. kind names the family in
-// error messages.
-func wrapFlatArtifact(dir, metaFile, kind string, contract CodeContract, warn WarnFunc) (json.RawMessage, error) {
+// readMeta reads an artifact's metadata file.
+func readMeta(dir, metaFile string) ([]byte, error) {
 	data, err := os.ReadFile(filepath.Join(dir, metaFile))
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", metaFile, err)
 	}
-
-	var node any
-	if err := json.Unmarshal(data, &node); err != nil {
-		return nil, fmt.Errorf("parsing %s: %w", metaFile, err)
-	}
-
-	jsFiles, err := readJSFiles(dir)
-	if err != nil {
-		return nil, err
-	}
-	node = contract.Reinject(node, jsFiles, warn)
-
-	out, err := json.MarshalIndent(node, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("marshaling %s: %w", kind, err)
-	}
-	return out, nil
+	return data, nil
 }

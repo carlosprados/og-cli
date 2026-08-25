@@ -237,7 +237,7 @@ var rulesPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		dir, err := unwrapRuleTo(raw, rulePullDir, &unwrap.Options{Force: rulePullForce, Warn: hintWarner()})
+		dir, err := unwrapArtifactTo(unwrap.RuleDescriptor(), raw, rulePullDir, &unwrap.Options{Force: rulePullForce, Warn: hintWarner()})
 		if err != nil {
 			return err
 		}
@@ -287,7 +287,7 @@ var rulesPullAllCmd = &cobra.Command{
 
 		count := 0
 		for _, raw := range resp.Rules {
-			dir, err := unwrapRuleTo(raw, rulePullDir, opts)
+			dir, err := unwrapArtifactTo(unwrap.RuleDescriptor(), raw, rulePullDir, opts)
 			if err != nil {
 				return err
 			}
@@ -394,15 +394,6 @@ func rulesClient() (*opengate.Client, string, error) {
 		return nil, "", err
 	}
 	return opengate.New(p.Host, p.Token, p.ClientOptions()...), orgName, nil
-}
-
-func unwrapRuleTo(raw json.RawMessage, dir string, opts *unwrap.Options) (string, error) {
-	s := opengate.ParseRuleSummary(raw)
-	artifactDir, err := unwrap.UnwrapRule(raw, dir, opts)
-	if err != nil {
-		return "", fmt.Errorf("rule %s: %w", s.Name, err)
-	}
-	return artifactDir, nil
 }
 
 func printJSON(data json.RawMessage) error {

@@ -243,7 +243,7 @@ var connectorsPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		dir, err := unwrapConnectorTo(raw, cfPullDir, &unwrap.Options{Force: cfPullForce, Warn: hintWarner()})
+		dir, err := unwrapArtifactTo(unwrap.ConnectorFunctionDescriptor(), raw, cfPullDir, &unwrap.Options{Force: cfPullForce, Warn: hintWarner()})
 		if err != nil {
 			return err
 		}
@@ -274,7 +274,7 @@ var connectorsPullAllCmd = &cobra.Command{
 		opts := &unwrap.Options{Force: cfPullForce, Warn: hintWarner()}
 		count := 0
 		for _, raw := range resp.ConnectorFunctions {
-			dir, err := unwrapConnectorTo(raw, cfPullDir, opts)
+			dir, err := unwrapArtifactTo(unwrap.ConnectorFunctionDescriptor(), raw, cfPullDir, opts)
 			if err != nil {
 				return err
 			}
@@ -378,15 +378,6 @@ func connectorsClient() (*opengate.Client, string, error) {
 		return nil, "", err
 	}
 	return opengate.New(p.Host, p.Token, p.ClientOptions()...), orgName, nil
-}
-
-func unwrapConnectorTo(raw json.RawMessage, dir string, opts *unwrap.Options) (string, error) {
-	s := opengate.ParseConnectorFunctionSummary(raw)
-	artifactDir, err := unwrap.UnwrapConnectorFunction(raw, dir, opts)
-	if err != nil {
-		return "", fmt.Errorf("connector function %s: %w", s.DisplayName(), err)
-	}
-	return artifactDir, nil
 }
 
 // --- init ---

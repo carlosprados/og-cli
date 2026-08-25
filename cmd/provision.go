@@ -185,7 +185,7 @@ var provisionPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		dir, err := unwrapProvisionTo(raw, ppPullDir, &unwrap.Options{Force: ppPullForce, Warn: hintWarner()})
+		dir, err := unwrapArtifactTo(unwrap.ProvisionFunctionDescriptor(), raw, ppPullDir, &unwrap.Options{Force: ppPullForce, Warn: hintWarner()})
 		if err != nil {
 			return err
 		}
@@ -216,7 +216,7 @@ var provisionPullAllCmd = &cobra.Command{
 		opts := &unwrap.Options{Force: ppPullForce, Warn: hintWarner()}
 		count := 0
 		for _, raw := range items {
-			dir, err := unwrapProvisionTo(raw, ppPullDir, opts)
+			dir, err := unwrapArtifactTo(unwrap.ProvisionFunctionDescriptor(), raw, ppPullDir, opts)
 			if err != nil {
 				return err
 			}
@@ -381,15 +381,6 @@ func provisionClient() (*opengate.Client, string, error) {
 		return nil, "", err
 	}
 	return opengate.New(p.Host, p.Token, p.ClientOptions()...), orgName, nil
-}
-
-func unwrapProvisionTo(raw json.RawMessage, dir string, opts *unwrap.Options) (string, error) {
-	s := opengate.ParseProvisionProcessorSummary(raw)
-	artifactDir, err := unwrap.UnwrapProvisionProcessor(raw, dir, opts)
-	if err != nil {
-		return "", fmt.Errorf("provision function %s: %w", s.Name, err)
-	}
-	return artifactDir, nil
 }
 
 // --- init ---
