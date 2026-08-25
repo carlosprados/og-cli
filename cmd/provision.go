@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/carlosprados/og-cli/v2/internal/output"
 	"github.com/carlosprados/og-cli/v2/internal/unwrap"
@@ -186,7 +185,7 @@ var provisionPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		dir, err := unwrapProvisionTo(raw, ppPullDir)
+		dir, err := unwrapProvisionTo(raw, ppPullDir, &unwrap.Options{Force: ppPullForce})
 		if err != nil {
 			return err
 		}
@@ -212,9 +211,12 @@ var provisionPullAllCmd = &cobra.Command{
 			fmt.Println("No provision functions found.")
 			return nil
 		}
+		// One Options for the whole batch: slug deduplication only works when
+		// every artifact sees the slugs its siblings already claimed.
+		opts := &unwrap.Options{Force: ppPullForce}
 		count := 0
 		for _, raw := range items {
-			dir, err := unwrapProvisionTo(raw, ppPullDir)
+			dir, err := unwrapProvisionTo(raw, ppPullDir, opts)
 			if err != nil {
 				return err
 			}
@@ -381,20 +383,13 @@ func provisionClient() (*opengate.Client, string, error) {
 	return opengate.New(p.Host, p.Token, p.ClientOptions()...), orgName, nil
 }
 
-func unwrapProvisionTo(raw json.RawMessage, dir string) (string, error) {
+func unwrapProvisionTo(raw json.RawMessage, dir string, opts *unwrap.Options) (string, error) {
 	s := opengate.ParseProvisionProcessorSummary(raw)
-
-	slug := unwrap.DedupedSlug(s.Name, s.ProvisionProcessorID, map[string]bool{})
-	target := filepath.Join(dir, slug)
-	if _, err := os.Stat(target); err == nil && !ppPullForce {
-		return "", fmt.Errorf("destination %s already exists (use --force to overwrite)", target)
-	}
-
-	ppDir, err := unwrap.UnwrapProvisionProcessor(raw, dir)
+	artifactDir, err := unwrap.UnwrapProvisionProcessor(raw, dir, opts)
 	if err != nil {
-		return "", fmt.Errorf("unwrapping provision function %s: %w", s.Name, err)
+		return "", fmt.Errorf("provision function %s: %w", s.Name, err)
 	}
-	return ppDir, nil
+	return artifactDir, nil
 }
 
 // --- init ---

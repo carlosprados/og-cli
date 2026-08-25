@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/carlosprados/og-cli/v2/internal/output"
 	"github.com/carlosprados/og-cli/v2/internal/unwrap"
@@ -236,7 +235,7 @@ var rulesPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		dir, err := unwrapRuleTo(raw, rulePullDir)
+		dir, err := unwrapRuleTo(raw, rulePullDir, &unwrap.Options{Force: rulePullForce})
 		if err != nil {
 			return err
 		}
@@ -264,9 +263,12 @@ var rulesPullAllCmd = &cobra.Command{
 			fmt.Println("No rules found.")
 			return nil
 		}
+		// One Options for the whole batch: slug deduplication only works when
+		// every artifact sees the slugs its siblings already claimed.
+		opts := &unwrap.Options{Force: rulePullForce}
 		count := 0
 		for _, raw := range resp.Rules {
-			dir, err := unwrapRuleTo(raw, rulePullDir)
+			dir, err := unwrapRuleTo(raw, rulePullDir, opts)
 			if err != nil {
 				return err
 			}
@@ -372,20 +374,13 @@ func rulesClient() (*opengate.Client, string, error) {
 	return opengate.New(p.Host, p.Token, p.ClientOptions()...), orgName, nil
 }
 
-func unwrapRuleTo(raw json.RawMessage, dir string) (string, error) {
+func unwrapRuleTo(raw json.RawMessage, dir string, opts *unwrap.Options) (string, error) {
 	s := opengate.ParseRuleSummary(raw)
-
-	slug := unwrap.DedupedSlug(s.Name, s.Identifier, map[string]bool{})
-	target := filepath.Join(dir, slug)
-	if _, err := os.Stat(target); err == nil && !rulePullForce {
-		return "", fmt.Errorf("destination %s already exists (use --force to overwrite)", target)
-	}
-
-	ruleDir, err := unwrap.UnwrapRule(raw, dir)
+	artifactDir, err := unwrap.UnwrapRule(raw, dir, opts)
 	if err != nil {
-		return "", fmt.Errorf("unwrapping rule %s: %w", s.Name, err)
+		return "", fmt.Errorf("rule %s: %w", s.Name, err)
 	}
-	return ruleDir, nil
+	return artifactDir, nil
 }
 
 func printJSON(data json.RawMessage) error {

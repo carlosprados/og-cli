@@ -28,7 +28,7 @@ const easyRule = `{
 
 func TestUnwrapRuleAdvanced(t *testing.T) {
 	dir := t.TempDir()
-	ruleDir, err := UnwrapRule(json.RawMessage(advancedRule), dir)
+	ruleDir, err := UnwrapRule(json.RawMessage(advancedRule), dir, &Options{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestUnwrapRuleAdvanced(t *testing.T) {
 
 func TestUnwrapRuleEasyNoJS(t *testing.T) {
 	dir := t.TempDir()
-	ruleDir, err := UnwrapRule(json.RawMessage(easyRule), dir)
+	ruleDir, err := UnwrapRule(json.RawMessage(easyRule), dir, &Options{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestUnwrapRuleEasyNoJS(t *testing.T) {
 func TestWrapRuleRoundTrip(t *testing.T) {
 	for _, src := range []string{advancedRule, easyRule} {
 		dir := t.TempDir()
-		ruleDir, err := UnwrapRule(json.RawMessage(src), dir)
+		ruleDir, err := UnwrapRule(json.RawMessage(src), dir, &Options{})
 		if err != nil {
 			t.Fatalf("unwrap: %v", err)
 		}
@@ -95,7 +95,7 @@ func TestWrapRuleRoundTrip(t *testing.T) {
 
 func TestWrapRuleEditedJS(t *testing.T) {
 	dir := t.TempDir()
-	ruleDir, _ := UnwrapRule(json.RawMessage(advancedRule), dir)
+	ruleDir, _ := UnwrapRule(json.RawMessage(advancedRule), dir, &Options{})
 
 	edited := "function checkAnomaly(context) { return true; }"
 	os.WriteFile(filepath.Join(ruleDir, "javascript.js"), []byte(edited), 0o644)
