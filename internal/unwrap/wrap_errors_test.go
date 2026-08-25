@@ -21,7 +21,7 @@ func TestWrapDashboardFailsOnMalformedWidget(t *testing.T) {
 	}
 	writeFile(t, filepath.Join(bad, "widget.json"), `{"i":"w1",`)
 
-	_, _, err := WrapDashboard(dir)
+	_, _, err := WrapDashboard(dir, nil)
 	if err == nil {
 		t.Fatal("expected an error for a malformed widget directory, got nil")
 	}
@@ -38,7 +38,7 @@ func TestWrapDashboardFailsOnMissingWidgetJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, _, err := WrapDashboard(dir); err == nil {
+	if _, _, err := WrapDashboard(dir, nil); err == nil {
 		t.Error("expected an error for a widget directory without widget.json")
 	}
 }
@@ -63,7 +63,7 @@ func TestWrapIgnoresDotDirectories(t *testing.T) {
 		}
 		writeFile(t, filepath.Join(cache, "d1.canon.json"), `{}`)
 
-		full, _, err := WrapDashboard(dir)
+		full, _, err := WrapDashboard(dir, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -86,7 +86,7 @@ func TestWrapIgnoresDotDirectories(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ws, err := Wrap(dir)
+		ws, err := Wrap(dir, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

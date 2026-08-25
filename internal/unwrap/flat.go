@@ -23,6 +23,10 @@ import (
 type Options struct {
 	Taken map[string]bool
 	Force bool // overwrite a destination left by a previous run
+
+	// Warn receives extraction warnings — an undeclared field that looks like
+	// code, a stray .js file wrap will not deploy. Nil is silent.
+	Warn WarnFunc
 }
 
 // claim resolves the destination directory for an artifact, reserving its slug
@@ -81,9 +85,9 @@ func readJSFiles(dir string) (map[string]string, error) {
 }
 
 // wrapFlatArtifact rebuilds a flat artifact's JSON from its directory,
-// reinjecting every .js file at its original keypath. kind names the family in
+// reinjecting the code files the contract declares. kind names the family in
 // error messages.
-func wrapFlatArtifact(dir, metaFile, kind string) (json.RawMessage, error) {
+func wrapFlatArtifact(dir, metaFile, kind string, contract CodeContract, warn WarnFunc) (json.RawMessage, error) {
 	data, err := os.ReadFile(filepath.Join(dir, metaFile))
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", metaFile, err)
@@ -98,7 +102,7 @@ func wrapFlatArtifact(dir, metaFile, kind string) (json.RawMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	node = ReinjectJSFields(node, jsFiles)
+	node = contract.Reinject(node, jsFiles, warn)
 
 	out, err := json.MarshalIndent(node, "", "  ")
 	if err != nil {

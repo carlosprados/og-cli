@@ -24,7 +24,8 @@ func UnwrapProvisionProcessor(raw json.RawMessage, dir string, opts *Options) (s
 		return "", fmt.Errorf("parsing provision processor: %w", err)
 	}
 
-	cleaned, jsFiles := ExtractJSFields(node)
+	contract := ProvisionFunctionContract()
+	cleaned, jsFiles, _ := contract.Extract(node, opts.Warn)
 
 	m, _ := node.(map[string]any)
 	name, _ := m["name"].(string)
@@ -42,6 +43,6 @@ func UnwrapProvisionProcessor(raw json.RawMessage, dir string, opts *Options) (s
 
 // WrapProvisionProcessor rebuilds the provision processor JSON from an unwrapped
 // directory, reinjecting every .js file at its original keypath.
-func WrapProvisionProcessor(dir string) (json.RawMessage, error) {
-	return wrapFlatArtifact(dir, provisionProcessorMetaFile, "provision processor")
+func WrapProvisionProcessor(dir string, warn WarnFunc) (json.RawMessage, error) {
+	return wrapFlatArtifact(dir, provisionProcessorMetaFile, "provision processor", ProvisionFunctionContract(), warn)
 }

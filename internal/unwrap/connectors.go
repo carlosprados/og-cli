@@ -3,6 +3,8 @@ package unwrap
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 )
 
 // connectorFunctionMetaFile is the metadata file produced/consumed by the
@@ -24,9 +26,11 @@ func UnwrapConnectorFunction(raw json.RawMessage, dir string, opts *Options) (st
 		return "", fmt.Errorf("parsing connector function: %w", err)
 	}
 
-	cleaned, jsFiles := ExtractJSFields(node)
-
 	m, _ := node.(map[string]any)
+	cfType, _ := m["type"].(string)
+	contract := ConnectorFunctionContract(cfType)
+	cleaned, jsFiles, _ := contract.Extract(node, opts.Warn)
+
 	name, _ := m["name"].(string)
 	if name == "" {
 		name, _ = m["connectorFunctionName"].(string)
@@ -45,6 +49,23 @@ func UnwrapConnectorFunction(raw json.RawMessage, dir string, opts *Options) (st
 
 // WrapConnectorFunction rebuilds the connector function JSON from an unwrapped
 // directory, reinjecting every .js file at its original keypath.
-func WrapConnectorFunction(dir string) (json.RawMessage, error) {
-	return wrapFlatArtifact(dir, connectorFunctionMetaFile, "connector function")
+func WrapConnectorFunction(dir string, warn WarnFunc) (json.RawMessage, error) {
+	return wrapFlatArtifact(dir, connectorFunctionMetaFile, "connector function", ConnectorFunctionContract(cfTypeOf(dir)), warn)
+}
+
+// cfTypeOf reads the connector function's type from its metadata file, so wrap
+// resolves the same execution context that pull recorded. An unreadable file is
+// not this function's problem: wrapFlatArtifact reports it.
+func cfTypeOf(dir string) string {
+	data, err := os.ReadFile(filepath.Join(dir, connectorFunctionMetaFile))
+	if err != nil {
+		return ""
+	}
+	var meta struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return ""
+	}
+	return meta.Type
 }

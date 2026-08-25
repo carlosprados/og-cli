@@ -45,7 +45,7 @@ func Unwrap(w *opengate.Workspace, dir string) (string, error) {
 // UnwrapDashboardFull unwraps a full Dashboard (with grid+widgets) into the
 // given dashboard directory. Use it when you have the full Dashboard struct,
 // typically fetched via opengate.GetDashboard.
-func UnwrapDashboardFull(d *opengate.Dashboard, layout *opengate.WorkspaceDashboard, dir string) error {
+func UnwrapDashboardFull(d *opengate.Dashboard, layout *opengate.WorkspaceDashboard, dir string, warn WarnFunc) error {
 	if d == nil {
 		return fmt.Errorf("dashboard is nil")
 	}
@@ -70,14 +70,14 @@ func UnwrapDashboardFull(d *opengate.Dashboard, layout *opengate.WorkspaceDashbo
 	for i, item := range d.Grid {
 		name := widgetSlug(i, item, width)
 		widgetDir := filepath.Join(dir, name)
-		if err := unwrapWidget(&item, widgetDir); err != nil {
+		if err := unwrapWidget(&item, widgetDir, warn); err != nil {
 			return fmt.Errorf("widget %d (%s): %w", i, name, err)
 		}
 	}
 	return nil
 }
 
-func unwrapWidget(item *opengate.GridItem, dir string) error {
+func unwrapWidget(item *opengate.GridItem, dir string, warn WarnFunc) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("creating widget dir: %w", err)
 	}
@@ -89,7 +89,7 @@ func unwrapWidget(item *opengate.GridItem, dir string) error {
 			return fmt.Errorf("decoding widget config: %w", err)
 		}
 	}
-	cleaned, jsFiles := ExtractJSFields(configTree)
+	cleaned, jsFiles, _ := WidgetContract().Extract(configTree, warn)
 
 	// Write each JS file.
 	for filename, code := range jsFiles {

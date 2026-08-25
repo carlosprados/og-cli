@@ -185,7 +185,7 @@ var provisionPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		dir, err := unwrapProvisionTo(raw, ppPullDir, &unwrap.Options{Force: ppPullForce})
+		dir, err := unwrapProvisionTo(raw, ppPullDir, &unwrap.Options{Force: ppPullForce, Warn: hintWarner()})
 		if err != nil {
 			return err
 		}
@@ -213,7 +213,7 @@ var provisionPullAllCmd = &cobra.Command{
 		}
 		// One Options for the whole batch: slug deduplication only works when
 		// every artifact sees the slugs its siblings already claimed.
-		opts := &unwrap.Options{Force: ppPullForce}
+		opts := &unwrap.Options{Force: ppPullForce, Warn: hintWarner()}
 		count := 0
 		for _, raw := range items {
 			dir, err := unwrapProvisionTo(raw, ppPullDir, opts)
@@ -233,7 +233,7 @@ var provisionWrapCmd = &cobra.Command{
 	Short: "Rebuild a provision function JSON from an unwrapped directory (no upload)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		data, err := unwrap.WrapProvisionProcessor(args[0])
+		data, err := unwrap.WrapProvisionProcessor(args[0], hintWarner())
 		if err != nil {
 			return err
 		}
@@ -258,7 +258,7 @@ var provisionDeployCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		body, err := unwrap.WrapProvisionProcessor(args[0])
+		body, err := unwrap.WrapProvisionProcessor(args[0], hintWarner())
 		if err != nil {
 			return err
 		}

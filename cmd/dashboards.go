@@ -336,7 +336,7 @@ func runDashboardUnwrap(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := unwrap.UnwrapDashboardFull(d, nil, dashDir); err != nil {
+	if err := unwrap.UnwrapDashboardFull(d, nil, dashDir, hintWarner()); err != nil {
 		return err
 	}
 	fmt.Printf("  ✓ dashboard %s (%d widgets) → %s\n", d.ID, len(d.Grid), dashDir)
@@ -415,7 +415,7 @@ func runDashboardUnwrapAll(cmd *cobra.Command, args []string) error {
 			failed++
 			continue
 		}
-		if err := unwrap.UnwrapDashboardFull(d, nil, dashDir); err != nil {
+		if err := unwrap.UnwrapDashboardFull(d, nil, dashDir, hintWarner()); err != nil {
 			fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", d.ID, err)
 			failed++
 			continue
@@ -475,7 +475,7 @@ func runDashboardUnwrapFile(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := unwrap.UnwrapDashboardFull(d, nil, dashDir); err != nil {
+	if err := unwrap.UnwrapDashboardFull(d, nil, dashDir, hintWarner()); err != nil {
 		return err
 	}
 	fmt.Printf("  ✓ dashboard %s (%d widgets) → %s\n", d.ID, len(d.Grid), dashDir)
@@ -523,7 +523,7 @@ func runDashboardWrap(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	full, _, err := unwrap.WrapDashboard(args[0])
+	full, _, err := unwrap.WrapDashboard(args[0], hintWarner())
 	if err != nil {
 		return err
 	}
@@ -575,7 +575,7 @@ func runDashboardDeploy(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	full, _, err := unwrap.WrapDashboard(dir)
+	full, _, err := unwrap.WrapDashboard(dir, hintWarner())
 	if err != nil {
 		return fmt.Errorf("wrapping %s: %w", dir, err)
 	}

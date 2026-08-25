@@ -60,7 +60,7 @@ func TestWrapProvisionProcessorRoundTrip(t *testing.T) {
 		t.Fatalf("unwrap: %v", err)
 	}
 
-	out, err := WrapProvisionProcessor(ppDir)
+	out, err := WrapProvisionProcessor(ppDir, nil)
 	if err != nil {
 		t.Fatalf("wrap: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestWrapProvisionProcessorEditedJS(t *testing.T) {
 	edited := "function normalizeRawObject(o) { return o; }\nfunction actionsPlanning(o) { return []; }"
 	os.WriteFile(filepath.Join(ppDir, "scriptProcessor__script.js"), []byte(edited), 0o644)
 
-	out, err := WrapProvisionProcessor(ppDir)
+	out, err := WrapProvisionProcessor(ppDir, nil)
 	if err != nil {
 		t.Fatalf("wrap: %v", err)
 	}

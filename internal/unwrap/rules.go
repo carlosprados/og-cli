@@ -21,7 +21,8 @@ func UnwrapRule(raw json.RawMessage, dir string, opts *Options) (string, error) 
 		return "", fmt.Errorf("parsing rule: %w", err)
 	}
 
-	cleaned, jsFiles := ExtractJSFields(node)
+	contract := RuleContract()
+	cleaned, jsFiles, _ := contract.Extract(node, opts.Warn)
 
 	m, _ := node.(map[string]any)
 	name, _ := m["name"].(string)
@@ -39,6 +40,6 @@ func UnwrapRule(raw json.RawMessage, dir string, opts *Options) (string, error) 
 
 // WrapRule rebuilds the rule JSON from an unwrapped rule directory,
 // reinjecting every .js file at its original keypath.
-func WrapRule(dir string) (json.RawMessage, error) {
-	return wrapFlatArtifact(dir, ruleMetaFile, "rule")
+func WrapRule(dir string, warn WarnFunc) (json.RawMessage, error) {
+	return wrapFlatArtifact(dir, ruleMetaFile, "rule", RuleContract(), warn)
 }

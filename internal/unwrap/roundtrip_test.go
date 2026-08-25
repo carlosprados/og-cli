@@ -31,7 +31,7 @@ func TestRoundtrip_DashboardFull(t *testing.T) {
 	tmp := t.TempDir()
 	dashDir := filepath.Join(tmp, "dash")
 
-	if err := UnwrapDashboardFull(&d, nil, dashDir); err != nil {
+	if err := UnwrapDashboardFull(&d, nil, dashDir, nil); err != nil {
 		t.Fatalf("UnwrapDashboardFull: %v", err)
 	}
 
@@ -56,7 +56,7 @@ func TestRoundtrip_DashboardFull(t *testing.T) {
 	}
 
 	// Rebuild and compare.
-	rebuilt, _, err := WrapDashboard(dashDir)
+	rebuilt, _, err := WrapDashboard(dashDir, nil)
 	if err != nil {
 		t.Fatalf("WrapDashboard: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestRoundtrip_WithJSExtraction(t *testing.T) {
 
 	tmp := t.TempDir()
 	dashDir := filepath.Join(tmp, "dash")
-	if err := UnwrapDashboardFull(d, nil, dashDir); err != nil {
+	if err := UnwrapDashboardFull(d, nil, dashDir, nil); err != nil {
 		t.Fatalf("UnwrapDashboardFull: %v", err)
 	}
 
@@ -129,7 +129,7 @@ func TestRoundtrip_WithJSExtraction(t *testing.T) {
 	}
 
 	// Rebuild and compare configs by tree equality.
-	rebuilt, _, err := WrapDashboard(dashDir)
+	rebuilt, _, err := WrapDashboard(dashDir, nil)
 	if err != nil {
 		t.Fatalf("WrapDashboard: %v", err)
 	}

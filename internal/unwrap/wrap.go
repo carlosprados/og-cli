@@ -18,7 +18,7 @@ import (
 //
 // The returned Workspace has every dashboard fully populated (grid included)
 // and can be re-serialized for /api/workspaces import.
-func Wrap(dir string) (*opengate.Workspace, error) {
+func Wrap(dir string, warn WarnFunc) (*opengate.Workspace, error) {
 	wsPath := filepath.Join(dir, "workspace.json")
 	wsRaw, err := os.ReadFile(wsPath)
 	if err != nil {
@@ -37,7 +37,7 @@ func Wrap(dir string) (*opengate.Workspace, error) {
 
 	var dashboards []opengate.WorkspaceDashboard
 	for _, name := range names {
-		wd, err := wrapDashboard(filepath.Join(dir, name))
+		wd, err := wrapDashboard(filepath.Join(dir, name), warn)
 		if err != nil {
 			return nil, fmt.Errorf("dashboard %s: %w", name, err)
 		}
@@ -50,8 +50,8 @@ func Wrap(dir string) (*opengate.Workspace, error) {
 // WrapDashboard reconstructs a full opengate.Dashboard (with grid + widget
 // configs) from a dashboard directory, plus the WorkspaceDashboard layout
 // entry that wraps it inside its parent workspace.
-func WrapDashboard(dir string) (*opengate.Dashboard, *opengate.WorkspaceDashboard, error) {
-	wd, err := wrapDashboard(dir)
+func WrapDashboard(dir string, warn WarnFunc) (*opengate.Dashboard, *opengate.WorkspaceDashboard, error) {
+	wd, err := wrapDashboard(dir, warn)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -63,7 +63,7 @@ func WrapDashboard(dir string) (*opengate.Dashboard, *opengate.WorkspaceDashboar
 		return nil, nil, err
 	}
 
-	grid, err := collectGrid(dir)
+	grid, err := collectGrid(dir, warn)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -75,7 +75,7 @@ func WrapDashboard(dir string) (*opengate.Dashboard, *opengate.WorkspaceDashboar
 // wrapDashboard reads dashboard.json + each widget folder, and returns a
 // WorkspaceDashboard with the simplified body (grid included) and layout
 // in place.
-func wrapDashboard(dir string) (opengate.WorkspaceDashboard, error) {
+func wrapDashboard(dir string, warn WarnFunc) (opengate.WorkspaceDashboard, error) {
 	dashPath := filepath.Join(dir, "dashboard.json")
 	raw, err := os.ReadFile(dashPath)
 	if err != nil {
@@ -108,7 +108,7 @@ func wrapDashboard(dir string) (opengate.WorkspaceDashboard, error) {
 
 	// Reassemble the grid from the widget sub-folders. This is the inverse of
 	// UnwrapDashboardFull which separates each grid item into its own folder.
-	grid, err := collectGrid(dir)
+	grid, err := collectGrid(dir, warn)
 	if err != nil {
 		return opengate.WorkspaceDashboard{}, err
 	}
@@ -150,7 +150,7 @@ func readFullDashboard(dir string) (*opengate.Dashboard, error) {
 // A malformed widget directory is an error, not something to skip: silently
 // dropping it produces a successful deploy with that widget missing from the
 // dashboard, which is far worse than refusing to wrap.
-func collectGrid(dir string) ([]opengate.GridItem, error) {
+func collectGrid(dir string, warn WarnFunc) ([]opengate.GridItem, error) {
 	names, err := artifactSubdirs(dir)
 	if err != nil {
 		return nil, err
@@ -158,7 +158,7 @@ func collectGrid(dir string) ([]opengate.GridItem, error) {
 
 	var grid []opengate.GridItem
 	for _, name := range names {
-		item, err := wrapWidget(filepath.Join(dir, name))
+		item, err := wrapWidget(filepath.Join(dir, name), warn)
 		if err != nil {
 			return nil, fmt.Errorf("widget %s: %w", name, err)
 		}
@@ -188,7 +188,7 @@ func artifactSubdirs(dir string) ([]string, error) {
 
 // wrapWidget reads widget.json + every <field>.js sibling and produces a
 // GridItem ready for inclusion in a Dashboard.Grid.
-func wrapWidget(dir string) (*opengate.GridItem, error) {
+func wrapWidget(dir string, warn WarnFunc) (*opengate.GridItem, error) {
 	raw, err := os.ReadFile(filepath.Join(dir, "widget.json"))
 	if err != nil {
 		return nil, err
@@ -233,7 +233,7 @@ func wrapWidget(dir string) (*opengate.GridItem, error) {
 	if configTree == nil {
 		configTree = map[string]any{}
 	}
-	rebuilt := ReinjectJSFields(configTree, jsFiles)
+	rebuilt := WidgetContract().Reinject(configTree, jsFiles, warn)
 	finalRaw, err := json.Marshal(rebuilt)
 	if err != nil {
 		return nil, fmt.Errorf("encoding rebuilt config: %w", err)

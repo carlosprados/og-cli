@@ -79,7 +79,7 @@ func TestWrapRuleRoundTrip(t *testing.T) {
 			t.Fatalf("unwrap: %v", err)
 		}
 
-		out, err := WrapRule(ruleDir)
+		out, err := WrapRule(ruleDir, nil)
 		if err != nil {
 			t.Fatalf("wrap: %v", err)
 		}
@@ -100,7 +100,7 @@ func TestWrapRuleEditedJS(t *testing.T) {
 	edited := "function checkAnomaly(context) { return true; }"
 	os.WriteFile(filepath.Join(ruleDir, "javascript.js"), []byte(edited), 0o644)
 
-	out, err := WrapRule(ruleDir)
+	out, err := WrapRule(ruleDir, nil)
 	if err != nil {
 		t.Fatalf("wrap: %v", err)
 	}

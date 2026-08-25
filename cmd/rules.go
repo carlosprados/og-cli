@@ -235,7 +235,7 @@ var rulesPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		dir, err := unwrapRuleTo(raw, rulePullDir, &unwrap.Options{Force: rulePullForce})
+		dir, err := unwrapRuleTo(raw, rulePullDir, &unwrap.Options{Force: rulePullForce, Warn: hintWarner()})
 		if err != nil {
 			return err
 		}
@@ -265,7 +265,7 @@ var rulesPullAllCmd = &cobra.Command{
 		}
 		// One Options for the whole batch: slug deduplication only works when
 		// every artifact sees the slugs its siblings already claimed.
-		opts := &unwrap.Options{Force: rulePullForce}
+		opts := &unwrap.Options{Force: rulePullForce, Warn: hintWarner()}
 		count := 0
 		for _, raw := range resp.Rules {
 			dir, err := unwrapRuleTo(raw, rulePullDir, opts)
@@ -285,7 +285,7 @@ var rulesWrapCmd = &cobra.Command{
 	Short: "Rebuild a rule JSON from an unwrapped directory (no upload)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		data, err := unwrap.WrapRule(args[0])
+		data, err := unwrap.WrapRule(args[0], hintWarner())
 		if err != nil {
 			return err
 		}
@@ -310,7 +310,7 @@ var rulesDeployCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		body, err := unwrap.WrapRule(args[0])
+		body, err := unwrap.WrapRule(args[0], hintWarner())
 		if err != nil {
 			return err
 		}
