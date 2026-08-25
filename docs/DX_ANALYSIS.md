@@ -1,0 +1,611 @@
+# DX Analysis — Phase 0 deliverable
+
+**Status:** analysis and design. No implementation.
+**Date:** 2026-08-25
+**Input:** `og-cli-dx-handoff.md`
+**Method:** source audit of the current checkout, plus diagnostic probes executed against
+`internal/unwrap` (written, run, and removed — findings marked `verified-probe`).
+
+Confidence markers used throughout:
+
+| Marker           | Meaning                                                      |
+| ---------------- | ------------------------------------------------------------ |
+| `verified-code`  | read directly from this checkout                             |
+| `verified-probe` | reproduced by executing a diagnostic test                    |
+| `verified-live`  | previously confirmed against a live instance (v0.9.0 work)   |
+| `from-docs`      | from the platform JS reference vendored in `.claude/skills/` |
+| `unknown`        | not established; needs a live probe or a human decision      |
+
+---
+
+## 1. The handoff is out of date
+
+The handoff was written against an earlier state of the repo. Six of its premises are wrong,
+and two of its mandatory Phase 0 research tasks are already-answered questions. Correcting
+this first, because it changes the plan's shape and its cost.
+
+| Handoff claim                                                         | Reality                                                                                                                                                                          | Evidence                                                            |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Connector functions are unimplemented (Phase 2)                       | Shipped in v0.9.0 as `og connectors` (alias **`og cf`** already exists)                                                                                                          | `cmd/connectors.go`, `verified-code`                                |
+| Provision functions are unimplemented (Phase 3)                       | Shipped in v0.9.0 as `og provision`, including `plan` (dry-run) and `bulk`                                                                                                       | `cmd/provision.go`, `verified-code`                                 |
+| "Locate the SHA256 config comparison used to assert wrap is lossless" | **No SHA256 exists anywhere in the repo.** Losslessness is asserted by `reflect.DeepEqual` over decoded trees in tests only                                                      | `grep sha256` → no Go matches, `verified-code`                      |
+| Three divergent `pull`/`wrap`/`deploy` implementations                | One shared core (`ExtractJSFields`/`ReinjectJSFields`/`Slugify`) plus **three byte-identical adapters** and one genuinely different nested pipeline (workspace→dashboard→widget) | `internal/unwrap/{rules,connectors,provisions}.go`, `verified-code` |
+| Connector functions have `REQUEST` and `RESPONSE` variants            | Three types: `REQUEST`, `RESPONSE`, **`COLLECTION`**                                                                                                                             | `pkg/opengate/connectors.go`, `verified-live`                       |
+| Helper is `collectCF()`                                               | Concatenation helpers are **`responseCF`** and **`collectionCF`**; `collectCF` does not exist                                                                                    | JS reference §concatenation, `from-docs`                            |
+| "South criteria are the routing key"                                  | Only for `RESPONSE`/`COLLECTION`. `REQUEST` matches on `operationName` + `northCriterias`                                                                                        | `cmd/connectors.go` long help, `verified-live`                      |
+| `og pf test <slug> --input sample.csv`                                | The input is an **Excel spreadsheet**, not CSV                                                                                                                                   | `configurationParams.spreadsheet`, `verified-live`                  |
+
+**Consequence:** Phases 2 and 3 as written are already delivered. What remains is the handoff's
+real contribution: the safety layer (canonicalization → base state → diff → watch) and editor
+intelligence (typegen), plus a smaller-than-advertised refactor. The plan gets *cheaper*, not
+bigger.
+
+---
+
+## 2. Audit of the existing lifecycle
+
+### 2.1 What is shared and what is duplicated
+
+`internal/unwrap` (1484 lines including tests) is already factored around a common core:
+
+| File                    | Role                                           | Reused by              |
+| ----------------------- | ---------------------------------------------- | ---------------------- |
+| `jsfields.go`           | JS extraction/reinjection by keypath           | **all five families**  |
+| `slug.go`               | `Slugify`, `DedupedSlug`                       | all five               |
+| `unwrap.go` / `wrap.go` | workspace → dashboard → widget nested pipeline | workspaces, dashboards |
+| `rules.go`              | flat single-artifact adapter                   | rules                  |
+| `connectors.go`         | flat single-artifact adapter                   | connector functions    |
+| `provisions.go`         | flat single-artifact adapter                   | provision functions    |
+
+The three flat adapters are the same 80 lines three times over. They differ in exactly three
+values:
+
+|                    | metadata filename        | name field                          | id field               |
+| ------------------ | ------------------------ | ----------------------------------- | ---------------------- |
+| rule               | `rule.json`              | `name`                              | `identifier`           |
+| connector function | `connectorfunction.json` | `name` \|\| `connectorFunctionName` | `identifier`           |
+| provision function | `provisionfunction.json` | `name`                              | `provisionProcessorId` |
+
+**This is a table, not a class hierarchy.** The refactor the handoff calls Phase 1 collapses to
+a descriptor struct plus one generic implementation — far less than the `Resource` interface it
+proposes (see §5.1).
+
+The `cmd/` layer duplicates more than `internal/unwrap` does: each family carries a near-identical
+`unwrapXTo` helper that **recomputes the slug** that `unwrap.UnwrapX` computes again internally.
+Two independent slug computations that agree only by coincidence.
+
+### 2.2 The JS extraction heuristic — the central design problem
+
+`shouldExtract(key, value)` extracts a string when **either** the key is in a hardcoded
+allowlist **or** the value looks like JS by content (`len >= 40` and matching
+`function|return|=>|const |let |var `).
+
+Allowlist (`jsfields.go`): `formatter`, `script`, `operation`, `code`, `fn`, `expression`,
+`_widgetconfigcode`, `javascript`.
+
+Probes run against this logic (`verified-probe`):
+
+| Case               | Input                                                                                                     | Result                                                           |
+| ------------------ | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **False negative** | `_formatterCode` = `cellFormatter.customValue = value; cellFormatter.style = '…';` (77 chars, no keyword) | **not extracted** — stays embedded as a `\n`-escaped JSON string |
+| **False negative** | `_formatterCode` = `v => v + 1;` (11 chars)                                                               | not extracted (below the 40-char floor)                          |
+| **False positive** | `description` = `"Please return to the main dashboard and let the operator know"`                         | extracted to `description.js`                                    |
+| **False positive** | `markdown` = markdown prose containing "let"/"return"                                                     | extracted to `markdown.js`                                       |
+| **False positive** | `operation` = `"REFRESH_INFO"` (an operation *name*)                                                      | extracted to `operation.js`                                      |
+| **False positive** | `formatter` = `""`                                                                                        | extracted to an empty `formatter.js`                             |
+
+`_formatterCode` — a field that carries real code in the demo corpus (`verified-code`:
+five `columns__N___formatterCode.js` files) — **is not in the allowlist**. It is extracted only
+because its content happens to trip the keyword pattern.
+
+The consequence is the finding that governs the whole design:
+
+> **The on-disk layout is a function of the file's content, not of the artifact's schema.**
+> Edit a formatter down to an assignment without a keyword and, on the next `pull`, that `.js`
+> file ceases to exist and the code reappears inside the JSON. The reverse also holds.
+
+Everything downstream depends on a stable mapping between a file path and a payload field:
+`diff` compares paths, `watch` resolves a changed path to a deployable field, `typegen` writes
+a `.d.ts` next to the files it types. A content-dependent layout breaks all three. This must be
+fixed **before** Phases 4–8, not during them.
+
+Two further consequences of the "any `.js` in the directory gets reinjected" rule
+(`wrap.go`, `rules.go`, `connectors.go`, `provisions.go` all glob `*.js`):
+
+- A user cannot keep an auxiliary `helper.js` or `notes.js` in an artifact directory — it will be
+  reinjected as a bogus payload field at its parsed keypath.
+- Shared code between artifacts is therefore impossible today. Worth stating explicitly before
+  someone designs a module system on top.
+
+### 2.3 Round-trip losslessness — two real data-loss paths
+
+`wrap` is documented as lossless "modulo cosmetic null/default differences". Two probes show it
+is not (`verified-probe`):
+
+**A. Numeric object keys become arrays.**
+
+```
+in : {"series":{"0":{"formatter":"function(v){return v;}"}}}
+out: {"series":[{"formatter":"function(v){return v;}"}]}
+```
+
+`keyPath.filename()` encodes array indices and object keys identically (as decimal strings), and
+`setAt` reverses any numeric segment into an array index (`strconv.Atoi`). A JSON object keyed by
+number silently changes type across the cycle.
+
+**B. The `__` separator collides with keys containing `__`.**
+
+```
+in : {"a__b":{"code":"…1"},"a":{"b":{"code":"…2"}}}
+out: {"a":{"b":{"code":"…2"}}, "a__b":{}}
+```
+
+Both produce the filename `a__b__code.js`; one overwrites the other on disk, and the loser is
+reconstructed **empty**. Silent code loss.
+
+Neither is hypothetical-only in kind — both are structural properties of the filename encoding,
+which is why Phase 4 (canonicalization) is worth doing with a real round-trip property test over
+the whole corpus, as the handoff says. It just needs to *fail* on these two cases first, and the
+encoding needs fixing.
+
+### 2.4 Slug collisions in `pull-all` — a live bug
+
+`DedupedSlug(name, id, taken)` is correct and tested. Its callers are not.
+
+| Caller                                             | `taken` map                                 | Behaviour   |
+| -------------------------------------------------- | ------------------------------------------- | ----------- |
+| `cmd/dashboards.go:394` (pull-all)                 | shared across iterations                    | **correct** |
+| `cmd/workspaces.go:508`                            | shared (`wsSlugs`)                          | correct     |
+| `cmd/rules.go:378`                                 | `map[string]bool{}` literal, fresh per call | **broken**  |
+| `cmd/connectors.go:384`                            | `map[string]bool{}` literal                 | **broken**  |
+| `cmd/provision.go:387`                             | `map[string]bool{}` literal                 | **broken**  |
+| `internal/unwrap/{rules,connectors,provisions}.go` | `map[string]bool{}` literal                 | **broken**  |
+
+For rules, connector functions and provision functions, deduplication is therefore inert during
+`pull-all`. Two artifacts with the same name resolve to the same directory, and:
+
+- without `--force`: the pre-existence check aborts the **entire** `pull-all` mid-way, leaving a
+  partial tree;
+- with `--force`: the second artifact **silently overwrites** the first, and the user ends up
+  believing they have a local copy of both.
+
+Duplicate names are legal on the platform (the identifier is the key), so this is reachable.
+`verified-code`.
+
+**This is a bug fix, not a phase.** It should ship on its own, before any of this roadmap.
+
+**Limitation that survives the fix** (found while implementing it, 2026-08-25): `DedupedSlug`
+gives the *first* artifact of a colliding group the clean slug and suffixes the rest, so which
+directory a given artifact lands in depends on the **order the API returns the list in**. If that
+order changes between two `pull-all` runs, two same-named artifacts swap directories. This already
+applied to dashboards and workspaces, which is why it was not introduced here.
+
+A deterministic naming scheme — suffix *every* member of a colliding group, decided in a first
+pass over the full list — would remove the dependency, at the cost of changing the directory name
+of the artifact that currently keeps the clean slug. That is a layout change, so it belongs with
+B3 and Phase 1, not in a patch. Until then: **resolve a directory to its artifact by reading the
+identifier from its metadata JSON, never by assuming the slug**. Documented in `README.md` and in
+the `og-device-ops` skill.
+
+### 2.5 Ordering and path encoding
+
+- Dashboard order inside a workspace, and widget order inside a dashboard, are encoded as a
+  zero-padded `NN__` prefix; `wrap` recovers order by sorting directory names alphabetically
+  (`collectGrid`, `Wrap`). Width is `max(len(itoa(n-1)), 2)`, so >100 widgets widen the prefix
+  and change every sibling's name — a rename storm in `diff` and in git history. Low frequency,
+  worth knowing.
+- The workspace layout entry is smuggled into `dashboard.json` under a `_workspaceLayout` key and
+  stripped on wrap. It is the one place a side channel already exists; the base-state design
+  (§5.3) should not add a second one.
+- `collectGrid` **silently skips** malformed widget directories (`continue` on error). A typo in
+  one `widget.json` currently produces a successful deploy with that widget missing. This is
+  exactly the failure class the roadmap exists to prevent, and it is one line.
+
+### 2.6 Output, exit codes, validation
+
+- `internal/output` offers `PrintJSON` / `PrintTable` / `Print`. There is no versioned JSON
+  envelope; each command shapes its own payload. The handoff's `"schemaVersion": 1` contract has
+  no existing scaffolding to hang on — it needs building (§5.5).
+- Exit codes: `main.go` uses only `os.Exit(1)` on any error. The proposed `0`/`1`/`2` convention
+  requires a typed error propagated through `cmd.Execute()`.
+- There is **no** `validate` verb anywhere, and `deploy` performs no JS syntax check and offers
+  no `--dry-run`. `verified-code`.
+
+---
+
+## 3. API surface — connector functions and provision functions
+
+The handoff's highest-risk unknown. It is not unknown; it was implemented and verified live in
+v0.9.0. Recorded here so Phase 0 is genuinely closed.
+
+### 3.1 Endpoints
+
+All on the **North API** (`/north/{v}/…`, version resolved per client) — *not* the Web API.
+Auth is the JWT bearer token; none of these use the web-token path.
+
+| Family       | Operation             | Path                                                                                | Confidence      |
+| ------------ | --------------------- | ----------------------------------------------------------------------------------- | --------------- |
+| Connector fn | list                  | `/north/{v}/connectorFunctions/provision/organizations/{org}/channels/{ch}`         | `verified-live` |
+| Connector fn | get / update / delete | `…/channels/{ch}/{id}`                                                              | `verified-live` |
+| Connector fn | create                | `POST …/channels/{ch}`                                                              | `verified-live` |
+| Connector fn | catalog               | `/north/{v}/connectorFunctions/provision/catalog`                                   | `verified-live` |
+| Connector fn | enable/disable        | **no endpoint** — GET + patch `operationalStatus` + PUT                             | `verified-code` |
+| Provision fn | list                  | `/north/{v}/provisionProcessors/provision/organizations/{org}`                      | `verified-live` |
+| Provision fn | get / update / delete | `…/organizations/{org}/{id}`                                                        | `verified-live` |
+| Provision fn | plan (dry-run)        | `…/{id}/plan?numberOfEntriesToProcess=N` (multipart)                                | `verified-live` |
+| Provision fn | bulk                  | `…/{id}/bulk` (multipart; `Accept` must match the upload's content type or **409**) | `verified-live` |
+| Provision fn | bulk status / details | `…/bulk/{bulkId}` / `…/bulk/{bulkId}/details` (Excel; **204** while unfinished)     | `verified-live` |
+| Provision fn | enable/disable        | **does not exist** — no status field on the resource                                | `verified-code` |
+
+### 3.2 Scoping, identity, code location
+
+|              | Scope             | ID field               | Code location            | Status field                                           |
+| ------------ | ----------------- | ---------------------- | ------------------------ | ------------------------------------------------------ |
+| Rule         | org + **channel** | `identifier`           | `javascript` (top level) | `active` (bool)                                        |
+| Connector fn | org + **channel** | `identifier`           | `javascript` (top level) | `operationalStatus` ∈ {`DISABLED`,`PRODUCTION`,`TEST`} |
+| Provision fn | **org only**      | `provisionProcessorId` | `scriptProcessor.script` | none                                                   |
+
+API inconsistencies already absorbed by the client, worth preserving in any refactor:
+
+- connector function name is `name` on write, sometimes `connectorFunctionName` on read;
+- the provision-processor list array is `provisionProcessors` live but `processors` in the schema;
+- a 404 on the provision-processor list means "none", not an error.
+
+### 3.3 Connector function semantics
+
+`from-docs` (`.claude/skills/og-device-ops/connector-functions-js-reference.md`, 2103 lines) plus
+`verified-live`:
+
+| Type         | Matched by                         | Must return                                                                |
+| ------------ | ---------------------------------- | -------------------------------------------------------------------------- |
+| `REQUEST`    | `operationName` + `northCriterias` | nothing / `null`                                                           |
+| `RESPONSE`   | `southCriterias`                   | OpenGate Standard Response (`ogResponse`/`ogStep`/`ogStepResponse`)        |
+| `COLLECTION` | `southCriterias`                   | Standard IoT Collection (`ogCollection`/`ogCollectionDs`/`ogCollectionDp`) |
+
+Concatenation is a typed, restricted graph:
+
+```
+REQUEST  → RESPONSE, COLLECTION      (via responseCF / collectionCF)
+RESPONSE → COLLECTION                (via collectionCF)
+COLLECTION → nothing                 (any call is silently ignored)
+```
+
+This makes `og cf graph` implementable by static analysis of `responseCF(…)`/`collectionCF(…)`
+call sites, and — more valuable — makes **illegal concatenation a lintable error** rather than a
+silent no-op at runtime. That is a better payoff than the graph rendering itself.
+
+### 3.4 Provision function contract
+
+`verified-live` + `verified-code`. Answers handoff open question 4.
+
+- Input: an **Excel spreadsheet**, configured on the resource under
+  `configurationParams.spreadsheet` → `sheetName`, `headerRow` (number), `resultColumnName`.
+- The script implements two entry points: **`normalizeRawObject(rawObject)`** and
+  **`actionsPlanning(normalizedObject)`** (from the shipped test fixture, mirroring live payloads).
+- A server-side dry run already exists: `plan` with `numberOfEntriesToProcess`, surfaced as
+  `og provision plan`. **`og pf test` as specified in the handoff is largely redundant** — the
+  platform will tell you what it would do, with real fidelity, which no local `goja` harness can
+  match. See §6.2.
+
+### 3.5 No optimistic concurrency
+
+No endpoint exposes an ETag, revision, or version field on rules, connector functions or
+provision functions (`verified-code`). Answers handoff open question 2: **conflict detection must
+be local**; the server cannot enforce it.
+
+A direct consequence, already live today: `SetRuleActive` and `SetConnectorFunctionStatus`
+perform GET → patch one field → PUT. Two concurrent `og cf disable` calls, or one racing a web-UI
+edit, will lose the other's changes wholesale. Not caused by this roadmap; worth recording.
+
+---
+
+## 4. Answers to the handoff's open questions
+
+| #   | Question                                      | Answer                                                                                                                                                                                                                           |
+| --- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | North API or Web API?                         | **North API**, JWT bearer, for both families. Web API (`/api/…`, web-token + auto-refresh) is used only by workspaces, dashboards and share. `verified-code`                                                                     |
+| 2   | Revision field for optimistic concurrency?    | **No.** Conflict detection must be local (§3.5).                                                                                                                                                                                 |
+| 3   | Connector functions per channel or per org?   | **Per channel**, like rules. Provision functions are **per org**. `verified-live`                                                                                                                                                |
+| 4   | Real input contract for provision functions?  | Excel spreadsheet + `normalizeRawObject`/`actionsPlanning`; server-side `plan` already exists (§3.4).                                                                                                                            |
+| 5   | Should `og cf test` stub protocol execution?  | **Recommendation: no.** Ship static validation instead (§6.2).                                                                                                                                                                   |
+| 6   | Governance: community tool or Amplía product? | **Decided 2026-08-25: community tool, for now.** Charlie has yet to discuss it with others at Amplía, so treat it as provisional — revisit before the extension ships (§9). Interacts with `docs/premium-open-core-analysis.md`. |
+
+---
+
+## 5. Proposed design
+
+### 5.1 `internal/artifact` — descriptor, not interface hierarchy
+
+The handoff's `Resource` interface has seven methods and would be implemented five times. Given
+§2.1, three of those five implementations are the same code. Proposal: a **descriptor table**
+driving one generic implementation, with an escape hatch for the nested family.
+
+```go
+// Kind identifies a family of platform artifacts supporting the
+// pull → edit → deploy lifecycle.
+type Kind string
+
+const (
+    KindWorkspace         Kind = "workspace"
+    KindDashboard         Kind = "dashboard"
+    KindRule              Kind = "rule"
+    KindConnectorFunction Kind = "connector-function"
+    KindProvisionFunction Kind = "provision-function"
+)
+
+// Descriptor declares everything that distinguishes one flat artifact family
+// from another. The pull/wrap/diff/watch machinery reads this table; it is not
+// implemented per family.
+type Descriptor struct {
+    Kind     Kind
+    MetaFile string   // "rule.json", "connectorfunction.json", …
+    NameKeys []string // ["name", "connectorFunctionName"] — first non-empty wins
+    IDKey    string   // "identifier" | "provisionProcessorId"
+    Scope    Scope    // ScopeOrg | ScopeOrgChannel
+
+    // CodePaths is the authoritative list of keypaths carrying source code.
+    // This replaces the content heuristic (§2.2) — the on-disk layout becomes
+    // a function of the schema, not of the file's contents.
+    CodePaths []CodePath
+
+    // Volatile keypaths are server-managed and excluded from comparison.
+    Volatile []string
+}
+
+// CodePath binds one payload keypath to one on-disk file and one execution
+// context, so typegen and validation know what they are looking at.
+type CodePath struct {
+    Path    string  // "javascript", "scriptProcessor.script"
+    File    string  // "javascript.js", "code.js"
+    Context ExecCtx // rule-advanced | cf-request | cf-response | cf-collection | provision | widget-formatter
+}
+```
+
+Rules, connector functions and provision functions become three `Descriptor` literals. Workspaces
+and dashboards keep their nested pipeline behind the same outer API — the honest split, rather
+than forcing a widget tree through a flat interface.
+
+**Acceptance criteria** (unchanged from the handoff, and the right ones): identical CLI surface,
+identical output, existing tests pass untouched.
+
+### 5.2 Code extraction: allowlist per family, heuristic demoted
+
+Replace `shouldExtract`'s content sniffing with `Descriptor.CodePaths`:
+
+1. A declared keypath is **always** extracted, to a **stable** filename — even when empty, even
+   when the content does not look like code.
+2. An undeclared string that trips the heuristic is **left in place** and reported as a warning
+   (`og <family> pull` prints `hint: config.foo looks like code but is not a declared code path`).
+   That surfaces gaps in the table without letting content decide the layout.
+3. `wrap` reinjects only files declared in `CodePaths` (plus discovered widget keypath files for
+   the nested family). Undeclared `.js` files are **ignored with a warning** instead of being
+   injected as bogus fields — which incidentally makes `helper.js` and future shared modules
+   possible.
+
+Widgets are the hard case: their code fields are widget-type-specific
+(`_widgetConfigCode`, `_formatterCode`, `columns[].formatter`, …). Proposal: a per-widget-type
+allowlist seeded from `.claude/skills/og-workspaces/reference/` plus the demo corpus, with the
+heuristic retained **for widgets only** as a warning-generating fallback during a transition
+period. `_formatterCode` goes in the allowlist on day one (§2.2).
+
+### 5.3 Filename encoding — fix before building on it
+
+The `__`-joined keypath (§2.3) is ambiguous in two directions. Proposal:
+
+- Percent-escape `_` and any separator inside a key segment before joining, so `a__b` and
+  `a`/`b` no longer collide.
+- Tag array indices distinctly from object keys (e.g. `[0]` vs `0`) so `setAt` reconstructs the
+  original container type.
+- Keep reading the current unescaped form (no re-pull required for existing trees), write the new
+  form. A one-shot `og <family> pull --force` normalizes.
+
+Cost is small and it is a prerequisite: `Hash(Explode → Implode) == Hash(original)` cannot hold
+over a corpus containing either pattern.
+
+### 5.4 Canonicalization and base state
+
+As the handoff specifies, with two adjustments:
+
+- `VolatileFields` comes from `Descriptor.Volatile`, so there is one table, not two.
+- The base snapshot must also record **where the artifact came from** — profile, org, channel.
+  Today nothing does (§2.1), so a `pull` from staging can be `deploy`ed to production with no
+  warning. The manifest fixes a live footgun, not just a future one:
+
+```
+<artifact-root>/.og/
+  base/<artifact-id>.canon.json
+  manifest.json   # {artifactID: {hash, pulledAt, profile, org, channel, kind}}
+```
+
+`.og/` is a cache: gitignored, and `deploy` warns when the target profile/org/channel differs
+from the manifest.
+
+The three-way classification table in the handoff (§8 there) is adopted as-is. It is correct, and
+§3.5 means it is the only conflict detection available.
+
+### 5.5 JSON contract and exit codes
+
+Needs building from scratch (§2.6). Proposal: one envelope in `internal/output`, versioned once,
+reused by every `-o json` command:
+
+```json
+{"schemaVersion": 1, "kind": "diff", "data": {…}}
+```
+
+and a typed `cmd.ExitError{Code int}` honoured by `main.go`, so `0`/`1`/`2` becomes real. Both are
+prerequisites for `diff --exit-code` in CI and for the extension.
+
+### 5.6 `watch` — the session landmine is narrower than stated
+
+The handoff warns that continuous re-signing invalidates the developer's browser session. Audit
+result (`verified-code`): the transparent 401 re-sign lives in `newWebClient` and is therefore
+used **only** by workspaces, dashboards and share. Rules, connector functions and provision
+functions go through the North API JWT client, which has no re-sign path.
+
+So the warning is real but scoped: it applies to `og workspace watch` / `og dashboard watch`, not
+to `og cf watch`. Print the warning where it applies rather than globally — a warning that fires
+on every command is a warning nobody reads.
+
+The rest of §10 of the handoff (ignore patterns, one worker per target with ~300 ms coalescing,
+validation on by default, `production: true` profile guard, no `--force`) is sound and adopted.
+`Profile` (`internal/config/config.go`) gains one `mapstructure:"production"` bool; `ActiveProfile`
+already resolves profiles by name, which is all `--against <profile>` needs.
+
+### 5.7 Typegen — the source is already in the repo
+
+The handoff proposes sourcing protocol signatures from `documentation.opengate.es`. They are
+already vendored, versioned, in the skills:
+
+| Source                                                             | Lines | Covers                                                                                                                                                                                                                               |
+| ------------------------------------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `.claude/skills/og-device-ops/connector-functions-js-reference.md` | 2103  | `entity`, `gateway`, `payload`, `contextParams`, `response`, `collection`, `cf`, `utils`, `logger`, `operation`, `crypto` + protocols `http`, `mqtt`, `snmp`, `dlms`, `iec102`, `icmp`, `coap`, `ssh`, `telnet`, `websocket`, `kite` |
+| `.claude/skills/og-device-ops/rules-js-reference.md`               | 1849  | ADVANCED rule context                                                                                                                                                                                                                |
+| `.claude/skills/og-workspaces/reference/widget-js-api.md`          | 224   | widget formatter/config context                                                                                                                                                                                                      |
+
+Design: the **static** half of each `.d.ts` is a hand-written template per execution context,
+embedded with `go:embed` (the catalogue changes with platform releases, not with the user's org).
+The **generated** half comes from the org's datamodel. Do not parse the markdown at runtime.
+
+The datamodel gives more than the handoff assumes. `pkg/opengate.Datamodel` exposes
+`Categories[].Datastreams[]` with `Identifier`, **`Schema`** (a JSON Schema) and `Unit`. So the
+generated half can type the *value*, not just the id:
+
+```typescript
+type DatastreamID = 'sensor.temperature' | 'sensor.humidity' | 'power.energy' | …;
+
+interface Sample<T> { _current: { value: T; date: string; at: string; provType?: string }; }
+declare const entity: { 'sensor.temperature'?: { _value: Sample<number> }, … };
+```
+
+One correction to the handoff's proposed shape, from the platform reference (`from-docs`): an
+**indexed** datastream is an *array* of `{_index, _value}`, not a bare `{_value}` —
+`entity['provision.device.communicationModules[].identifier'][0]._value._current.value`. And
+`_current` carries `date`/`at`/`provType`, not just `value`/`at`. Getting this wrong in the
+typings would be worse than having none.
+
+Record the source document version in the generated header, as the handoff says.
+
+---
+
+## 6. Where I disagree with the handoff
+
+### 6.1 Phase 1 before typegen is the wrong order — but so is the handoff's order
+
+The handoff sequences typegen-for-rules first (ship value in days), then the refactor. Correct
+instinct, wrong dependency: typegen writes `og-globals.d.ts` and `jsconfig.json` **into artifact
+directories**, and `wrap` currently reinjects every `.js` it finds (§2.2). `.d.ts` is safe by
+extension, but the moment typegen wants a `helper.js` or the allowlist changes shape, it breaks.
+
+Ship in this order instead: the extraction contract (§5.2) → typegen for rules → the descriptor
+refactor. The contract is a prerequisite for both.
+
+### 6.2 `og cf test` / `og pf test` with stubbed protocols: don't
+
+The handoff hedges on this ("degrade to syntax-and-static-check if stubbing proves unreliable").
+Take the hedge as the plan:
+
+- For provision functions, the platform already offers a **real** dry run (`plan`, exposed as
+  `og provision plan`). A `goja` simulation is strictly worse than a server-side plan.
+- For connector functions, faithful stubs for eleven protocols plus `entity`/`collection`/`response`
+  semantics is a large surface with no fidelity guarantee, and `operationalStatus: TEST` plus
+  `og connectors logs` already provides on-platform testing that og can drive.
+- What is *not* covered today and is cheap: **static validation** — JS parse (goja parse-only),
+  required entry points per type (`normalizeRawObject`/`actionsPlanning` for PF; return-shape for
+  CF), illegal concatenation (§3.3), south-criteria format, declared-vs-actual code paths.
+
+Proposal: ship `og <family> validate` (feeding `--validate` on deploy, `watch`, and the extension's
+diagnostics) and **drop `test`**. Revisit only if a concrete demand appears.
+
+### 6.3 `og cf graph` is a nice-to-have, the concatenation lint is the value
+
+Same analysis as above: the graph is a rendering; the lint catches a class of silent runtime
+no-ops. Fold the graph into `validate`'s data and render it later if anyone asks.
+
+---
+
+## 7. Revised sequencing
+
+Bugs first — they are cheap, they are live, and two of them corrupt the local tree that
+everything else builds on.
+
+| #      | Work                                                                            | Depends on | Notes                                          |
+| ------ | ------------------------------------------------------------------------------- | ---------- | ---------------------------------------------- |
+| **B1** | Fix `pull-all` slug collisions (§2.4)                                           | —          | share one `taken` map; single slug computation |
+| **B2** | Fail loudly on malformed widget dirs (§2.5)                                     | —          | one-line `continue` → error                    |
+| **B3** | Fix the filename encoding (§5.3)                                                | —          | prerequisite for any hashing                   |
+| **1**  | Extraction contract: `CodePaths` allowlist, heuristic demoted to warning (§5.2) | B3         | the keystone                                   |
+| **2**  | Typegen for ADVANCED rules (§5.7)                                               | 1          | first visible win, works in Neovim immediately |
+| **3**  | `internal/artifact` descriptor refactor (§5.1)                                  | 1          | behaviour-preserving; **checkpoint**           |
+| **4**  | `internal/canon` + round-trip property test over `demo/`                        | 3, B3      | must fail on §2.3 first                        |
+| **5**  | JSON envelope + typed exit codes (§5.5)                                         | —          | small; unblocks CI and the extension           |
+| **6**  | Base snapshots + manifest with profile/org/channel (§5.4)                       | 4          | also fixes the cross-tenant deploy footgun     |
+| **7**  | `og <family> validate` (§6.2)                                                   | 1, 5       | replaces the handoff's `test`                  |
+| **8**  | `diff`, incl. `--against <profile>` (§5.5, handoff §9)                          | 4, 5, 6    |                                                |
+| **9**  | `watch` (§5.6)                                                                  | 6, 7, 8    | scoped session warning; production guard       |
+| **10** | Typegen, all contexts + datamodel-derived types (§5.7)                          | 2, 3       |                                                |
+| **11** | VS Code extension                                                               | 1–10       | governance decision (§4 q6) first              |
+
+Phases 2 and 3 of the handoff are struck: already shipped.
+
+---
+
+## 8. Decisions taken
+
+**2026-08-25, Charlie:**
+
+1. **Governance → community tool, for now.** Provisional: to be discussed with others at Amplía.
+   Consequences recorded in §9.
+2. **B1–B3 ship now**, as a patch release, independently of whether phases 1+ are approved.
+   Caveat surfaced after the decision: **B3 is not a bug fix of the same nature as B1/B2** — it
+   changes the on-disk filename format. See §9.2.
+
+## 8b. Still open for the human
+
+1. **Command naming.** `og cf` already aliases `og connectors`, `og pf` does not alias
+   `og provision`. Add the `pf` alias for symmetry, or leave it?
+2. **Is `--against <profile>` cross-tenant diff worth pulling earlier?** It is the flag the
+   handoff predicts will be most used, and it needs only canon + two clients — it could land
+   before base snapshots, without three-way state.
+3. **Scope of `validate` on `deploy`.** Non-overridable for provision functions (the handoff
+   suggests this, given bulk data corruption at scale), or a warning with `--no-validate`
+   everywhere?
+4. **Widget code-field allowlist.** Seeding it from the skills + demo corpus will be incomplete.
+   Accept a transition period where the heuristic still fires as a warning, or block on
+   enumerating widget types against a live tenant first?
+
+---
+
+## 9. Consequences of the decisions
+
+### 9.1 Community tool (provisional)
+
+- The unofficial/no-warranty framing in `README.md` stands; nothing needs softening yet.
+- `watch` still ships the `production: true` profile guard and `--allow-production` (§5.6). A
+  community tool writing to a customer's production platform is *more* reason for the guard, not
+  less — the tool carries no support channel to catch the fallout.
+- Phase 11 (VS Code extension) stays gated: publishing to a marketplace under a community banner
+  is a distribution decision, not a technical one. Revisit when the Amplía conversation happens.
+- No change to the roadmap's technical content.
+
+### 9.2 B1–B3 as a patch release — with one correction
+
+B1 and B2 are genuine bug fixes: small, local, behaviour-restoring, no format change.
+
+| Fix                                             | Blast radius                                                                                        |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **B1** slug dedup in `pull-all` (§2.4)          | 3 call sites in `cmd/` + 3 in `internal/unwrap`; collapse the double slug computation while there   |
+| **B2** malformed widget dirs fail loudly (§2.5) | one `continue` → error in `collectGrid`; changes `wrap` from "silently drops a widget" to "refuses" |
+
+**B3 is different and should not ride the same release.** Fixing the filename encoding (§5.3)
+changes the names of files already sitting in users' working trees and in `demo/`. Even with
+read-both-forms/write-new-form compatibility, a patch release that renames files under someone's
+editor is not a patch. Options:
+
+- **(a) Recommended:** B1+B2 as a patch (e.g. v1.7.1). B3 lands with Phase 1 (the extraction
+  contract), which is where the layout is deliberately redefined anyway, in a minor release with
+  a migration note.
+- **(b)** B3 in the patch, guarded behind a flag defaulting to the old encoding. Adds a flag that
+  exists only to be removed later.
+
+Under (a) the round-trip property test of Phase 4 must be written to **fail** on the §2.3 cases
+from day one, so the debt stays visible rather than being quietly deferred.
