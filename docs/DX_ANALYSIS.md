@@ -772,3 +772,72 @@ Beyond the suite: the Phase 2 binary and the Phase 3 binary were run side by sid
 the two demo rules, a connector function, a provision function, a workspace, a dashboard, two
 error paths (missing metadata file, nonexistent directory) and `rules --help`. **stdout, stderr and
 exit code are byte-identical in all nine.** Lint stays at 42.
+
+---
+
+## 13. Phase 4 as built (2026-08-26)
+
+`internal/canon`: `Canonicalize`, `Hash`, `Equal`, plus `VolatileFields`/`Diagnose` so a command can
+tell the user what it ignored. 90.8% statement coverage.
+
+Canonical form: keys sorted (`json.Marshal` of a map does this), nulls and empty containers dropped,
+volatile fields removed. Arrays are **not** reordered — a dashboard's grid order and a rule's
+datastream order are meaningful.
+
+### Volatile fields — verified, not invented
+
+Read off real API responses in `pkg/opengate/testdata`:
+
+| Field | Why it never participates |
+|---|---|
+| `__v` | Mongo document version, bumped on every save |
+| `lastAccess` | timestamp of the last read |
+| `allowedProfiles` | **derived from the profile making the request** |
+| `editable` | **derived from whether the requester owns the artifact** |
+
+The last two are why two developers pulling the same dashboard get different JSON — a diff would
+otherwise report a change nobody made.
+
+Rules, connector functions and provision functions have **no** verified volatile field, so their
+tables are **empty on purpose**, with a test asserting that intent. An invented entry would hide a
+real change, which is worse than an unfiltered one. Fill them from a live GET when one is available.
+
+### Two scopes, which §7 did not anticipate
+
+`_id`/`id`/`owner` are stable within a tenant but differ by construction between tenants. One list
+cannot serve both, so identity fields are separate from volatile ones and only dropped under
+`CrossTenant` — the scope `diff --against <profile>` will use. Same-tenant comparison still reports
+a changed identifier, which there means something is wrong.
+
+### Volatile removal is recursive — found by the test failing
+
+A workspace payload **embeds its dashboards**, each carrying its own `__v`, `lastAccess`,
+`allowedProfiles` and `editable`. Stripping only the top level left every nested dashboard
+generating noise; the workspace fixture round-trip failed until removal became depth-wide.
+
+The trade-off, documented in the code: a field with one of these names and a genuine meaning deeper
+in the tree — an `editable` inside a widget config — is ignored too. That risks a missed difference
+in an unlikely place against guaranteed noise in a common one, and it only ever affects comparison,
+never a deployed payload.
+
+### The property test, and its detection power
+
+The acceptance criterion — explode → implode preserves the artifact — now runs over the real corpus:
+the `dashboard_get.json` response (three real widgets), `workspace_get.json`, every workspace in the
+`workspace_export.json` envelope, both demo rules, a REQUEST and a COLLECTION connector function, a
+provision function, and an idempotence check (a second cycle changes nothing further, so `diff`
+cannot report a phantom change on first save).
+
+**A property test that always passes is worth nothing, so both bugs were reintroduced to check it
+fails.** The first attempt did not: the regression cases had been routed through `RuleDescriptor`,
+whose contract declares only `javascript` — nothing was extracted, so `setAt` was never reached and
+the test was vacuous. They now go through the real dashboard→widget cycle on disk, where the shapes
+actually occur. Verified: reverting the container-type fix fails exactly the two numeric-key
+subtests; reverting the separator escaping fails exactly the two underscore subtests.
+
+### Coverage limit, stated rather than skipped
+
+No fixture exercises workspace → dashboard → widget in one pass, because no single API response
+contains all three: a workspace GET embeds its dashboards' layout but not their grids. Workspace →
+dashboard is covered by the workspace fixtures, dashboard → widget by `dashboard_get.json`. The
+`workspace_export.json` envelope (`{"workspaces":[…]}`) is now iterated rather than skipped.
