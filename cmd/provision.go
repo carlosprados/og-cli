@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -400,7 +401,30 @@ func provisionClient() (*opengate.Client, string, error) {
 
 // --- init ---
 
+var provisionDiffCmd = newDiffCmd(diffSpec{
+	Descriptor: unwrap.ProvisionFunctionDescriptor(),
+	Use:        "diff <pf-dir>",
+	Short:      "Compare a local provision function directory against the platform",
+	Long: `Compare a locally-edited provision function against the one on the platform.
+
+Metadata is reported structurally and the script textually. See
+'og rules diff --help' for the state markers.
+
+Worth running before every deploy here: a bad provision function corrupts entity
+data at bulk scale.
+
+Examples:
+  og provision diff provision/createUpdate --org sensehat
+  og provision diff provision/createUpdate --against production
+  og provision diff provision/createUpdate --exit-code -o json`,
+	Fetch: func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetProvisionProcessor(ctx, org, id)
+	},
+})
+
 func init() {
+	provisionCmd.AddCommand(provisionDiffCmd)
+	addDiffFlags(provisionDiffCmd)
 	provisionCreateCmd.Flags().StringVarP(&ppCreateFile, "file", "f", "", "path to JSON file with provision function definition")
 	provisionCreateCmd.MarkFlagRequired("file")
 

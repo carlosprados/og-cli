@@ -419,7 +419,39 @@ func printJSON(data json.RawMessage) error {
 
 // --- init ---
 
+var rulesDiffCmd = newDiffCmd(diffSpec{
+	Descriptor: unwrap.RuleDescriptor(),
+	Use:        "diff <rule-dir>",
+	Short:      "Compare a local rule directory against the platform",
+	Long: `Compare a locally-edited rule against the one on the platform.
+
+Metadata is reported as a structural diff over the canonical form — added,
+removed and changed fields — and the JavaScript as a textual diff. They are kept
+apart on purpose: a structural diff of a 1500-character script says only that a
+string changed.
+
+Server-managed and requester-derived fields never participate, so a value the
+platform bumped on its own is not reported as your change.
+
+When the rule was pulled with this version of og, its state is classified from
+the snapshot taken then:
+  ~  local changes    you edited it, nobody else did
+  ↓  remote changes   somebody else edited it — pull
+  !  conflict         both moved since the pull
+  ?  unknown          no snapshot; only the raw comparison is available
+
+Examples:
+  og rules diff rules/env-anomaly --org sensehat
+  og rules diff rules/env-anomaly --against production   # what differs between tenants
+  og rules diff rules/env-anomaly --exit-code -o json    # CI drift gate`,
+	Fetch: func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetRule(ctx, org, rulesChannel, id)
+	},
+})
+
 func init() {
+	rulesCmd.AddCommand(rulesDiffCmd)
+	addDiffFlags(rulesDiffCmd)
 	rulesCmd.PersistentFlags().StringVar(&rulesChannel, "channel", defaultChannel, "channel the rule belongs to")
 
 	rulesSearchCmd.Flags().StringArrayVarP(&rulesSearchWhere, "where", "w", nil, `filter condition: "field op value" (repeatable)`)

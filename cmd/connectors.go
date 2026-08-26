@@ -397,7 +397,27 @@ func connectorsClient() (*opengate.Client, string, error) {
 
 // --- init ---
 
+var connectorsDiffCmd = newDiffCmd(diffSpec{
+	Descriptor: unwrap.ConnectorFunctionDescriptor(),
+	Use:        "diff <cf-dir>",
+	Short:      "Compare a local connector function directory against the platform",
+	Long: `Compare a locally-edited connector function against the one on the platform.
+
+Metadata is reported structurally and the JavaScript textually. See
+'og rules diff --help' for the state markers.
+
+Examples:
+  og connectors diff connectors/weather --org sensehat
+  og connectors diff connectors/weather --against production
+  og connectors diff connectors/weather --exit-code -o json`,
+	Fetch: func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetConnectorFunction(ctx, org, connectorsChannel, id)
+	},
+})
+
 func init() {
+	connectorsCmd.AddCommand(connectorsDiffCmd)
+	addDiffFlags(connectorsDiffCmd)
 	connectorsCmd.PersistentFlags().StringVar(&connectorsChannel, "channel", defaultChannel, "channel the connector function belongs to")
 
 	connectorsCreateCmd.Flags().StringVarP(&cfCreateFile, "file", "f", "", "path to JSON file with connector function definition")

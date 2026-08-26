@@ -61,6 +61,9 @@ var rootCmd = &cobra.Command{
 		return tui.Run(cmd.Context(), cfg, p, profile, cfgFile)
 	},
 	SilenceUsage: true,
+	// Errors are printed by main, so a silent ExitError (used by --exit-code,
+	// where finding differences is success) does not surface as a bare "Error:".
+	SilenceErrors: true,
 }
 
 func init() {

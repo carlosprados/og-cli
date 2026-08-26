@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/carlosprados/og-cli/v2/cmd"
@@ -8,7 +9,10 @@ import (
 
 func main() {
 	cmd.SetSkillsFS(skillsFS)
-	if err := cmd.Execute(); err != nil {
-		os.Exit(1)
+
+	err := cmd.Execute()
+	if cmd.ShouldPrint(err) {
+		fmt.Fprintln(os.Stderr, "Error:", err)
 	}
+	os.Exit(cmd.ExitCode(err))
 }
