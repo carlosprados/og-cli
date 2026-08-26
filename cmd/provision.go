@@ -190,6 +190,12 @@ var provisionPullCmd = &cobra.Command{
 			return err
 		}
 		fmt.Printf("Provision function unwrapped to %s\n", dir)
+
+		if p, perr := activeProfile(); perr == nil {
+			d := unwrap.ProvisionFunctionDescriptor()
+			recordBase(d.Kind, opengate.ParseProvisionProcessorSummary(raw).ProvisionProcessorID, d.NameOf(raw),
+				dir, ppPullDir, raw, syncTarget(p, orgName, ""))
+		}
 		return nil
 	},
 }
@@ -215,12 +221,18 @@ var provisionPullAllCmd = &cobra.Command{
 		// every artifact sees the slugs its siblings already claimed.
 		opts := &unwrap.Options{Force: ppPullForce, Warn: hintWarner()}
 		count := 0
+		p, _ := activeProfile()
 		for _, raw := range items {
 			dir, err := unwrapArtifactTo(unwrap.ProvisionFunctionDescriptor(), raw, ppPullDir, opts)
 			if err != nil {
 				return err
 			}
 			fmt.Printf("  %s\n", dir)
+			if p != nil {
+				d := unwrap.ProvisionFunctionDescriptor()
+				recordBase(d.Kind, opengate.ParseProvisionProcessorSummary(raw).ProvisionProcessorID, d.NameOf(raw),
+					dir, ppPullDir, raw, syncTarget(p, orgName, ""))
+			}
 			count++
 		}
 		fmt.Printf("%d provision functions unwrapped to %s\n", count, ppPullDir)
@@ -261,6 +273,9 @@ var provisionDeployCmd = &cobra.Command{
 		body, err := unwrap.WrapProvisionProcessor(args[0], hintWarner())
 		if err != nil {
 			return err
+		}
+		if p, perr := activeProfile(); perr == nil {
+			warnIfMovedTarget(args[0], syncTarget(p, orgName, ""))
 		}
 
 		if ppDeployUpdate {

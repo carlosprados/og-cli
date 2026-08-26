@@ -243,6 +243,12 @@ var rulesPullCmd = &cobra.Command{
 		}
 		fmt.Printf("Rule unwrapped to %s\n", dir)
 
+		if p, perr := activeProfile(); perr == nil {
+			d := unwrap.RuleDescriptor()
+			recordBase(d.Kind, opengate.ParseRuleSummary(raw).Identifier, d.NameOf(raw),
+				dir, rulePullDir, raw, syncTarget(p, orgName, rulesChannel))
+		}
+
 		if !ruleNoTypings {
 			p, perr := activeProfile()
 			if perr == nil {
@@ -292,6 +298,9 @@ var rulesPullAllCmd = &cobra.Command{
 				return err
 			}
 			fmt.Printf("  %s\n", dir)
+			d := unwrap.RuleDescriptor()
+			recordBase(d.Kind, opengate.ParseRuleSummary(raw).Identifier, d.NameOf(raw),
+				dir, rulePullDir, raw, syncTarget(p, orgName, rulesChannel))
 			if !ruleNoTypings && orgErr == nil {
 				writeTypings(dir, typegen.ContextRuleAdvanced, dm, orgName, typegen.ParametersFrom(raw))
 			}
@@ -335,6 +344,9 @@ var rulesDeployCmd = &cobra.Command{
 		body, err := unwrap.WrapRule(args[0], hintWarner())
 		if err != nil {
 			return err
+		}
+		if p, perr := activeProfile(); perr == nil {
+			warnIfMovedTarget(args[0], syncTarget(p, orgName, rulesChannel))
 		}
 
 		if ruleDeployUpdate {

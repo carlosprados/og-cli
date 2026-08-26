@@ -248,6 +248,12 @@ var connectorsPullCmd = &cobra.Command{
 			return err
 		}
 		fmt.Printf("Connector function unwrapped to %s\n", dir)
+
+		if p, perr := activeProfile(); perr == nil {
+			d := unwrap.ConnectorFunctionDescriptor()
+			recordBase(d.Kind, opengate.ParseConnectorFunctionSummary(raw).Identifier, d.NameOf(raw),
+				dir, cfPullDir, raw, syncTarget(p, orgName, connectorsChannel))
+		}
 		return nil
 	},
 }
@@ -273,12 +279,18 @@ var connectorsPullAllCmd = &cobra.Command{
 		// every artifact sees the slugs its siblings already claimed.
 		opts := &unwrap.Options{Force: cfPullForce, Warn: hintWarner()}
 		count := 0
+		p, _ := activeProfile()
 		for _, raw := range resp.ConnectorFunctions {
 			dir, err := unwrapArtifactTo(unwrap.ConnectorFunctionDescriptor(), raw, cfPullDir, opts)
 			if err != nil {
 				return err
 			}
 			fmt.Printf("  %s\n", dir)
+			if p != nil {
+				d := unwrap.ConnectorFunctionDescriptor()
+				recordBase(d.Kind, opengate.ParseConnectorFunctionSummary(raw).Identifier, d.NameOf(raw),
+					dir, cfPullDir, raw, syncTarget(p, orgName, connectorsChannel))
+			}
 			count++
 		}
 		fmt.Printf("%d connector functions unwrapped to %s\n", count, cfPullDir)
@@ -319,6 +331,9 @@ var connectorsDeployCmd = &cobra.Command{
 		body, err := unwrap.WrapConnectorFunction(args[0], hintWarner())
 		if err != nil {
 			return err
+		}
+		if p, perr := activeProfile(); perr == nil {
+			warnIfMovedTarget(args[0], syncTarget(p, orgName, connectorsChannel))
 		}
 
 		if cfDeployUpdate {
