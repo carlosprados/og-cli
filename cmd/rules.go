@@ -450,7 +450,11 @@ Examples:
 	},
 })
 
+var rulesValidateCmd = newValidateCmd(unwrap.RuleDescriptor(), "validate <rule-dir>", "Check a local rule directory before deploying it")
+
 func init() {
+	rulesCmd.AddCommand(rulesValidateCmd)
+	addValidateFlags(rulesValidateCmd)
 	rulesCmd.AddCommand(rulesDiffCmd)
 	addDiffFlags(rulesDiffCmd)
 	rulesCmd.PersistentFlags().StringVar(&rulesChannel, "channel", defaultChannel, "channel the rule belongs to")

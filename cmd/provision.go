@@ -422,7 +422,11 @@ Examples:
 	},
 })
 
+var provisionValidateCmd = newValidateCmd(unwrap.ProvisionFunctionDescriptor(), "validate <pf-dir>", "Check a local provision function directory before deploying it")
+
 func init() {
+	provisionCmd.AddCommand(provisionValidateCmd)
+	addValidateFlags(provisionValidateCmd)
 	provisionCmd.AddCommand(provisionDiffCmd)
 	addDiffFlags(provisionDiffCmd)
 	provisionCreateCmd.Flags().StringVarP(&ppCreateFile, "file", "f", "", "path to JSON file with provision function definition")

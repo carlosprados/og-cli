@@ -160,10 +160,10 @@ func (c CodeContract) lookupExact(p keyPath) (CodePath, bool) {
 	return CodePath{}, false
 }
 
-// declares reports whether filename is one this contract would produce, so
-// wrap can tell an artifact's own code file from a stray .js sitting in the
+// Declares reports whether filename is one this contract would produce, so a
+// caller can tell an artifact's own code file from a stray .js sitting in the
 // directory.
-func (c CodeContract) declares(filename string) bool {
+func (c CodeContract) Declares(filename string) bool {
 	for _, cp := range c.ExactPaths {
 		if cp.File == filename {
 			return true
@@ -249,7 +249,7 @@ func (c CodeContract) decide(path keyPath, key, value string, warn WarnFunc) (fi
 // a payload field — which is what makes an auxiliary helper.js harmless.
 func (c CodeContract) Reinject(node any, files map[string]string, warn WarnFunc) any {
 	for filename, code := range files {
-		if !c.declares(filename) {
+		if !c.Declares(filename) {
 			warn.emit(keyPath{filename}, "not a code file this artifact declares; ignored (it will not be deployed)")
 			continue
 		}

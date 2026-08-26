@@ -415,7 +415,11 @@ Examples:
 	},
 })
 
+var connectorsValidateCmd = newValidateCmd(unwrap.ConnectorFunctionDescriptor(), "validate <cf-dir>", "Check a local connector function directory before deploying it")
+
 func init() {
+	connectorsCmd.AddCommand(connectorsValidateCmd)
+	addValidateFlags(connectorsValidateCmd)
 	connectorsCmd.AddCommand(connectorsDiffCmd)
 	addDiffFlags(connectorsDiffCmd)
 	connectorsCmd.PersistentFlags().StringVar(&connectorsChannel, "channel", defaultChannel, "channel the connector function belongs to")
