@@ -1028,3 +1028,75 @@ Verified with `tsc 5.9` against the real artifact: the production rule's code ty
 and typos added afterwards are still reported —
 `Property 'temperature.from.presure' does not exist… Did you mean 'temperature.from.pressure'?` —
 including on the identifier that no datamodel declares.
+
+---
+
+## 17. Phases 7 and 9 as built (2026-08-26)
+
+`internal/validate` + `og <family> validate`, and `internal/watch` + `og <family> watch`. 85.7% and
+77.9% coverage. Both exercised against the real `sensehat` organization, per Charlie's standing
+instruction that there be no mocks.
+
+### validate, and the false positive that nearly shipped
+
+Checks: metadata parses (with the line number, so a stray comma is findable), declared code files
+present, brackets balance, and the per-family traps — a REQUEST connector function with no
+`operationName`, a RESPONSE/COLLECTION one with no `southCriterias`, an ADVANCED rule with no code,
+a provision script missing `normalizeRawObject` or `actionsPlanning`. Errors block, warnings do not.
+
+Deliberately **not** a JavaScript parser, per §6.2: a megabyte-scale dependency in a tool that is
+otherwise standard library and Cobra, and it still would not catch a valid script reading the wrong
+datastream — which the typings do catch, in the editor, with a real type-checker.
+
+Run against sensehat's 14 live artifacts, the bracket check **reported an error in a working
+connector function**: `message.replace(/\'/g, '')`. The escaped quote inside the regex was read as a
+string delimiter and desynced everything after it. The doc comment claimed regexes were skipped;
+they were not. A false positive here is worse than no check — validate blocks, and watch refuses to
+push — so telling a regex from a division (which needs the preceding token) is now implemented.
+Re-verified: **all 14 real artifacts pass clean**, seeded breakages are still caught with the right
+line, and the regex case is a test.
+
+### watch
+
+`fsnotify` → filter → resolve to the nearest deployable unit → debounce → validate → classify →
+deploy. All four of §5.6's details are in: editor debris is ignored (`4913`, `*.swp`, `~`, `*.tmp`,
+generated `.d.ts`/`jsconfig.json`, and the `.og/` cache — which would otherwise retrigger on its own
+writes), one save is one deploy, validation is on unless `--no-validate`, and the guards.
+
+**A conflict refuses to deploy and there is no `--force`.** Overwriting someone else's edit should
+not be one keystroke away.
+
+`production: true` on a profile makes watch refuse to start without `--allow-production`. Nothing
+else reads the field.
+
+The session-invalidation warning is printed **only** for workspaces and dashboards, per the §5.6
+finding: the transparent 401 re-sign lives in the Web API client, and the flat families never touch
+it. A warning printed everywhere is a warning nobody reads.
+
+After a successful deploy, watch **re-records the base snapshot**. Without that, the next save is
+classified against a snapshot two versions old and reported as a conflict against your own work.
+
+### Verified against production, and what it caught
+
+Watching sensehat's 7 real rule directories:
+
+| Case | Result |
+|---|---|
+| one edit to a real rule's JS | `would-deploy [local changes]` |
+| `4913`, `*.tmp`, `~` written | nothing — filtered |
+| conflict (base moved out from under the local tree) | `refused [conflict]`, **with dry-run off** |
+| unbalanced brace | `invalid  error: javascript.js:33: "{" is never closed`, no deploy |
+| profile marked `production: true` | refuses to start; starts with `--allow-production` |
+
+Two bugs found by running it rather than by testing it:
+
+- **`--json` emitted indented multi-line JSON**, not NDJSON — unparseable line by line, which is the
+  entire point of the flag. It goes through `json.Marshal` directly now.
+- A comment accidentally left in a `rule.json` during testing was correctly rejected as invalid JSON
+  with the line number, which is a nice accidental demonstration of the validation path.
+
+### Not yet exercised: the write itself
+
+Every guard has been verified against the real platform, but the successful-deploy path has only
+been run with `--dry-run` or blocked by a guard. Exercising it means writing to Charlie's production
+tenant, which needs his say-so — proposed as a throwaway inactive rule, created and deleted.

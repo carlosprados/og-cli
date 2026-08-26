@@ -177,6 +177,15 @@ og rules diff rules/<slug> --org <org>             # before deploying: what woul
 #   --against <profile> compares tenants; --exit-code for CI (1=differs, 0=same, 2=error).
 #   -o json is a versioned contract (docs/json-output.md).
 #   ALWAYS diff before a provision-function deploy: a bad one corrupts data at bulk scale.
+og rules validate rules/<slug>                     # local only: JSON, code files, brackets,
+#   per-family traps (REQUEST without operationName, COLLECTION without southCriterias,
+#   ADVANCED rule without code, provision script missing normalizeRawObject/actionsPlanning).
+#   --exit-code for CI. NOT a JS parser — the script is covered by typegen + your editor.
+og rules watch rules/ --org <org> --dry-run        # deploy on save; ALWAYS dry-run first
+#   Validates before every push. REFUSES on conflict (remote moved since your pull) and there
+#   is no --force. Refuses to start against a profile with `production: true` unless
+#   --allow-production. --json emits NDJSON. Ignores editor debris (4913, .swp, ~, .tmp) and
+#   the .og/ cache, and coalesces one save into one deploy.
 og rules deploy rules/<slug> --update --org <org>  # PUT (requires identifier in rule.json)
 og rules deploy rules/<slug> --org <org>           # POST: create new (no identifier needed)
 ```

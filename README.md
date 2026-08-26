@@ -478,6 +478,36 @@ og rules diff rules/env-anomaly --exit-code -o json    # CI drift gate
 # 1 for differences, 0 for none, 2 on error. The -o json shape is a versioned
 # contract: see docs/json-output.md.
 
+# Check an artifact before deploying it — local only, no credentials needed
+og rules validate rules/env-anomaly
+og connectors validate connectors/weather
+og provision validate provision/createUpdate --exit-code   # CI gate
+#
+# Metadata parses, declared code files present, brackets balance, and the
+# per-family rules that catch an artifact which deploys happily and never fires:
+# a REQUEST connector function with no operationName, a COLLECTION one with no
+# southCriterias, an ADVANCED rule with no code, a provision script missing
+# normalizeRawObject or actionsPlanning. Not a JavaScript parser — the script
+# itself is covered by the generated typings and your editor's type-checker.
+
+# Deploy on save
+og rules watch rules/ --org sensehat --dry-run     # see what it would do first
+og rules watch rules/ --org sensehat
+og rules watch rules/ --org sensehat --json        # NDJSON, one event per line
+#
+#   12:52:19  started       rules  7 directories, org sensehat, debounce 300ms
+#   12:52:22  deployed      env-anomaly  [local changes]
+#   12:52:24  refused       collectareas [conflict]  the remote changed since you pulled
+#   12:52:27  invalid       battery-low  error: javascript.js:33: "{" is never closed
+#
+# This is the only og command that writes without a decision per action, so:
+#   • a changed file deploys the artifact it belongs to, not the whole tree
+#   • one save is one deploy (editors replace files, producing several events)
+#   • every artifact is validated first; --no-validate must be explicit
+#   • a CONFLICT refuses to deploy, and there is NO --force
+#   • add `production: true` to a profile and watch refuses to start on it
+#     without --allow-production
+
 # pull-all / wrap mirror the workspace verbs
 og rules pull-all --dir rules/ --org sensehat
 og rules wrap rules/<rule-slug> --out rule.json
