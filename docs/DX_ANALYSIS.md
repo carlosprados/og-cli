@@ -1114,3 +1114,64 @@ relativising, with a regression test that deliberately mixes absolute and relati
 
 Re-verified against production: three consecutive saves, three real deploys, each correctly
 classified as `local changes`, and the platform ended up holding the last version written.
+
+---
+
+## 18. Phase 10 as built: connector function typings (2026-08-26)
+
+`og connectors pull` now writes declarations too. The context follows the function's `type`, and the
+protocol objects follow the **scheme of its south criteria** — verified against sensehat, whose
+criteria are URIs like `mqtts://endesa` and `https://demo`. A REQUEST function has no south criteria
+(it matches on `operationName` plus north criteria), so its protocol is unknowable from the payload;
+every protocol object is declared rather than only the detected ones, because declaring too few
+flags working code.
+
+### Seven for seven wrong on the first run
+
+The first version failed `tsc` on **all seven** of sensehat's live connector functions. Four distinct
+causes, none of which a fixture would have shown:
+
+1. **The catalogue was missing every plain function.** Extracting signatures from the reference's
+   `object.method(...)` headings skipped the "Plain functions" section entirely — so `log()`,
+   `httpRequest()` and `responseCF()`, all used in production, were reported as
+   `Cannot find name`.
+2. **`logger` is variadic.** The reference documents `logger.debug(msg)` but says it concatenates its
+   parameters; production calls `logger.debug('payload is: ', payload)`.
+3. **`mqtt.topic` is assigned**, not just `mqtt.publish()` called.
+4. **A top-level `return` is correct.** The platform wraps the script in a function, so
+   `return dataPoints;` at the end of a COLLECTION function is how it works — and TypeScript reports
+   TS1108, which is not configurable away.
+
+Then the rules regressed too, for three more reasons found the same way: `isInsertAction(entity)` is
+called with an argument the reference documents as taking none; `entity.resourceType` and
+`entity.device` are properties the entity carries besides its datastreams; and a live rule indexes
+the entity **dynamically** — `entity[getVariableValue(parameterObject['x'])]`.
+
+### `unknown` had to become `any`
+
+A rule compares `entity['ccare.bps']._value._current.value > threshold`. With the value typed
+`unknown`, TypeScript rejects the comparison — correct JavaScript, reddened. `unknown` is the safer
+type in the abstract; here it made the declarations unusable. Untyped values are `any` now. The point
+of these declarations is catching a mistyped **identifier**, which still works, not enforcing value
+types the platform does not state.
+
+### The jsconfig adapts to the code
+
+Since a top-level `return`, an untyped helper parameter and a dynamic index are all correct code that
+cannot be type-checked, the generated `jsconfig.json` turns `checkJs` **off** for those artifacts and
+keeps completion, navigation and signature help — most of the day-to-day value — rather than
+producing errors on working code. It says so in the file.
+
+Of the 13 live artifacts, **8 are fully checked and 5 are completion-only**.
+
+### Verified
+
+All 13 real artifacts — 6 rules, 7 connector functions — type-check **clean**. Typos introduced
+afterwards are still caught in the checked ones, with suggestions: `logger.dbug` → `debug`,
+`mqtt.publsh` → `publish`, `responseCFF` → `responseCF`.
+
+### Still open
+
+Provision functions have **no** typings: there is no vendored JS reference for their execution
+context, and the honest options were to invent globals or to ship nothing. Nothing shipped. Widget
+formatters are also still open (`widget-js-api.md` exists and would be the source).

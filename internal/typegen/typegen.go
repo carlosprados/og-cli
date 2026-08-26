@@ -36,11 +36,52 @@ type Context string
 const (
 	// ContextRuleAdvanced is the body of an ADVANCED automation rule.
 	ContextRuleAdvanced Context = "rule/ADVANCED"
+	// ContextCFRequest transforms an outgoing operation request.
+	ContextCFRequest Context = "connector-function/REQUEST"
+	// ContextCFResponse processes a device's response to an operation.
+	ContextCFResponse Context = "connector-function/RESPONSE"
+	// ContextCFCollection processes collected data into datapoints.
+	ContextCFCollection Context = "connector-function/COLLECTION"
 )
 
-// templateFor maps a context to its embedded platform catalogue.
+// templateFor maps a context to its embedded platform catalogue. The three
+// connector function types share one: the objects that differ between them are
+// declared in all three, since declaring too little is what makes typings redden
+// working code.
 var templateFor = map[Context]string{
 	ContextRuleAdvanced: "templates/rule-advanced.d.ts",
+	ContextCFRequest:    "templates/connector-function.d.ts",
+	ContextCFResponse:   "templates/connector-function.d.ts",
+	ContextCFCollection: "templates/connector-function.d.ts",
+}
+
+// protocolTemplate holds the per-protocol objects, appended for connector
+// function contexts.
+const protocolTemplate = "templates/cf-protocols.d.ts"
+
+// isConnectorFunction reports whether a context is one of the connector
+// function types.
+func isConnectorFunction(c Context) bool {
+	switch c {
+	case ContextCFRequest, ContextCFResponse, ContextCFCollection:
+		return true
+	}
+	return false
+}
+
+// ContextForConnectorFunction maps a connector function's `type` field to its
+// context.
+func ContextForConnectorFunction(cfType string) Context {
+	switch strings.ToUpper(cfType) {
+	case "REQUEST":
+		return ContextCFRequest
+	case "RESPONSE":
+		return ContextCFResponse
+	case "COLLECTION":
+		return ContextCFCollection
+	default:
+		return ContextCFCollection
+	}
 }
 
 // Contexts lists the contexts typegen can emit, for CLI help and validation.
@@ -86,6 +127,12 @@ type Options struct {
 	// specific rule rather than for a context in general.
 	Parameters []Parameter
 
+	// Protocols are the connector protocols this function is reached through,
+	// for the header. Every protocol object is declared regardless: which ones
+	// are really in scope depends on the protocol, and declaring too few would
+	// flag working code.
+	Protocols []string
+
 	// ExtraDatastreams are identifiers the artifact itself references but that
 	// no datamodel declares.
 	//
@@ -115,6 +162,15 @@ func Generate(o Options) (string, error) {
 	writeHeader(&b, o)
 	b.WriteString(string(catalogue))
 	b.WriteString("\n")
+
+	if isConnectorFunction(o.Context) {
+		protocols, err := templates.ReadFile(protocolTemplate)
+		if err != nil {
+			return "", fmt.Errorf("reading protocol template: %w", err)
+		}
+		b.WriteString(string(protocols))
+		b.WriteString("\n")
+	}
 	writeEntity(&b, o)
 	writeParameters(&b, o.Parameters)
 	return b.String(), nil
@@ -151,7 +207,14 @@ func writeHeader(b *strings.Builder, o Options) {
 		}
 		fmt.Fprintf(b, "\n//            %s\n", strings.Join(names, ", "))
 	}
-	fmt.Fprintf(b, "// source:    .claude/skills/og-device-ops/rules-js-reference.md\n")
+	source := "rules-js-reference.md"
+	if isConnectorFunction(o.Context) {
+		source = "connector-functions-js-reference.md"
+	}
+	fmt.Fprintf(b, "// source:    .claude/skills/og-device-ops/%s\n", source)
+	if len(o.Protocols) > 0 {
+		fmt.Fprintf(b, "// protocols: %s (from the south criteria)\n", strings.Join(o.Protocols, ", "))
+	}
 	fmt.Fprintf(b, "//\n// Regenerate after a datamodel change: og typegen --context %q --org <org>\n\n", o.Context)
 }
 
@@ -199,9 +262,18 @@ func writeEntity(b *strings.Builder, o Options) {
 		fmt.Fprintf(b, "  %s?: %s;\n", quote(e.ID), decl)
 	}
 	b.WriteString("}\n\n")
-	b.WriteString("declare const entity: OGEntity;\n")
+	// Besides its datastreams, the entity carries plain properties. Production
+	// rules read entity.resourceType and entity.device, so the declared type is
+	// the datastream map plus those.
+	b.WriteString("/** Properties the entity carries besides its datastreams. */\n")
+	b.WriteString("interface OGEntityProperties {\n")
+	b.WriteString("  /** e.g. 'entity.device'. */\n")
+	b.WriteString("  resourceType?: OGDatastream<string>;\n")
+	b.WriteString("  device?: any;\n")
+	b.WriteString("}\n\n")
+	b.WriteString("declare const entity: OGEntity & OGEntityProperties;\n")
 	b.WriteString("/** The gateway entity, when the rule runs behind one. */\n")
-	b.WriteString("declare const gateway: OGEntity | null;\n")
+	b.WriteString("declare const gateway: (OGEntity & OGEntityProperties) | null;\n")
 }
 
 // datamodelEntries turns the organization's datamodels into entity keys,
@@ -261,7 +333,7 @@ func datamodelEntries(dms []opengate.Datamodel) []datastreamEntry {
 	for _, m := range byID {
 		e := m.entry
 		if m.conflict {
-			e.TSType = "unknown"
+			e.TSType = "any"
 			e.Doc = strings.TrimSpace(e.Doc + " — declared with conflicting types across datamodels, so left untyped")
 		}
 		if len(m.sources) > 1 {
@@ -307,13 +379,13 @@ func docFor(ds opengate.Datastream, cat opengate.Category) string {
 // unspecific one, since the editor would flag correct code.
 func tsTypeOf(schema json.RawMessage) string {
 	if len(schema) == 0 {
-		return "unknown"
+		return "any"
 	}
 	var s struct {
 		Type any `json:"type"`
 	}
 	if err := json.Unmarshal(schema, &s); err != nil {
-		return "unknown"
+		return "any"
 	}
 	switch t := s.Type.(type) {
 	case string:
@@ -327,14 +399,22 @@ func tsTypeOf(schema json.RawMessage) string {
 			}
 		}
 		if len(parts) == 0 {
-			return "unknown"
+			return "any"
 		}
 		return strings.Join(dedupe(parts), " | ")
 	default:
-		return "unknown"
+		return "any"
 	}
 }
 
+// tsPrimitive maps a JSON Schema type name to a TypeScript one.
+//
+// An unmapped type becomes `any`, not `unknown`. `unknown` is the safer choice
+// in TypeScript, but it cannot be compared or arithmetic'd without a cast, and
+// production rules do exactly that: `entity['ccare.bps']._value._current.value >
+// threshold` is correct JavaScript that `unknown` rejects. Since the point of
+// these declarations is to catch mistyped identifiers rather than to enforce
+// value types, `any` is the right trade.
 func tsPrimitive(jsonType string) string {
 	switch jsonType {
 	case "number", "integer":
@@ -348,7 +428,7 @@ func tsPrimitive(jsonType string) string {
 	case "array":
 		return "unknown[]"
 	default:
-		return "unknown"
+		return "any"
 	}
 }
 
@@ -370,22 +450,35 @@ func quote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "\\'") + "'"
 }
 
-// JSConfig is the jsconfig.json that makes tsserver load og-globals.d.ts and
-// check the artifact's JavaScript.
+// JSConfigFor returns the jsconfig.json to write alongside an artifact's code.
 //
-// Two options carry the value and are not negotiable:
+// Two compiler options carry the diagnostic value:
 //
 //	checkJs        without it the declarations give completion but no
 //	               diagnostics, which is half the point.
 //	noImplicitAny  this is what makes entity['sensro.temperature'] an error.
-//	               Without it TypeScript quietly types an unknown index as
-//	               any, and the single most useful check — a mistyped
-//	               datastream identifier — never fires.
+//	               Without it TypeScript quietly types an unknown index as any
+//	               and the most useful check — a mistyped datastream identifier
+//	               — never fires.
 //
-// strict stays off deliberately: strictNullChecks would flag every read of an
-// optional datastream, and rule code guards those by convention rather than by
-// type. That is noise a user would silence by deleting the file.
-const JSConfig = `{
+// But an artifact's script is not a standalone program. The platform wraps it in
+// a function, so a top-level `return` is correct and TypeScript reports TS1108
+// on it, and production scripts declare helper functions whose parameters carry
+// no types, which noImplicitAny reports as TS7006. Both are errors on working
+// code, and typings that redden working code get deleted.
+//
+// So the config adapts to the code it will check. Where the code cannot be
+// type-checked without false positives, checking is turned off and completion is
+// kept — the declarations still drive autocomplete, navigation and signature
+// help, which is most of the day-to-day value.
+//
+// Verified against sensehat's seven live connector functions: six of the seven
+// contain a top-level return or an untyped helper parameter.
+func JSConfigFor(code string) string {
+	strict := !hasTopLevelReturn(code) && !hasUntypedFunctionParams(code) && !hasDynamicDatastreamAccess(code)
+
+	if strict {
+		return `{
   "compilerOptions": {
     "target": "es5",
     "lib": ["es5"],
@@ -398,6 +491,58 @@ const JSConfig = `{
   "include": ["*.js", "og-globals.d.ts"]
 }
 `
+	}
+
+	// completion only: this script cannot be checked without reporting errors on
+	// correct code (a top-level return, or an untyped helper parameter).
+	return `{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["es5"],
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": false
+  },
+  "include": ["*.js", "og-globals.d.ts"]
+}
+`
+}
+
+// JSConfig is the strict configuration, kept for callers with no code to inspect.
+var JSConfig = JSConfigFor("")
+
+// topLevelReturnPattern finds a `return` at the start of a line with no
+// indentation, which cannot be inside a function body formatted normally.
+var topLevelReturnPattern = regexp.MustCompile(`(?m)^return\b`)
+
+// hasTopLevelReturn reports whether the script returns a value at its top level,
+// which the platform allows — it wraps the script in a function — and TypeScript
+// does not.
+func hasTopLevelReturn(code string) bool {
+	return topLevelReturnPattern.MatchString(code)
+}
+
+// untypedParamPattern finds a function declaration taking at least one
+// parameter. In plain JavaScript none of them carry types, so noImplicitAny
+// reports every one.
+var untypedParamPattern = regexp.MustCompile(`function\s*[a-zA-Z0-9_$]*\s*\(\s*[a-zA-Z_$]`)
+
+func hasUntypedFunctionParams(code string) bool {
+	return untypedParamPattern.MatchString(code)
+}
+
+// dynamicIndexPattern finds entity[...] indexed by anything other than a string
+// literal — a variable, or a call such as
+// entity[getVariableValue(parameterObject['x'])], which a live rule does.
+var dynamicIndexPattern = regexp.MustCompile(`(?:entity|gateway)\s*\[\s*[^'"\s\]]`)
+
+// hasDynamicDatastreamAccess reports whether the code indexes the entity with a
+// computed key. TypeScript cannot know what it resolves to, and reports it —
+// on code that is correct.
+func hasDynamicDatastreamAccess(code string) bool {
+	return dynamicIndexPattern.MatchString(code)
+}
 
 // Parameter is one declared parameter of a rule, from its `parameters` array.
 type Parameter struct {
@@ -445,7 +590,10 @@ func parameterTSType(schema, value json.RawMessage) string {
 	if json.Unmarshal(schema, &name) == nil && name != "" {
 		return tsPrimitive(name)
 	}
-	if t := tsTypeOf(schema); t != "unknown" {
+	// The schema is checked first, then the default value's own JSON type. The
+	// comparison is against "any" because that is what tsTypeOf returns when it
+	// cannot tell — getting this wrong silently skipped the value fallback.
+	if t := tsTypeOf(schema); t != "any" {
 		return t
 	}
 	return jsonValueTSType(value)
@@ -455,7 +603,7 @@ func parameterTSType(schema, value json.RawMessage) string {
 func jsonValueTSType(value json.RawMessage) string {
 	var v any
 	if len(value) == 0 || json.Unmarshal(value, &v) != nil {
-		return "unknown"
+		return "any"
 	}
 	switch v.(type) {
 	case float64:
@@ -465,7 +613,7 @@ func jsonValueTSType(value json.RawMessage) string {
 	case bool:
 		return "boolean"
 	default:
-		return "unknown"
+		return "any"
 	}
 }
 
@@ -518,7 +666,7 @@ func extraEntries(ids []string, existing []datastreamEntry) []datastreamEntry {
 		seen[id] = true
 		out = append(out, datastreamEntry{
 			ID:      id,
-			TSType:  "unknown",
+			TSType:  "any",
 			Indexed: strings.Contains(id, "[]"),
 			Doc:     "referenced by this artifact but declared in no datamodel — type unknown",
 		})
@@ -574,4 +722,58 @@ func DatastreamsTriggering(rulePayload json.RawMessage) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// schemePattern captures the URI scheme of a south criterion.
+var schemePattern = regexp.MustCompile(`^([a-zA-Z][a-zA-Z0-9+.-]*)://`)
+
+// ProtocolsFromCriteria reports the connector protocols a function is reached
+// through, read from the scheme of each south criterion.
+//
+// Verified against sensehat: south criteria are URI strings whose scheme is the
+// protocol — `mqtts://endesa`, `https://demo`. A REQUEST function has no south
+// criteria at all (it matches on operationName plus north criteria), so its
+// protocol cannot be determined from the payload; that is why every protocol
+// object is declared rather than only the ones detected.
+func ProtocolsFromCriteria(payload json.RawMessage) []string {
+	var cf struct {
+		SouthCriterias []string `json:"southCriterias"`
+	}
+	if json.Unmarshal(payload, &cf) != nil {
+		return nil
+	}
+
+	seen := map[string]bool{}
+	var out []string
+	for _, criterion := range cf.SouthCriterias {
+		m := schemePattern.FindStringSubmatch(criterion)
+		if m == nil {
+			continue
+		}
+		proto := normaliseScheme(m[1])
+		if seen[proto] {
+			continue
+		}
+		seen[proto] = true
+		out = append(out, proto)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// normaliseScheme maps a URI scheme to the protocol object the platform injects:
+// mqtts and mqtt both mean the mqtt object, https and http the http one.
+func normaliseScheme(scheme string) string {
+	switch strings.ToLower(scheme) {
+	case "mqtt", "mqtts":
+		return "mqtt"
+	case "http", "https":
+		return "http"
+	case "ws", "wss":
+		return "websocket"
+	case "coap", "coaps":
+		return "coap"
+	default:
+		return strings.ToLower(scheme)
+	}
 }

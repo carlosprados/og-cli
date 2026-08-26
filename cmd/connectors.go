@@ -7,7 +7,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/carlosprados/og-cli/v2/internal/config"
 	"github.com/carlosprados/og-cli/v2/internal/output"
+	"github.com/carlosprados/og-cli/v2/internal/typegen"
 	"github.com/carlosprados/og-cli/v2/internal/unwrap"
 	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/spf13/cobra"
@@ -48,6 +50,7 @@ var (
 	cfPullForce       bool
 	cfWrapOut         string
 	cfDeployUpdate    bool
+	cfNoTypings       bool
 )
 
 // --- list ---
@@ -253,6 +256,9 @@ var connectorsPullCmd = &cobra.Command{
 			d := unwrap.ConnectorFunctionDescriptor()
 			recordBase(d.Kind, opengate.ParseConnectorFunctionSummary(raw).Identifier, d.NameOf(raw),
 				dir, cfPullDir, raw, syncTarget(p, orgName, connectorsChannel))
+			if !cfNoTypings {
+				writeCFTypings(cmd, p, orgName, dir, raw)
+			}
 		}
 		return nil
 	},
@@ -280,6 +286,8 @@ var connectorsPullAllCmd = &cobra.Command{
 		opts := &unwrap.Options{Force: cfPullForce, Warn: hintWarner()}
 		count := 0
 		p, _ := activeProfile()
+		var dms []opengate.Datamodel
+		dmsResolved := false
 		for _, raw := range resp.ConnectorFunctions {
 			dir, err := unwrapArtifactTo(unwrap.ConnectorFunctionDescriptor(), raw, cfPullDir, opts)
 			if err != nil {
@@ -290,6 +298,13 @@ var connectorsPullAllCmd = &cobra.Command{
 				d := unwrap.ConnectorFunctionDescriptor()
 				recordBase(d.Kind, opengate.ParseConnectorFunctionSummary(raw).Identifier, d.NameOf(raw),
 					dir, cfPullDir, raw, syncTarget(p, orgName, connectorsChannel))
+				if !cfNoTypings {
+					if dms == nil && !dmsResolved {
+						dms, dmsResolved = datamodelForTypings(cmd, p, orgName), true
+					}
+					writeTypings(dir, typegen.ContextForConnectorFunction(cfTypeOfPayload(raw)), dms, orgName, nil,
+						typegen.DatastreamsReferencedBy(codeOf(raw)), typegen.ProtocolsFromCriteria(raw))
+				}
 			}
 			count++
 		}
@@ -447,8 +462,10 @@ func init() {
 
 	connectorsPullCmd.Flags().StringVar(&cfPullDir, "dir", "connectors", "destination directory")
 	connectorsPullCmd.Flags().BoolVar(&cfPullForce, "force", false, "overwrite existing destination")
+	connectorsPullCmd.Flags().BoolVar(&cfNoTypings, "no-typings", false, "skip generating og-globals.d.ts and jsconfig.json")
 	connectorsPullAllCmd.Flags().StringVar(&cfPullDir, "dir", "connectors", "destination directory")
 	connectorsPullAllCmd.Flags().BoolVar(&cfPullForce, "force", false, "overwrite existing destinations")
+	connectorsPullAllCmd.Flags().BoolVar(&cfNoTypings, "no-typings", false, "skip generating og-globals.d.ts and jsconfig.json")
 
 	connectorsWrapCmd.Flags().StringVar(&cfWrapOut, "out", "", "write connector function JSON to this file (default: stdout)")
 
@@ -472,4 +489,36 @@ func init() {
 	connectorsCmd.AddCommand(connectorsLogsCmd)
 
 	rootCmd.AddCommand(connectorsCmd)
+}
+
+// writeCFTypings generates the declarations for one connector function: its
+// execution context follows its type, and the protocol objects in scope follow
+// the scheme of its south criteria.
+func writeCFTypings(cmd *cobra.Command, p *config.Profile, orgName, dir string, raw json.RawMessage) {
+	writeTypings(dir, typegen.ContextForConnectorFunction(cfTypeOfPayload(raw)),
+		datamodelForTypings(cmd, p, orgName), orgName, nil,
+		typegen.DatastreamsReferencedBy(codeOf(raw)), typegen.ProtocolsFromCriteria(raw))
+}
+
+// cfTypeOfPayload reads a connector function's type from its payload.
+func cfTypeOfPayload(raw json.RawMessage) string {
+	var cf struct {
+		Type string `json:"type"`
+	}
+	if json.Unmarshal(raw, &cf) != nil {
+		return ""
+	}
+	return cf.Type
+}
+
+// codeOf returns an artifact's javascript field, for scanning the datastreams it
+// references.
+func codeOf(raw json.RawMessage) string {
+	var a struct {
+		JavaScript string `json:"javascript"`
+	}
+	if json.Unmarshal(raw, &a) != nil {
+		return ""
+	}
+	return a.JavaScript
 }

@@ -68,6 +68,14 @@ Examples:
 			opts.Parameters = typegen.ParametersFrom(raw)
 			opts.ExtraDatastreams = typegen.DatastreamsTriggering(raw)
 		}
+		// A connector function directory: its type decides the context and its
+		// south criteria the protocols, so neither has to be passed by hand.
+		if raw, err := os.ReadFile(filepath.Join(dirOrDot(typegenOut), "connectorfunction.json")); err == nil {
+			if !cmd.Flags().Changed("context") {
+				opts.Context = typegen.ContextForConnectorFunction(cfTypeOfPayload(raw))
+			}
+			opts.Protocols = typegen.ProtocolsFromCriteria(raw)
+		}
 		opts.ExtraDatastreams = append(opts.ExtraDatastreams, datastreamsInCode(dirOrDot(typegenOut))...)
 
 		out, err := typegen.Generate(opts)
@@ -87,7 +95,7 @@ Examples:
 
 		if !typegenNoJSConf {
 			jsPath := filepath.Join(dir, "jsconfig.json")
-			if err := os.WriteFile(jsPath, []byte(typegen.JSConfig), 0o644); err != nil {
+			if err := os.WriteFile(jsPath, []byte(typegen.JSConfigFor(codeInDir(dir))), 0o644); err != nil {
 				return err
 			}
 			fmt.Printf("Wrote %s\n", jsPath)
@@ -156,10 +164,11 @@ func dirOrDot(dir string) string {
 // writeTypings generates og-globals.d.ts and jsconfig.json into an unwrapped
 // artifact directory. Failures are reported and swallowed: a pull that fetched
 // the artifact correctly must not fail because the typings could not be built.
-func writeTypings(dir string, ctx typegen.Context, dms []opengate.Datamodel, orgName string, params []typegen.Parameter, extra []string) {
+func writeTypings(dir string, ctx typegen.Context, dms []opengate.Datamodel, orgName string,
+	params []typegen.Parameter, extra []string, protocols []string) {
 	out, err := typegen.Generate(typegen.Options{
 		Context: ctx, Datamodels: dms, OrgName: orgName, Parameters: params,
-		ExtraDatastreams: extra, Version: version,
+		ExtraDatastreams: extra, Protocols: protocols, Version: version,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  hint: typings not generated: %v\n", err)
@@ -169,7 +178,7 @@ func writeTypings(dir string, ctx typegen.Context, dms []opengate.Datamodel, org
 		fmt.Fprintf(os.Stderr, "  hint: writing og-globals.d.ts: %v\n", err)
 		return
 	}
-	if err := os.WriteFile(filepath.Join(dir, "jsconfig.json"), []byte(typegen.JSConfig), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "jsconfig.json"), []byte(typegen.JSConfigFor(codeInDir(dir))), 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "  hint: writing jsconfig.json: %v\n", err)
 	}
 }
@@ -205,4 +214,24 @@ func datastreamsInCode(dir string) []string {
 		out = append(out, typegen.DatastreamsReferencedBy(string(code))...)
 	}
 	return out
+}
+
+// codeInDir concatenates the .js files in an artifact directory, so the
+// generated jsconfig can adapt to what they contain.
+func codeInDir(dir string) string {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return ""
+	}
+	var b strings.Builder
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".js" {
+			continue
+		}
+		if code, err := os.ReadFile(filepath.Join(dir, e.Name())); err == nil {
+			b.Write(code)
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
 }

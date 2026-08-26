@@ -247,9 +247,11 @@ declare function getMonthlyCounterValueFromMessageWithReset(datastream: unknown,
 
 // ── Action kind ──────────────────────────────────────────────────────────────
 
-declare function isInsertAction(): boolean;
-declare function isUpdateAction(): boolean;
-declare function isPatchAction(): boolean;
+/** The reference documents these with no parameters, but production rules call
+ *  them as isInsertAction(entity), so the argument is optional. */
+declare function isInsertAction(entity?: unknown): boolean;
+declare function isUpdateAction(entity?: unknown): boolean;
+declare function isPatchAction(entity?: unknown): boolean;
 
 /** Name of the rule being evaluated. */
 declare const ruleName: string;

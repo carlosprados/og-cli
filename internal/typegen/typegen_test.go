@@ -89,7 +89,10 @@ func TestParametersFromRule(t *testing.T) {
 	]}`
 	params := ParametersFrom(json.RawMessage(raw))
 
-	want := map[string]string{"enabled": "boolean", "label": "string", "opaque": "unknown", "tempThreshold": "number"}
+	// `opaque` has neither schema nor value: it becomes `any`, not `unknown`.
+	// `unknown` cannot be compared or used in arithmetic without a cast, and
+	// production rules do both with parameters.
+	want := map[string]string{"enabled": "boolean", "label": "string", "opaque": "any", "tempThreshold": "number"}
 	if len(params) != len(want) {
 		t.Fatalf("got %d parameters, want %d: %+v", len(params), len(want), params)
 	}
@@ -240,8 +243,8 @@ func TestGenerateMergeTypeConflicts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(conflicting, "'shared.ds'?: OGDatastream<unknown>") {
-		t.Error("conflicting types should fall back to unknown")
+	if !strings.Contains(conflicting, "'shared.ds'?: OGDatastream<any>") {
+		t.Error("conflicting types should fall back to any — unknown would reject correct comparisons")
 	}
 	if !strings.Contains(conflicting, "conflicting types") {
 		t.Error("the doc comment should explain why it is untyped")
@@ -269,7 +272,7 @@ func TestExtraDatastreamsCoverWhatNoDatamodelDeclares(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !strings.Contains(out, "'temperature.from.pressure'?: OGDatastream<unknown>") {
+	if !strings.Contains(out, "'temperature.from.pressure'?: OGDatastream<any>") {
 		t.Error("an identifier no datamodel declares must still be declared, untyped")
 	}
 	if !strings.Contains(out, "declared in no datamodel") {
@@ -322,5 +325,126 @@ func TestDatastreamsTriggering(t *testing.T) {
 	}
 	if got := DatastreamsTriggering([]byte(`not json`)); got != nil {
 		t.Errorf("malformed input should yield nothing, got %v", got)
+	}
+}
+
+// A connector function's context follows its type field.
+func TestContextForConnectorFunction(t *testing.T) {
+	for cfType, want := range map[string]Context{
+		"REQUEST":    ContextCFRequest,
+		"RESPONSE":   ContextCFResponse,
+		"COLLECTION": ContextCFCollection,
+		"request":    ContextCFRequest,
+		// An unknown or missing type falls back to COLLECTION, the most common.
+		"":      ContextCFCollection,
+		"WEIRD": ContextCFCollection,
+	} {
+		if got := ContextForConnectorFunction(cfType); got != want {
+			t.Errorf("type %q: context = %q, want %q", cfType, got, want)
+		}
+	}
+}
+
+// Connector function typings must declare the protocol objects and the plain
+// functions that live production code uses.
+func TestConnectorFunctionTemplate(t *testing.T) {
+	out, err := Generate(Options{Context: ContextCFCollection, Datamodels: demoDatamodel(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Objects and plain functions found in sensehat's live functions. An earlier
+	// version omitted the plain ones and reported "Cannot find name" on code
+	// that works.
+	for _, decl := range []string{
+		"declare const collection", "declare const response", "declare const cf",
+		"declare function log(", "declare function httpRequest(",
+		"declare function responseCF(", "declare function collectionCF(",
+		"declare function ogCollection(", "declare function ogResponse(",
+		"declare const mqtt", "declare const http", "declare const snmp", "declare const dlms",
+	} {
+		if !strings.Contains(out, decl) {
+			t.Errorf("missing declaration: %s", decl)
+		}
+	}
+
+	// logger must be variadic: production code calls logger.debug('x: ', value).
+	if !strings.Contains(out, "debug(...msg: unknown[])") {
+		t.Error("logger methods must be variadic")
+	}
+	// mqtt.topic is assigned by production code, not just published to.
+	if !strings.Contains(out, "topic: string") {
+		t.Error("mqtt.topic must be declared and assignable")
+	}
+}
+
+// The protocol comes from the scheme of the south criteria. Verified against
+// sensehat, whose criteria are mqtts:// and https:// URIs.
+func TestProtocolsFromCriteria(t *testing.T) {
+	cases := map[string][]string{
+		`{"southCriterias":["mqtts://endesa"]}`:        {"mqtt"},
+		`{"southCriterias":["https://demo"]}`:          {"http"},
+		`{"southCriterias":["mqtts://a","https://b"]}`: {"http", "mqtt"},
+		`{"southCriterias":["mqtts://a","mqtt://b"]}`:  {"mqtt"},
+		`{"southCriterias":["dlms://obis/1.8.0"]}`:     {"dlms"},
+		`{"southCriterias":["wss://x"]}`:               {"websocket"},
+		// A REQUEST function has no south criteria: its protocol is unknowable
+		// from the payload, which is why every protocol object is declared.
+		`{"type":"REQUEST","northCriterias":[{"path":"x"}]}`: nil,
+		`{"southCriterias":["not-a-uri"]}`:                   nil,
+	}
+	for payload, want := range cases {
+		got := ProtocolsFromCriteria([]byte(payload))
+		if len(got) != len(want) {
+			t.Errorf("%s: got %v, want %v", payload, got, want)
+			continue
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("%s: got %v, want %v", payload, got, want)
+				break
+			}
+		}
+	}
+}
+
+// The generated jsconfig has to adapt to the code it will check. An artifact's
+// script is wrapped in a function by the platform, so a top-level return is
+// correct — and TypeScript reports it. Six of sensehat's seven live connector
+// functions contain one, or an untyped helper parameter.
+func TestJSConfigAdaptsToTheCode(t *testing.T) {
+	checked := func(cfg string) bool {
+		var parsed struct {
+			CompilerOptions map[string]any `json:"compilerOptions"`
+		}
+		if err := json.Unmarshal([]byte(cfg), &parsed); err != nil {
+			t.Fatalf("generated jsconfig is not valid JSON: %v", err)
+		}
+		return parsed.CompilerOptions["checkJs"] == true
+	}
+
+	strictCases := []string{
+		"var t = entity['sensor.temperature'];\nlogger.info('x');\n",
+		"if (entity['a']) { collection.addDatapoint('b', 1); }\n",
+	}
+	for _, code := range strictCases {
+		cfg := JSConfigFor(code)
+		if !checked(cfg) {
+			t.Errorf("checkable code should be checked:\n%s", code)
+		}
+		if !strings.Contains(cfg, `"noImplicitAny": true`) {
+			t.Error("noImplicitAny must be on when checking, or a mistyped datastream is not caught")
+		}
+	}
+
+	// These would report errors on correct code.
+	relaxedCases := map[string]string{
+		"top-level return":         "var d = {};\nreturn d;\n",
+		"untyped helper parameter": "function doRequest(method, uri) { return method + uri; }\n",
+	}
+	for label, code := range relaxedCases {
+		if checked(JSConfigFor(code)) {
+			t.Errorf("%s: must not be checked — it would flag working code", label)
+		}
 	}
 }

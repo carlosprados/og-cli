@@ -548,6 +548,19 @@ file was generated from:
 og typegen --context rule/ADVANCED --org sensehat --out rules/<rule-slug>/
 og typegen --context rule/ADVANCED --org sensehat --datamodel multisensor --out .   # restrict to one
 og typegen --help        # available contexts
+
+# Connector functions get them too, on pull: the context follows the function's
+# type and the protocol objects follow the scheme of its south criteria
+# (mqtts:// → mqtt, https:// → http). og typegen inside a connector function
+# directory detects both from connectorfunction.json.
+og connectors pull <cf-id> --dir cfs/ --org sensehat
+og connectors pull <cf-id> --dir cfs/ --org sensehat --no-typings
+
+# Where a script cannot be type-checked without flagging correct code — a
+# top-level `return` (the platform wraps the script in a function), an untyped
+# helper parameter, or a dynamic entity index — the generated jsconfig turns
+# checkJs off and keeps completion. It says so in the file. Of sensehat's 13
+# live artifacts, 8 are fully checked and 5 are completion-only.
 ```
 
 Both generated files are safe to keep in the artifact directory: `wrap` and

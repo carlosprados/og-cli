@@ -254,7 +254,7 @@ var rulesPullCmd = &cobra.Command{
 			if perr == nil {
 				writeTypings(dir, typegen.ContextRuleAdvanced,
 					datamodelForTypings(cmd, p, orgName), orgName,
-					typegen.ParametersFrom(raw), datastreamsFor(raw, dir))
+					typegen.ParametersFrom(raw), datastreamsFor(raw, dir), nil)
 			}
 		}
 		return nil
@@ -303,7 +303,7 @@ var rulesPullAllCmd = &cobra.Command{
 			recordBase(d.Kind, opengate.ParseRuleSummary(raw).Identifier, d.NameOf(raw),
 				dir, rulePullDir, raw, syncTarget(p, orgName, rulesChannel))
 			if !ruleNoTypings && orgErr == nil {
-				writeTypings(dir, typegen.ContextRuleAdvanced, dms, orgName, typegen.ParametersFrom(raw), datastreamsFor(raw, dir))
+				writeTypings(dir, typegen.ContextRuleAdvanced, dms, orgName, typegen.ParametersFrom(raw), datastreamsFor(raw, dir), nil)
 			}
 			count++
 		}
