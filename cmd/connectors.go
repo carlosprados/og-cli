@@ -243,11 +243,17 @@ var connectorsPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		dir, err := unwrapConnectorTo(raw, cfPullDir, &unwrap.Options{Force: cfPullForce})
+		dir, err := unwrapArtifactTo(unwrap.ConnectorFunctionDescriptor(), raw, cfPullDir, &unwrap.Options{Force: cfPullForce, Warn: hintWarner()})
 		if err != nil {
 			return err
 		}
 		fmt.Printf("Connector function unwrapped to %s\n", dir)
+
+		if p, perr := activeProfile(); perr == nil {
+			d := unwrap.ConnectorFunctionDescriptor()
+			recordBase(d.Kind, opengate.ParseConnectorFunctionSummary(raw).Identifier, d.NameOf(raw),
+				dir, cfPullDir, raw, syncTarget(p, orgName, connectorsChannel))
+		}
 		return nil
 	},
 }
@@ -271,14 +277,20 @@ var connectorsPullAllCmd = &cobra.Command{
 		}
 		// One Options for the whole batch: slug deduplication only works when
 		// every artifact sees the slugs its siblings already claimed.
-		opts := &unwrap.Options{Force: cfPullForce}
+		opts := &unwrap.Options{Force: cfPullForce, Warn: hintWarner()}
 		count := 0
+		p, _ := activeProfile()
 		for _, raw := range resp.ConnectorFunctions {
-			dir, err := unwrapConnectorTo(raw, cfPullDir, opts)
+			dir, err := unwrapArtifactTo(unwrap.ConnectorFunctionDescriptor(), raw, cfPullDir, opts)
 			if err != nil {
 				return err
 			}
 			fmt.Printf("  %s\n", dir)
+			if p != nil {
+				d := unwrap.ConnectorFunctionDescriptor()
+				recordBase(d.Kind, opengate.ParseConnectorFunctionSummary(raw).Identifier, d.NameOf(raw),
+					dir, cfPullDir, raw, syncTarget(p, orgName, connectorsChannel))
+			}
 			count++
 		}
 		fmt.Printf("%d connector functions unwrapped to %s\n", count, cfPullDir)
@@ -291,7 +303,7 @@ var connectorsWrapCmd = &cobra.Command{
 	Short: "Rebuild a connector function JSON from an unwrapped directory (no upload)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		data, err := unwrap.WrapConnectorFunction(args[0])
+		data, err := unwrap.WrapConnectorFunction(args[0], hintWarner())
 		if err != nil {
 			return err
 		}
@@ -316,9 +328,12 @@ var connectorsDeployCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		body, err := unwrap.WrapConnectorFunction(args[0])
+		body, err := unwrap.WrapConnectorFunction(args[0], hintWarner())
 		if err != nil {
 			return err
+		}
+		if p, perr := activeProfile(); perr == nil {
+			warnIfMovedTarget(args[0], syncTarget(p, orgName, connectorsChannel))
 		}
 
 		if cfDeployUpdate {
@@ -380,18 +395,48 @@ func connectorsClient() (*opengate.Client, string, error) {
 	return opengate.New(p.Host, p.Token, p.ClientOptions()...), orgName, nil
 }
 
-func unwrapConnectorTo(raw json.RawMessage, dir string, opts *unwrap.Options) (string, error) {
-	s := opengate.ParseConnectorFunctionSummary(raw)
-	artifactDir, err := unwrap.UnwrapConnectorFunction(raw, dir, opts)
-	if err != nil {
-		return "", fmt.Errorf("connector function %s: %w", s.DisplayName(), err)
-	}
-	return artifactDir, nil
-}
-
 // --- init ---
 
+var connectorsDiffCmd = newDiffCmd(diffSpec{
+	Descriptor: unwrap.ConnectorFunctionDescriptor(),
+	Use:        "diff <cf-dir>",
+	Short:      "Compare a local connector function directory against the platform",
+	Long: `Compare a locally-edited connector function against the one on the platform.
+
+Metadata is reported structurally and the JavaScript textually. See
+'og rules diff --help' for the state markers.
+
+Examples:
+  og connectors diff connectors/weather --org sensehat
+  og connectors diff connectors/weather --against production
+  og connectors diff connectors/weather --exit-code -o json`,
+	Fetch: func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetConnectorFunction(ctx, org, connectorsChannel, id)
+	},
+})
+
+var connectorsValidateCmd = newValidateCmd(unwrap.ConnectorFunctionDescriptor(), "validate <cf-dir>", "Check a local connector function directory before deploying it")
+
+var connectorsWatchCmd = newWatchCmd(watchSpec{
+	Descriptor: unwrap.ConnectorFunctionDescriptor(),
+	Use:        "watch <dir>",
+	Short:      "Deploy connector functions as their files change",
+	Fetch: func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetConnectorFunction(ctx, org, connectorsChannel, id)
+	},
+	Deploy: func(ctx context.Context, c *opengate.Client, org, id string, body json.RawMessage) error {
+		return c.UpdateConnectorFunction(ctx, org, connectorsChannel, id, body)
+	},
+	Channel: func() string { return connectorsChannel },
+})
+
 func init() {
+	connectorsCmd.AddCommand(connectorsWatchCmd)
+	addWatchFlags(connectorsWatchCmd)
+	connectorsCmd.AddCommand(connectorsValidateCmd)
+	addValidateFlags(connectorsValidateCmd)
+	connectorsCmd.AddCommand(connectorsDiffCmd)
+	addDiffFlags(connectorsDiffCmd)
 	connectorsCmd.PersistentFlags().StringVar(&connectorsChannel, "channel", defaultChannel, "channel the connector function belongs to")
 
 	connectorsCreateCmd.Flags().StringVarP(&cfCreateFile, "file", "f", "", "path to JSON file with connector function definition")

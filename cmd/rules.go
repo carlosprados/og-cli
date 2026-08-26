@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/carlosprados/og-cli/v2/internal/output"
+	"github.com/carlosprados/og-cli/v2/internal/typegen"
 	"github.com/carlosprados/og-cli/v2/internal/unwrap"
 	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/spf13/cobra"
@@ -45,6 +46,7 @@ var (
 	ruleUpdateFile    string
 	rulePullDir       string
 	rulePullForce     bool
+	ruleNoTypings     bool
 	ruleWrapOut       string
 	ruleDeployUpdate  bool
 )
@@ -235,11 +237,26 @@ var rulesPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		dir, err := unwrapRuleTo(raw, rulePullDir, &unwrap.Options{Force: rulePullForce})
+		dir, err := unwrapArtifactTo(unwrap.RuleDescriptor(), raw, rulePullDir, &unwrap.Options{Force: rulePullForce, Warn: hintWarner()})
 		if err != nil {
 			return err
 		}
 		fmt.Printf("Rule unwrapped to %s\n", dir)
+
+		if p, perr := activeProfile(); perr == nil {
+			d := unwrap.RuleDescriptor()
+			recordBase(d.Kind, opengate.ParseRuleSummary(raw).Identifier, d.NameOf(raw),
+				dir, rulePullDir, raw, syncTarget(p, orgName, rulesChannel))
+		}
+
+		if !ruleNoTypings {
+			p, perr := activeProfile()
+			if perr == nil {
+				writeTypings(dir, typegen.ContextRuleAdvanced,
+					datamodelForTypings(cmd, p, orgName), orgName,
+					typegen.ParametersFrom(raw), datastreamsFor(raw, dir))
+			}
+		}
 		return nil
 	},
 }
@@ -265,14 +282,29 @@ var rulesPullAllCmd = &cobra.Command{
 		}
 		// One Options for the whole batch: slug deduplication only works when
 		// every artifact sees the slugs its siblings already claimed.
-		opts := &unwrap.Options{Force: rulePullForce}
+		opts := &unwrap.Options{Force: rulePullForce, Warn: hintWarner()}
+
+		// Resolve the datamodel once, not per rule: the typings only differ in
+		// each rule's own parameters.
+		var dms []opengate.Datamodel
+		orgName, orgErr := resolveOrg(p)
+		if !ruleNoTypings && orgErr == nil {
+			dms = datamodelForTypings(cmd, p, orgName)
+		}
+
 		count := 0
 		for _, raw := range resp.Rules {
-			dir, err := unwrapRuleTo(raw, rulePullDir, opts)
+			dir, err := unwrapArtifactTo(unwrap.RuleDescriptor(), raw, rulePullDir, opts)
 			if err != nil {
 				return err
 			}
 			fmt.Printf("  %s\n", dir)
+			d := unwrap.RuleDescriptor()
+			recordBase(d.Kind, opengate.ParseRuleSummary(raw).Identifier, d.NameOf(raw),
+				dir, rulePullDir, raw, syncTarget(p, orgName, rulesChannel))
+			if !ruleNoTypings && orgErr == nil {
+				writeTypings(dir, typegen.ContextRuleAdvanced, dms, orgName, typegen.ParametersFrom(raw), datastreamsFor(raw, dir))
+			}
 			count++
 		}
 		fmt.Printf("%d rules unwrapped to %s\n", count, rulePullDir)
@@ -285,7 +317,7 @@ var rulesWrapCmd = &cobra.Command{
 	Short: "Rebuild a rule JSON from an unwrapped directory (no upload)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		data, err := unwrap.WrapRule(args[0])
+		data, err := unwrap.WrapRule(args[0], hintWarner())
 		if err != nil {
 			return err
 		}
@@ -310,9 +342,12 @@ var rulesDeployCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		body, err := unwrap.WrapRule(args[0])
+		body, err := unwrap.WrapRule(args[0], hintWarner())
 		if err != nil {
 			return err
+		}
+		if p, perr := activeProfile(); perr == nil {
+			warnIfMovedTarget(args[0], syncTarget(p, orgName, rulesChannel))
 		}
 
 		if ruleDeployUpdate {
@@ -374,15 +409,6 @@ func rulesClient() (*opengate.Client, string, error) {
 	return opengate.New(p.Host, p.Token, p.ClientOptions()...), orgName, nil
 }
 
-func unwrapRuleTo(raw json.RawMessage, dir string, opts *unwrap.Options) (string, error) {
-	s := opengate.ParseRuleSummary(raw)
-	artifactDir, err := unwrap.UnwrapRule(raw, dir, opts)
-	if err != nil {
-		return "", fmt.Errorf("rule %s: %w", s.Name, err)
-	}
-	return artifactDir, nil
-}
-
 func printJSON(data json.RawMessage) error {
 	pretty, err := json.MarshalIndent(json.RawMessage(data), "", "  ")
 	if err != nil {
@@ -394,7 +420,58 @@ func printJSON(data json.RawMessage) error {
 
 // --- init ---
 
+var rulesDiffCmd = newDiffCmd(diffSpec{
+	Descriptor: unwrap.RuleDescriptor(),
+	Use:        "diff <rule-dir>",
+	Short:      "Compare a local rule directory against the platform",
+	Long: `Compare a locally-edited rule against the one on the platform.
+
+Metadata is reported as a structural diff over the canonical form — added,
+removed and changed fields — and the JavaScript as a textual diff. They are kept
+apart on purpose: a structural diff of a 1500-character script says only that a
+string changed.
+
+Server-managed and requester-derived fields never participate, so a value the
+platform bumped on its own is not reported as your change.
+
+When the rule was pulled with this version of og, its state is classified from
+the snapshot taken then:
+  ~  local changes    you edited it, nobody else did
+  ↓  remote changes   somebody else edited it — pull
+  !  conflict         both moved since the pull
+  ?  unknown          no snapshot; only the raw comparison is available
+
+Examples:
+  og rules diff rules/env-anomaly --org sensehat
+  og rules diff rules/env-anomaly --against production   # what differs between tenants
+  og rules diff rules/env-anomaly --exit-code -o json    # CI drift gate`,
+	Fetch: func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetRule(ctx, org, rulesChannel, id)
+	},
+})
+
+var rulesValidateCmd = newValidateCmd(unwrap.RuleDescriptor(), "validate <rule-dir>", "Check a local rule directory before deploying it")
+
+var rulesWatchCmd = newWatchCmd(watchSpec{
+	Descriptor: unwrap.RuleDescriptor(),
+	Use:        "watch <dir>",
+	Short:      "Deploy rules as their files change",
+	Fetch: func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetRule(ctx, org, rulesChannel, id)
+	},
+	Deploy: func(ctx context.Context, c *opengate.Client, org, id string, body json.RawMessage) error {
+		return c.UpdateRule(ctx, org, rulesChannel, id, body)
+	},
+	Channel: func() string { return rulesChannel },
+})
+
 func init() {
+	rulesCmd.AddCommand(rulesWatchCmd)
+	addWatchFlags(rulesWatchCmd)
+	rulesCmd.AddCommand(rulesValidateCmd)
+	addValidateFlags(rulesValidateCmd)
+	rulesCmd.AddCommand(rulesDiffCmd)
+	addDiffFlags(rulesDiffCmd)
 	rulesCmd.PersistentFlags().StringVar(&rulesChannel, "channel", defaultChannel, "channel the rule belongs to")
 
 	rulesSearchCmd.Flags().StringArrayVarP(&rulesSearchWhere, "where", "w", nil, `filter condition: "field op value" (repeatable)`)
@@ -409,8 +486,10 @@ func init() {
 
 	rulesPullCmd.Flags().StringVar(&rulePullDir, "dir", "rules", "destination directory")
 	rulesPullCmd.Flags().BoolVar(&rulePullForce, "force", false, "overwrite existing destination")
+	rulesPullCmd.Flags().BoolVar(&ruleNoTypings, "no-typings", false, "skip generating og-globals.d.ts and jsconfig.json")
 	rulesPullAllCmd.Flags().StringVar(&rulePullDir, "dir", "rules", "destination directory")
 	rulesPullAllCmd.Flags().BoolVar(&rulePullForce, "force", false, "overwrite existing destinations")
+	rulesPullAllCmd.Flags().BoolVar(&ruleNoTypings, "no-typings", false, "skip generating og-globals.d.ts and jsconfig.json")
 
 	rulesWrapCmd.Flags().StringVar(&ruleWrapOut, "out", "", "write rule JSON to this file (default: stdout)")
 
@@ -433,4 +512,12 @@ func init() {
 	rulesCmd.AddCommand(rulesLogsCmd)
 
 	rootCmd.AddCommand(rulesCmd)
+}
+
+// datastreamsFor collects the datastream identifiers a rule references: the ones
+// it triggers on, and the ones its code reads. Both are needed because a live
+// rule can reference a datastream no datamodel declares.
+func datastreamsFor(raw json.RawMessage, dir string) []string {
+	out := typegen.DatastreamsTriggering(raw)
+	return append(out, datastreamsInCode(dir)...)
 }

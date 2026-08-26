@@ -33,6 +33,12 @@ type Profile struct {
 	// on-premises instance pinned to a version other than the default.
 	APIVersion string `mapstructure:"api_version"`
 
+	// Production marks a profile as pointing at production. `og watch`, the one
+	// command that writes to the platform without a decision per action,
+	// refuses to start against such a profile unless --allow-production is
+	// given. Nothing else reads it.
+	Production bool `mapstructure:"production"`
+
 	// Retries is the total number of attempts per request (not the number of
 	// retries). 0 or 1 disables retrying, which is the default: a retry is only
 	// worth it against a rate-limited or flaky instance.

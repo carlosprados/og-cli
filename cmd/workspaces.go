@@ -286,7 +286,7 @@ func runWorkspaceDeploy(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	w, err := unwrap.Wrap(dir)
+	w, err := unwrap.Wrap(dir, hintWarner())
 	if err != nil {
 		return fmt.Errorf("wrapping %s: %w", dir, err)
 	}
@@ -447,7 +447,7 @@ func unwrapOneWorkspace(ctx context.Context, c *opengate.Client, w *opengate.Wor
 		}
 		layout := wd
 		layout.Dashboard = nil
-		if err := unwrap.UnwrapDashboardFull(fullDash, &layout, dashDir); err != nil {
+		if err := unwrap.UnwrapDashboardFull(fullDash, &layout, dashDir, hintWarner()); err != nil {
 			fmt.Fprintf(os.Stderr, "    ✗ dashboard %s: %v\n", wd.Dashboard.ID, err)
 			continue
 		}
@@ -596,7 +596,7 @@ func runWorkspaceUnwrapFile(cmd *cobra.Command, args []string) error {
 		fullDash := simplifiedToFullStruct(wd.Dashboard)
 		layout := wd
 		layout.Dashboard = nil
-		if err := unwrap.UnwrapDashboardFull(fullDash, &layout, dashDir); err != nil {
+		if err := unwrap.UnwrapDashboardFull(fullDash, &layout, dashDir, hintWarner()); err != nil {
 			fmt.Fprintf(os.Stderr, "    ✗ dashboard %s: %v\n", wd.Dashboard.ID, err)
 			continue
 		}
@@ -672,7 +672,7 @@ By default, the rebuilt JSON is written to stdout. Use --out to write to a file.
 var workspaceWrapOut string
 
 func runWorkspaceWrap(cmd *cobra.Command, args []string) error {
-	w, err := unwrap.Wrap(args[0])
+	w, err := unwrap.Wrap(args[0], hintWarner())
 	if err != nil {
 		return err
 	}

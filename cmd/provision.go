@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -185,11 +186,17 @@ var provisionPullCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		dir, err := unwrapProvisionTo(raw, ppPullDir, &unwrap.Options{Force: ppPullForce})
+		dir, err := unwrapArtifactTo(unwrap.ProvisionFunctionDescriptor(), raw, ppPullDir, &unwrap.Options{Force: ppPullForce, Warn: hintWarner()})
 		if err != nil {
 			return err
 		}
 		fmt.Printf("Provision function unwrapped to %s\n", dir)
+
+		if p, perr := activeProfile(); perr == nil {
+			d := unwrap.ProvisionFunctionDescriptor()
+			recordBase(d.Kind, opengate.ParseProvisionProcessorSummary(raw).ProvisionProcessorID, d.NameOf(raw),
+				dir, ppPullDir, raw, syncTarget(p, orgName, ""))
+		}
 		return nil
 	},
 }
@@ -213,14 +220,20 @@ var provisionPullAllCmd = &cobra.Command{
 		}
 		// One Options for the whole batch: slug deduplication only works when
 		// every artifact sees the slugs its siblings already claimed.
-		opts := &unwrap.Options{Force: ppPullForce}
+		opts := &unwrap.Options{Force: ppPullForce, Warn: hintWarner()}
 		count := 0
+		p, _ := activeProfile()
 		for _, raw := range items {
-			dir, err := unwrapProvisionTo(raw, ppPullDir, opts)
+			dir, err := unwrapArtifactTo(unwrap.ProvisionFunctionDescriptor(), raw, ppPullDir, opts)
 			if err != nil {
 				return err
 			}
 			fmt.Printf("  %s\n", dir)
+			if p != nil {
+				d := unwrap.ProvisionFunctionDescriptor()
+				recordBase(d.Kind, opengate.ParseProvisionProcessorSummary(raw).ProvisionProcessorID, d.NameOf(raw),
+					dir, ppPullDir, raw, syncTarget(p, orgName, ""))
+			}
 			count++
 		}
 		fmt.Printf("%d provision functions unwrapped to %s\n", count, ppPullDir)
@@ -233,7 +246,7 @@ var provisionWrapCmd = &cobra.Command{
 	Short: "Rebuild a provision function JSON from an unwrapped directory (no upload)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		data, err := unwrap.WrapProvisionProcessor(args[0])
+		data, err := unwrap.WrapProvisionProcessor(args[0], hintWarner())
 		if err != nil {
 			return err
 		}
@@ -258,9 +271,12 @@ var provisionDeployCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		body, err := unwrap.WrapProvisionProcessor(args[0])
+		body, err := unwrap.WrapProvisionProcessor(args[0], hintWarner())
 		if err != nil {
 			return err
+		}
+		if p, perr := activeProfile(); perr == nil {
+			warnIfMovedTarget(args[0], syncTarget(p, orgName, ""))
 		}
 
 		if ppDeployUpdate {
@@ -383,18 +399,51 @@ func provisionClient() (*opengate.Client, string, error) {
 	return opengate.New(p.Host, p.Token, p.ClientOptions()...), orgName, nil
 }
 
-func unwrapProvisionTo(raw json.RawMessage, dir string, opts *unwrap.Options) (string, error) {
-	s := opengate.ParseProvisionProcessorSummary(raw)
-	artifactDir, err := unwrap.UnwrapProvisionProcessor(raw, dir, opts)
-	if err != nil {
-		return "", fmt.Errorf("provision function %s: %w", s.Name, err)
-	}
-	return artifactDir, nil
-}
-
 // --- init ---
 
+var provisionDiffCmd = newDiffCmd(diffSpec{
+	Descriptor: unwrap.ProvisionFunctionDescriptor(),
+	Use:        "diff <pf-dir>",
+	Short:      "Compare a local provision function directory against the platform",
+	Long: `Compare a locally-edited provision function against the one on the platform.
+
+Metadata is reported structurally and the script textually. See
+'og rules diff --help' for the state markers.
+
+Worth running before every deploy here: a bad provision function corrupts entity
+data at bulk scale.
+
+Examples:
+  og provision diff provision/createUpdate --org sensehat
+  og provision diff provision/createUpdate --against production
+  og provision diff provision/createUpdate --exit-code -o json`,
+	Fetch: func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetProvisionProcessor(ctx, org, id)
+	},
+})
+
+var provisionValidateCmd = newValidateCmd(unwrap.ProvisionFunctionDescriptor(), "validate <pf-dir>", "Check a local provision function directory before deploying it")
+
+var provisionWatchCmd = newWatchCmd(watchSpec{
+	Descriptor: unwrap.ProvisionFunctionDescriptor(),
+	Use:        "watch <dir>",
+	Short:      "Deploy provision functions as their files change",
+	Fetch: func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetProvisionProcessor(ctx, org, id)
+	},
+	Deploy: func(ctx context.Context, c *opengate.Client, org, id string, body json.RawMessage) error {
+		return c.UpdateProvisionProcessor(ctx, org, id, body)
+	},
+	Channel: func() string { return "" },
+})
+
 func init() {
+	provisionCmd.AddCommand(provisionWatchCmd)
+	addWatchFlags(provisionWatchCmd)
+	provisionCmd.AddCommand(provisionValidateCmd)
+	addValidateFlags(provisionValidateCmd)
+	provisionCmd.AddCommand(provisionDiffCmd)
+	addDiffFlags(provisionDiffCmd)
 	provisionCreateCmd.Flags().StringVarP(&ppCreateFile, "file", "f", "", "path to JSON file with provision function definition")
 	provisionCreateCmd.MarkFlagRequired("file")
 

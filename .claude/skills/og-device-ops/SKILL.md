@@ -160,7 +160,32 @@ javascript (read-only byproduct — don't edit it, edit condition/actions).
 
 ```bash
 og rules pull <rule-id> --dir rules/ --org <org>   # → rules/<slug>/rule.json + javascript.js
+#                                                   + og-globals.d.ts + jsconfig.json
+# pull also generates TypeScript declarations so tsserver (Neovim/VS Code/Cursor/
+# Zed) type-checks the rule. They are generated from THIS org: every datastream id
+# in the datamodel with its value type, plus the rule's own parameters typed from
+# their schema. entity['sensro.temperature'] and severity:'HIGH' become editor
+# errors instead of silent runtime undefined. Both files are ignored by wrap and
+# deploy — they never reach the platform.
+og typegen --context rule/ADVANCED --org <org> --out rules/<slug>/   # regenerate after a datamodel change
+og rules pull <rule-id> --dir rules/ --org <org> --no-typings        # skip them
 # edit javascript.js in the IDE
+og rules diff rules/<slug> --org <org>             # before deploying: what would change?
+#   metadata as a structural diff, code as a textual one; both read remote → local,
+#   so it shows what the deploy would DO. Volatile/requester-derived fields ignored.
+#   State from the pull-time snapshot: ~ local / ↓ remote / ! conflict / ? no snapshot.
+#   --against <profile> compares tenants; --exit-code for CI (1=differs, 0=same, 2=error).
+#   -o json is a versioned contract (docs/json-output.md).
+#   ALWAYS diff before a provision-function deploy: a bad one corrupts data at bulk scale.
+og rules validate rules/<slug>                     # local only: JSON, code files, brackets,
+#   per-family traps (REQUEST without operationName, COLLECTION without southCriterias,
+#   ADVANCED rule without code, provision script missing normalizeRawObject/actionsPlanning).
+#   --exit-code for CI. NOT a JS parser — the script is covered by typegen + your editor.
+og rules watch rules/ --org <org> --dry-run        # deploy on save; ALWAYS dry-run first
+#   Validates before every push. REFUSES on conflict (remote moved since your pull) and there
+#   is no --force. Refuses to start against a profile with `production: true` unless
+#   --allow-production. --json emits NDJSON. Ignores editor debris (4913, .swp, ~, .tmp) and
+#   the .og/ cache, and coalesces one save into one deploy.
 og rules deploy rules/<slug> --update --org <org>  # PUT (requires identifier in rule.json)
 og rules deploy rules/<slug> --org <org>           # POST: create new (no identifier needed)
 ```
@@ -224,6 +249,13 @@ og connectors pull-all --dir connectors/ --org <org>         # whole channel
 # of overwriting the first — so the directory name is not always Slugify(name).
 # Resolve a directory back to its artifact by reading `identifier` from the
 # metadata JSON, never by assuming the slug.
+#
+# Code paths are declared, not guessed. A connector function's code is always
+# `javascript` → javascript.js; a rule's is `javascript` → javascript.js; a
+# provision function's is `scriptProcessor.script` → scriptProcessor__script.js.
+# The file is written even when the field is empty, so its path never moves.
+# Any other .js you drop in the directory is IGNORED by wrap/deploy (reported
+# with a `hint:`) — it will not reach the platform.
 ```
 
 COLLECTION JS uses the `collection` global (`addDatapoint`, `setFeed`, `send`,

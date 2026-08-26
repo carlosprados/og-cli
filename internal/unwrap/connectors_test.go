@@ -53,7 +53,7 @@ func TestWrapConnectorFunctionRoundTrip(t *testing.T) {
 		t.Fatalf("unwrap: %v", err)
 	}
 
-	out, err := WrapConnectorFunction(cfDir)
+	out, err := WrapConnectorFunction(cfDir, nil)
 	if err != nil {
 		t.Fatalf("wrap: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestWrapConnectorFunctionEditedJS(t *testing.T) {
 	edited := "function buildRequest(operation) { return {}; }"
 	os.WriteFile(filepath.Join(cfDir, "javascript.js"), []byte(edited), 0o644)
 
-	out, err := WrapConnectorFunction(cfDir)
+	out, err := WrapConnectorFunction(cfDir, nil)
 	if err != nil {
 		t.Fatalf("wrap: %v", err)
 	}

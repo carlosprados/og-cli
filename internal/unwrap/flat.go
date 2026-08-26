@@ -1,7 +1,6 @@
 package unwrap
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,6 +22,10 @@ import (
 type Options struct {
 	Taken map[string]bool
 	Force bool // overwrite a destination left by a previous run
+
+	// Warn receives extraction warnings — an undeclared field that looks like
+	// code, a stray .js file wrap will not deploy. Nil is silent.
+	Warn WarnFunc
 }
 
 // claim resolves the destination directory for an artifact, reserving its slug
@@ -80,29 +83,11 @@ func readJSFiles(dir string) (map[string]string, error) {
 	return jsFiles, nil
 }
 
-// wrapFlatArtifact rebuilds a flat artifact's JSON from its directory,
-// reinjecting every .js file at its original keypath. kind names the family in
-// error messages.
-func wrapFlatArtifact(dir, metaFile, kind string) (json.RawMessage, error) {
+// readMeta reads an artifact's metadata file.
+func readMeta(dir, metaFile string) ([]byte, error) {
 	data, err := os.ReadFile(filepath.Join(dir, metaFile))
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", metaFile, err)
 	}
-
-	var node any
-	if err := json.Unmarshal(data, &node); err != nil {
-		return nil, fmt.Errorf("parsing %s: %w", metaFile, err)
-	}
-
-	jsFiles, err := readJSFiles(dir)
-	if err != nil {
-		return nil, err
-	}
-	node = ReinjectJSFields(node, jsFiles)
-
-	out, err := json.MarshalIndent(node, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("marshaling %s: %w", kind, err)
-	}
-	return out, nil
+	return data, nil
 }

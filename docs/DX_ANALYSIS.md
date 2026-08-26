@@ -28,7 +28,7 @@ this first, because it changes the plan's shape and its cost.
 | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | Connector functions are unimplemented (Phase 2)                       | Shipped in v0.9.0 as `og connectors` (alias **`og cf`** already exists)                                                                                                          | `cmd/connectors.go`, `verified-code`                                |
 | Provision functions are unimplemented (Phase 3)                       | Shipped in v0.9.0 as `og provision`, including `plan` (dry-run) and `bulk`                                                                                                       | `cmd/provision.go`, `verified-code`                                 |
-| "Locate the SHA256 config comparison used to assert wrap is lossless" | **No SHA256 exists anywhere in the repo.** Losslessness is asserted by `reflect.DeepEqual` over decoded trees in tests only                                                      | `grep sha256` → no Go matches, `verified-code`                      |
+| "Locate the SHA256 config comparison used to assert wrap is lossless" | **No SHA256 exists anywhere in the repo.** Losslessness is asserted by `reflect.DeepEqual` over decoded trees in tests only. **Source of the confusion found** (2026-08-25): the `og-workspaces` skill claimed *"wrap reproduces identical widget configs (same SHA256)"* — a documentation overstatement, now corrected there                                                      | `grep sha256` → no Go matches, `verified-code`                      |
 | Three divergent `pull`/`wrap`/`deploy` implementations                | One shared core (`ExtractJSFields`/`ReinjectJSFields`/`Slugify`) plus **three byte-identical adapters** and one genuinely different nested pipeline (workspace→dashboard→widget) | `internal/unwrap/{rules,connectors,provisions}.go`, `verified-code` |
 | Connector functions have `REQUEST` and `RESPONSE` variants            | Three types: `REQUEST`, `RESPONSE`, **`COLLECTION`**                                                                                                                             | `pkg/opengate/connectors.go`, `verified-live`                       |
 | Helper is `collectCF()`                                               | Concatenation helpers are **`responseCF`** and **`collectionCF`**; `collectCF` does not exist                                                                                    | JS reference §concatenation, `from-docs`                            |
@@ -390,17 +390,24 @@ period. `_formatterCode` goes in the allowlist on day one (§2.2).
 
 ### 5.3 Filename encoding — fix before building on it
 
-The `__`-joined keypath (§2.3) is ambiguous in two directions. Proposal:
+The `__`-joined keypath (§2.3) is ambiguous in two directions. **Implemented 2026-08-25, and
+cheaper than this section originally proposed** — no file in any existing tree is renamed:
 
-- Percent-escape `_` and any separator inside a key segment before joining, so `a__b` and
-  `a`/`b` no longer collide.
-- Tag array indices distinctly from object keys (e.g. `[0]` vs `0`) so `setAt` reconstructs the
-  original container type.
-- Keep reading the current unescaped form (no re-pull required for existing trees), write the new
-  form. A one-shot `og <family> pull --force` normalizes.
+- **Numeric object keys.** Tagging array indices as `[0]` turns out to be unnecessary. The cleaned
+  document still carries the original container at each position — `walkExtract` only removes leaf
+  strings, so `{"series":{"0":{…}}}` stays an object — which means `setAt` can read the container's
+  concrete type instead of inferring it from the segment's spelling. It only has to guess when the
+  container is absent, and there a numeric segment does mean an array. `columns__0__formatter.js`
+  keeps its name.
+- **Separator collision.** Percent-escaping is applied only to runs of *two or more* underscores
+  inside a segment (and to `%`, to keep the escape unambiguous). A lone underscore cannot be
+  confused with the separator, so `_widgetConfigCode.js` and `columns__2___formatterCode.js` are
+  spelled exactly as before. Files written before escaping existed contain no `%`, so they parse
+  unchanged.
 
-Cost is small and it is a prerequisite: `Hash(Explode → Implode) == Hash(original)` cannot hold
-over a corpus containing either pattern.
+So B3 is not the disruptive layout change §9.2 assumed: no migration note, no re-pull. What *does*
+change shape is the extraction contract below, and only for fields that were being extracted by
+accident.
 
 ### 5.4 Canonicalization and base state
 
@@ -609,3 +616,501 @@ editor is not a patch. Options:
 
 Under (a) the round-trip property test of Phase 4 must be written to **fail** on the §2.3 cases
 from day one, so the debt stays visible rather than being quietly deferred.
+
+---
+
+## 10. Phase 1 as built (2026-08-25)
+
+Branch `og-cli/dx-extraction-contract`, on top of v2.0.2.
+
+`internal/unwrap/contract.go` introduces `CodeContract`, which each family supplies:
+
+| Family | Declared code path(s) | Execution context |
+|---|---|---|
+| Rule | `javascript` → `javascript.js` | `rule/ADVANCED` |
+| Connector function | `javascript` → `javascript.js` | `connector-function/{REQUEST,RESPONSE,COLLECTION}`, from the artifact's `type` |
+| Provision function | `scriptProcessor.script` → `scriptProcessor__script.js` | `provision-function` |
+| Widget | field names at any depth: `_widgetConfigCode`, `_formatterCode`, `formatter`, `script`, `code`, `fn`, `expression` | `widget` |
+
+Behaviour changes:
+
+1. **A declared field is always extracted**, even when empty or when its content does not look
+   like code. This is the point: the path stops depending on the contents (§2.2).
+2. **`operation` is no longer a code field.** It holds an operation name (`REFRESH_INFO`); it was
+   producing one-word `.js` files.
+3. **Undeclared strings that look like code** are left inline and reported on stderr for the flat
+   families, whose paths are exhaustive. For **widgets** the heuristic still extracts them — with a
+   warning naming the field — because the per-widget-type census is incomplete and refusing would
+   cost a user their editable file. Per the decision in §8b.4 (transition period), with one
+   deliberate deviation from the option as worded: the fallback still *writes* the file for
+   widgets rather than only warning.
+4. **A `.js` file the contract does not declare is never injected** as a payload field on wrap; it
+   is reported and skipped. That makes `helper.js` and generated typings safe to keep in an
+   artifact directory — a precondition for Phase 8 (typegen) and for any future shared modules.
+5. The execution context is recorded per extracted file (`ExecCtx`), which is what Phase 8 will
+   consume. It is computed and currently discarded by the callers; nothing persists it yet.
+
+Verification: the whole `demo/` corpus wraps **byte-identically** to v2.0.2 (workspace with 7
+widgets and 5 column formatters, both ADVANCED rules), and the run emits **zero warnings** — the
+declared widget fields cover the real corpus. Lint stays at the 42-issue baseline.
+
+Not addressed here, still open for Phase 4: `Hash(Explode → Implode) == Hash(original)` as a
+property test over the corpus. The two data-loss paths it was meant to catch are now fixed and
+covered by unit tests, but the corpus-wide property test does not exist yet.
+
+---
+
+## 11. Phase 2 as built (2026-08-25)
+
+`internal/typegen` + `og typegen`, and `og rules pull` writes the two files next to the code
+(`--no-typings` opts out).
+
+Two halves, as designed in §5.7:
+
+- **Platform catalogue** — `templates/rule-advanced.d.ts`, embedded with `go:embed`, hand-derived
+  from the vendored `rules-js-reference.md`: ~65 functions and objects (`alarm`, `notification`,
+  `operation`, `collect`, `provision`, `logger`, `utils`, `location`, `http.client`, the date and
+  counter helpers), the entity value shape, and `OGSeverity`/`OGPriority` as real unions.
+- **Generated from the tenant** — the organization's datamodel becomes the `OGDatastreamID` union
+  and the `OGEntity` keys, each typed from its JSON Schema (`{"type":"number"}` → `number`), with
+  the datastream's name, description, unit and category as its doc comment.
+
+Two things went beyond the plan:
+
+1. **Rule parameters are typed too.** A rule declares `parameters: [{name, value, schema}]`, so
+   `parameterObject` gets a real interface instead of `Record<string, unknown>` — a mistyped
+   parameter name is an error, and arithmetic against a numeric parameter type-checks. Discovered
+   because the *demo rule* failed to type-check against the first version of the declarations:
+   `Record<string, unknown>` made `temp > tempThreshold` an error on correct code.
+2. **Indexed datastreams are declared as arrays** of `{_index, _value}`, and `_current` carries
+   `date`/`at`/`source`/`sourceInfo`/`provType` — the corrections noted in §5.7.
+
+### Verified with a real type-checker
+
+Not "should work": `tsc 5.9` was run against the generated files.
+
+| Case | Result |
+|---|---|
+| `entity['sensro.temperature']` | `Property 'sensro.temperature' does not exist on type 'OGEntity'. Did you mean 'sensor.temperature'?` |
+| `entity['device.pressure']` (not in this datamodel) | `TS7053: … can't be used to index type 'OGEntity'` |
+| `alarm.open({severity: 'HIGH'})` | `Type '"HIGH"' is not assignable to type 'OGSeverity'` |
+| `alarm.opne(...)` | `Property 'opne' does not exist` |
+| `._curent.value` | `Did you mean '_current'?` |
+| `loger.info(...)` | `Cannot find name 'loger'. Did you mean 'logger'?` |
+| **the demo's real rule** (`env-anomaly/javascript.js`, unmodified) | **clean, exit 0** |
+
+### Two decisions worth recording
+
+- **`noImplicitAny: true` in the generated `jsconfig.json` is load-bearing.** With `strict: false`
+  alone, TypeScript silently types an unknown index as `any` and the single most valuable check —
+  the mistyped datastream identifier — never fires. Found because the first run caught only 4 of
+  the 6 seeded errors. `strict` itself stays off: `strictNullChecks` would flag every read of an
+  optional datastream, which is noise a user would silence by deleting the file.
+- **`getVariableValue` is typed as `(v: T) => T`, not `T | ''`.** The honest union (it does return
+  `''` for undefined) makes every arithmetic use of a rule parameter an error, putting correct code
+  in red. The deviation is documented in the declaration itself.
+
+`og typegen` is CLI-only, consistent with the surface split: it writes to arbitrary local
+directories, which is the one category deliberately kept out of MCP.
+
+Still open from §5.7: contexts other than `rule/ADVANCED` (connector functions per protocol,
+provision functions, widget formatters) — that is Phase 10.
+
+---
+
+## 12. Phase 3 as built (2026-08-25)
+
+### Deviation from §5.1: no new package
+
+§5.1 proposed `internal/artifact`. Built instead as `internal/unwrap/descriptor.go`, deliberately:
+
+`internal/unwrap` **is** the artifact package — its doc comment already says so, and the shared
+machinery (`CodeContract`, `Options`, `DedupedSlug`, `ExtractJSFields`, the nested widget walker)
+all lives there. A sibling `internal/artifact` would have to either import `unwrap` for all of it
+(leaving the family declarations in one package and the lifecycle in another) or move 1500 lines
+across. Renaming the package `unwrap` → `artifact` would be cleaner conceptually and is pure churn
+across 20 files for no functional gain. Same benefit, a fraction of the risk. Revisit only if a
+second consumer of the abstraction appears.
+
+### What it does
+
+`Descriptor` declares the three literals that distinguish a flat family, plus a contract resolver:
+
+| | MetaFile | NameKeys | IDKey |
+|---|---|---|---|
+| `RuleDescriptor()` | `rule.json` | `name` | `identifier` |
+| `ConnectorFunctionDescriptor()` | `connectorfunction.json` | `name`, `connectorFunctionName` | `identifier` |
+| `ProvisionFunctionDescriptor()` | `provisionfunction.json` | `name` | `provisionProcessorId` |
+
+`Descriptor.Unwrap` / `Descriptor.Wrap` implement the lifecycle once. `Contract` is a function of
+the decoded payload rather than a constant, because a connector function's execution context
+follows its `type` field — which also removed the `cfTypeOf` helper that re-read the metadata file
+from disk just to resolve it.
+
+In `cmd/`, the three near-identical `unwrapXTo` helpers collapse into one `unwrapArtifactTo` taking
+a descriptor; the descriptor knows which key holds the name, so the error message no longer needs a
+per-family summary parser.
+
+The existing exported functions (`UnwrapRule`, `WrapConnectorFunction`, …) survive as two-line
+wrappers. That is what makes the refactor behaviour-preserving by construction: no call site and no
+test changed.
+
+### Honest accounting
+
+This does **not** reduce the line count — 168 lines removed, 168 added in `descriptor.go`, roughly
+neutral. What it buys is a single place where the flat lifecycle lives, and a new family becoming a
+ten-line declaration. It is a prerequisite for Phases 4, 6 and 7, which need to iterate over
+families rather than special-case three of them.
+
+Two fields §5.1 proposed are **not** implemented: `Scope` and `Volatile`. Nothing consumes them
+yet, and `Volatile` would have to be invented rather than verified — it arrives in Phase 4, from
+real payloads.
+
+### Verification
+
+Beyond the suite: the Phase 2 binary and the Phase 3 binary were run side by side over nine cases —
+the two demo rules, a connector function, a provision function, a workspace, a dashboard, two
+error paths (missing metadata file, nonexistent directory) and `rules --help`. **stdout, stderr and
+exit code are byte-identical in all nine.** Lint stays at 42.
+
+---
+
+## 13. Phase 4 as built (2026-08-26)
+
+`internal/canon`: `Canonicalize`, `Hash`, `Equal`, plus `VolatileFields`/`Diagnose` so a command can
+tell the user what it ignored. 90.8% statement coverage.
+
+Canonical form: keys sorted (`json.Marshal` of a map does this), nulls and empty containers dropped,
+volatile fields removed. Arrays are **not** reordered — a dashboard's grid order and a rule's
+datastream order are meaningful.
+
+### Volatile fields — verified, not invented
+
+Read off real API responses in `pkg/opengate/testdata`:
+
+| Field | Why it never participates |
+|---|---|
+| `__v` | Mongo document version, bumped on every save |
+| `lastAccess` | timestamp of the last read |
+| `allowedProfiles` | **derived from the profile making the request** |
+| `editable` | **derived from whether the requester owns the artifact** |
+
+The last two are why two developers pulling the same dashboard get different JSON — a diff would
+otherwise report a change nobody made.
+
+Rules, connector functions and provision functions have **no** verified volatile field, so their
+tables are **empty on purpose**, with a test asserting that intent. An invented entry would hide a
+real change, which is worse than an unfiltered one. Fill them from a live GET when one is available.
+
+### Two scopes, which §7 did not anticipate
+
+`_id`/`id`/`owner` are stable within a tenant but differ by construction between tenants. One list
+cannot serve both, so identity fields are separate from volatile ones and only dropped under
+`CrossTenant` — the scope `diff --against <profile>` will use. Same-tenant comparison still reports
+a changed identifier, which there means something is wrong.
+
+### Volatile removal is recursive — found by the test failing
+
+A workspace payload **embeds its dashboards**, each carrying its own `__v`, `lastAccess`,
+`allowedProfiles` and `editable`. Stripping only the top level left every nested dashboard
+generating noise; the workspace fixture round-trip failed until removal became depth-wide.
+
+The trade-off, documented in the code: a field with one of these names and a genuine meaning deeper
+in the tree — an `editable` inside a widget config — is ignored too. That risks a missed difference
+in an unlikely place against guaranteed noise in a common one, and it only ever affects comparison,
+never a deployed payload.
+
+### The property test, and its detection power
+
+The acceptance criterion — explode → implode preserves the artifact — now runs over the real corpus:
+the `dashboard_get.json` response (three real widgets), `workspace_get.json`, every workspace in the
+`workspace_export.json` envelope, both demo rules, a REQUEST and a COLLECTION connector function, a
+provision function, and an idempotence check (a second cycle changes nothing further, so `diff`
+cannot report a phantom change on first save).
+
+**A property test that always passes is worth nothing, so both bugs were reintroduced to check it
+fails.** The first attempt did not: the regression cases had been routed through `RuleDescriptor`,
+whose contract declares only `javascript` — nothing was extracted, so `setAt` was never reached and
+the test was vacuous. They now go through the real dashboard→widget cycle on disk, where the shapes
+actually occur. Verified: reverting the container-type fix fails exactly the two numeric-key
+subtests; reverting the separator escaping fails exactly the two underscore subtests.
+
+### Coverage limit, stated rather than skipped
+
+No fixture exercises workspace → dashboard → widget in one pass, because no single API response
+contains all three: a workspace GET embeds its dashboards' layout but not their grids. Workspace →
+dashboard is covered by the workspace fixtures, dashboard → widget by `dashboard_get.json`. The
+`workspace_export.json` envelope (`{"workspaces":[…]}`) is now iterated rather than skipped.
+
+---
+
+## 14. Phase 5 as built (2026-08-26)
+
+`internal/basestate`: a `.og/` store at the root of a pull, holding a canonical snapshot per
+artifact plus a manifest recording provenance. 74.2% statement coverage.
+
+```
+rules/
+  .gitignore          ← pull adds .og/ to it
+  .og/
+    base/rule__r-1.canon.json
+    manifest.json     {schemaVersion, entries: {"rule:r-1": {hash, baseFile, dir,
+                       profile, host, org, channel, pulledAt, kind, id, name}}}
+  env-anomaly/
+    rule.json  javascript.js  og-globals.d.ts  jsconfig.json
+```
+
+### The classification, and one case the design missed
+
+| local vs base | remote vs base | State | marker | safe to deploy |
+|---|---|---|---|---|
+| = | = | clean | (space) | yes |
+| ≠ | = | local changes | `~` | yes |
+| = | ≠ | remote changes | `↓` | no |
+| ≠ | ≠ | **conflict** | `!` | no |
+| — | — | **unknown** (no base) | `?` | yes |
+
+Two additions to the handoff's table:
+
+- **Converged edits are not a conflict.** When both sides moved to the *same* value — two people
+  making the same change — blocking would be theatre. Compared by hash, so it costs nothing.
+- **`Unknown` must not block.** Every tree pulled before this existed has no base snapshot, and
+  refusing to deploy those would break the current workflow for no safety gain.
+
+### Design decisions worth recording
+
+- **The store is found by walking up**, the way git finds its repository. `deploy` receives an
+  artifact directory (`rules/env-anomaly`), while the store lives at the pull root (`rules/`), so a
+  fixed relative path would not work.
+- **Entries are namespaced by kind.** Nothing guarantees a rule and a connector function cannot
+  share an identifier.
+- **The snapshot filename is recorded, not derived.** An artifact identifier is not guaranteed to be
+  a safe filename, and two sanitised identifiers could collide — deriving it would silently alias
+  one artifact's base onto another's.
+- **Empty recorded fields are not compared.** An entry written before a field existed must not raise
+  a false alarm about it.
+
+### What is visible today
+
+The footgun closes: `deploy` warns when aimed at a different host, profile, organization or channel
+than the artifact was pulled from. Verified end to end against a simulated staging tree — it names
+all three differences, then lets the command proceed. It **warns rather than blocks**: promoting an
+artifact between tenants is the documented cross-tenant workflow, it just should not happen by
+accident. Silence when the target matches, and silence when there is no store at all.
+
+`Classify` itself has no consumer yet — it is what Phase 6 (`diff`) and Phase 7 (`watch`) are
+written against. It ships now, with the four-outcome table under test, because the base snapshots it
+reads have to be recorded from this release onward for it to have anything to work with later.
+
+---
+
+## 15. Phase 6 as built (2026-08-26)
+
+`internal/diff` plus `og rules diff`, `og connectors diff`, `og provision diff`. 83.2% coverage.
+Also lands sequencing item 5 (the JSON envelope and typed exit codes), which `diff` needs.
+
+### Two diffs, kept apart
+
+Metadata is structural over the canonical form (`+`/`-`/`~` with a dotted path); code is a textual
+unified diff. Mixing them is what makes generated diffs unreadable — a structural diff of a
+1500-character script reports that one string changed, and a textual diff of reordered JSON reports
+the whole document.
+
+The textual diff is a line-level LCS written here, about thirty lines: this is a lean single binary,
+and a dependency would only earn its place if word-level or move detection were wanted. Long
+unchanged stretches collapse to `… N unchanged lines`, or a one-line change in a 500-line rule
+prints the whole file.
+
+### One direction for the whole report — found by reading the output
+
+The first working version read **local → remote** for metadata and **remote → local** for code,
+because the code direction had been chosen deliberately ("what deploying would do") and the metadata
+direction had not been chosen at all. Two directions in one report is worse than either. Both now
+read remote → local, the same convention as `git diff`: the report is what deploying would do to the
+platform.
+
+### Flags
+
+| Flag | Notes |
+|---|---|
+| `--name-only` | the artifact and its state, no bodies |
+| `--exit-code` | `1` differences, `0` none, `2` error — the CI drift gate |
+| `--against <profile>` | cross-tenant: identity fields are ignored, since they differ by construction |
+| `--context N` | lines of context around each code change (default 3) |
+| `-o json` | the versioned envelope, documented in `docs/json-output.md` |
+
+### Exit codes needed Cobra's error printing moved
+
+`--exit-code` returning `1` for "differences found" must not print `Error:` — finding differences is
+the command working. That needs an error that carries a code and no message, which means Cobra can no
+longer print errors itself (`SilenceErrors`), so `main` prints them instead, in the same format.
+Verified: an ordinary failure still prints `Error: …` and exits `2`; a successful command exits `0`.
+
+### Verified end to end, not just in tests
+
+A fake OpenGate served a known rule payload on localhost while the real binary diffed a local tree
+against it. All four states render with their markers — `~ local changes`, `↓ remote changes`,
+`! conflict`, and `?` with no snapshot — and `--exit-code` returns 1 with differences, 0 without.
+
+### Scope note
+
+The three flat families have `diff`. Workspaces and dashboards do not yet: the engine is
+family-agnostic and their payloads canonicalize fine, but the useful rendering for them is the
+hierarchical one from the handoff's §9 example — a tree of dashboards and widgets, each with its own
+marker — rather than one flat list of `dashboards[0].dashboard.grid[2]…` paths. That is a rendering
+job, not an engine one, and it is deliberately left for its own change.
+
+---
+
+## 16. Validation against the real platform (2026-08-26)
+
+Everything above had been verified against tests, fixtures and a fake OpenGate served on localhost.
+Charlie's instruction was to use the real thing instead: the `sensehat` organization on
+`api.opengate.es`. Read-only, and logged in with `--no-web` so no browser session could be
+invalidated (the rule/CF/PF path is North API only — see §5.6).
+
+It worked, and it found four things no fixture had.
+
+### What held
+
+- `og rules pull` of a live ADVANCED rule produced the tree, the typings and the `.og/` store.
+- **`og rules diff` on the untouched tree reported "No differences", exit 0.** That is the real
+  test of canonicalization: a live payload, with whatever the platform actually returns.
+- After editing the code and the description, the diff reported exactly those two things, with the
+  right state (`~ local changes`) and the recorded origin.
+
+### 1. Identity field names were wrong
+
+A rule GET returns **`organization`** and **`channel`**. The table had `organizationId` and
+`channelId`, taken from the search summary struct. Consequence: `diff --against` would have reported
+both fields as differences on **every single rule**, which is exactly the noise identity fields
+exist to remove. Both spellings are now listed.
+
+### 2. A connector function has a server-managed `errors` field
+
+Not in any fixture. Always `null` on sensehat's current functions, so `clean()` drops it today, but
+the platform writes it when a function fails — it would surface as "your change". Now listed as
+volatile, with a note to remove it if it turns out to be editable.
+
+The `TestFlatFamiliesHaveNoVolatileFieldsYet` test failed when this was added, which is exactly what
+it was written for: it forces any addition to be deliberate rather than incidental.
+
+### 3. One datamodel per organization is a fiction
+
+sensehat has **27 datamodels, 664 datastreams**. The first implementation refused to choose and
+generated platform datastreams only — throwing away the whole point of the feature on any real
+tenant.
+
+They are now merged. The datamodel *search* response already carries every model's categories and
+datastreams, so this costs one request, not 27. Where two datamodels declare the same identifier
+with different types, the entry is left `unknown` and says so: asserting either would flag correct
+code that used the other.
+
+### 4. Live rules reference datastreams no datamodel declares
+
+The rule that was pulled triggers on **`temperature.from.pressure`**, which appears in **none** of
+the 27 datamodels. Strict typings generated from datamodels alone would have marked that rule's
+working code as an error — and typings that redden correct code get deleted, taking the feature with
+them.
+
+Two further sources now feed the declarations, both specific to the artifact being pulled:
+
+- the rule's own trigger (`type.datastreams[].name`), which the platform guarantees will be present;
+- the identifiers the code already reads, found by matching `entity['…']` / `gateway['…']`.
+
+Such entries are declared `unknown` — nothing states their type — and say why in their doc comment.
+
+**The trade-off, stated plainly:** a typo already present in the code when the typings were
+generated is declared, and therefore not flagged. Inventing errors in code that works is the worse
+failure. A typo written *afterwards* is still caught, which is the case that matters while editing.
+
+Verified with `tsc 5.9` against the real artifact: the production rule's code type-checks **clean**,
+and typos added afterwards are still reported —
+`Property 'temperature.from.presure' does not exist… Did you mean 'temperature.from.pressure'?` —
+including on the identifier that no datamodel declares.
+
+---
+
+## 17. Phases 7 and 9 as built (2026-08-26)
+
+`internal/validate` + `og <family> validate`, and `internal/watch` + `og <family> watch`. 85.7% and
+77.9% coverage. Both exercised against the real `sensehat` organization, per Charlie's standing
+instruction that there be no mocks.
+
+### validate, and the false positive that nearly shipped
+
+Checks: metadata parses (with the line number, so a stray comma is findable), declared code files
+present, brackets balance, and the per-family traps — a REQUEST connector function with no
+`operationName`, a RESPONSE/COLLECTION one with no `southCriterias`, an ADVANCED rule with no code,
+a provision script missing `normalizeRawObject` or `actionsPlanning`. Errors block, warnings do not.
+
+Deliberately **not** a JavaScript parser, per §6.2: a megabyte-scale dependency in a tool that is
+otherwise standard library and Cobra, and it still would not catch a valid script reading the wrong
+datastream — which the typings do catch, in the editor, with a real type-checker.
+
+Run against sensehat's 14 live artifacts, the bracket check **reported an error in a working
+connector function**: `message.replace(/\'/g, '')`. The escaped quote inside the regex was read as a
+string delimiter and desynced everything after it. The doc comment claimed regexes were skipped;
+they were not. A false positive here is worse than no check — validate blocks, and watch refuses to
+push — so telling a regex from a division (which needs the preceding token) is now implemented.
+Re-verified: **all 14 real artifacts pass clean**, seeded breakages are still caught with the right
+line, and the regex case is a test.
+
+### watch
+
+`fsnotify` → filter → resolve to the nearest deployable unit → debounce → validate → classify →
+deploy. All four of §5.6's details are in: editor debris is ignored (`4913`, `*.swp`, `~`, `*.tmp`,
+generated `.d.ts`/`jsconfig.json`, and the `.og/` cache — which would otherwise retrigger on its own
+writes), one save is one deploy, validation is on unless `--no-validate`, and the guards.
+
+**A conflict refuses to deploy and there is no `--force`.** Overwriting someone else's edit should
+not be one keystroke away.
+
+`production: true` on a profile makes watch refuse to start without `--allow-production`. Nothing
+else reads the field.
+
+The session-invalidation warning is printed **only** for workspaces and dashboards, per the §5.6
+finding: the transparent 401 re-sign lives in the Web API client, and the flat families never touch
+it. A warning printed everywhere is a warning nobody reads.
+
+After a successful deploy, watch **re-records the base snapshot**. Without that, the next save is
+classified against a snapshot two versions old and reported as a conflict against your own work.
+
+### Verified against production, and what it caught
+
+Watching sensehat's 7 real rule directories:
+
+| Case | Result |
+|---|---|
+| one edit to a real rule's JS | `would-deploy [local changes]` |
+| `4913`, `*.tmp`, `~` written | nothing — filtered |
+| conflict (base moved out from under the local tree) | `refused [conflict]`, **with dry-run off** |
+| unbalanced brace | `invalid  error: javascript.js:33: "{" is never closed`, no deploy |
+| profile marked `production: true` | refuses to start; starts with `--allow-production` |
+
+Two bugs found by running it rather than by testing it:
+
+- **`--json` emitted indented multi-line JSON**, not NDJSON — unparseable line by line, which is the
+  entire point of the flag. It goes through `json.Marshal` directly now.
+- A comment accidentally left in a `rule.json` during testing was correctly rejected as invalid JSON
+  with the line number, which is a nice accidental demonstration of the validation path.
+
+### The write itself, and the bug only writing could find
+
+Exercised on Charlie's go-ahead with a throwaway rule — `claudia-watch-test`, `active: false`, so it
+triggered nothing — created in sensehat, driven through `watch`, and deleted afterwards. sensehat is
+back to its original six rules.
+
+The first run deployed twice and reported the second as **`[unknown]`** instead of `local changes`.
+The cause: `basestate.Find` returns an absolute root (it walks up), while a command hands it a
+relative artifact directory. `filepath.Rel` of one against the other fails, and the fallback stored a
+path `LookupByDir` could never match — so after the first deploy every classification came back
+unknown, and with it the conflict detection that makes watch safe to leave running would have been
+silently dead.
+
+`--dry-run` could not have caught it: the re-record only happens after a real deploy. Nor could the
+unit tests, which used consistent path styles throughout. Fixed by normalising both sides before
+relativising, with a regression test that deliberately mixes absolute and relative.
+
+Re-verified against production: three consecutive saves, three real deploys, each correctly
+classified as `local changes`, and the platform ended up holding the last version written.

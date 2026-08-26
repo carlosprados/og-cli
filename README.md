@@ -425,8 +425,88 @@ og rules disable <rule-id> --org sensehat
 # Local editing cycle — ADVANCED rules' JavaScript becomes a real .js file
 og rules pull <rule-id> --dir rules/ --org sensehat
 #   → rules/<rule-slug>/rule.json + javascript.js
+#     + og-globals.d.ts + jsconfig.json  (editor completion & diagnostics)
 $EDITOR rules/<rule-slug>/javascript.js
 og rules deploy rules/<rule-slug> --update --org sensehat
+
+# --no-typings skips the two generated files (and the datamodel lookup)
+og rules pull <rule-id> --dir rules/ --org sensehat --no-typings
+
+# pull also records what it fetched under <dir>/.og/ — a canonical snapshot plus
+# where it came from (host, profile, organization, channel). It is a per-developer
+# sync cache, so pull adds .og/ to .gitignore. Deleting it loses only the ability
+# to tell a local edit from a remote one.
+#
+# deploy warns when it is aimed somewhere other than where the artifact was
+# pulled from, which nothing recorded before:
+#   warning: this rule was pulled from org staging, profile staging
+#            deploying to a different organization staging → production
+# It warns rather than blocks: promoting an artifact between tenants is a real
+# workflow, it just should not happen by accident.
+
+# Compare a local tree against the platform
+og rules diff rules/env-anomaly --org sensehat
+og connectors diff connectors/weather --org sensehat
+og provision diff provision/createUpdate --org sensehat
+#
+# Metadata is reported as a structural diff over the canonical form, the code as
+# a textual one — mixing them is what makes generated diffs unreadable. Both read
+# remote → local, so the report is what deploying would do (same direction as
+# `git diff`). Server-managed and requester-derived fields never participate.
+#
+#   ~ Environmental anomaly  (rule r-1)  [local changes]
+#     metadata:
+#       ~ parameters[0].value: 30 → 28
+#     javascript.js  +2 −1
+#           if (t) {
+#         -   logger.info('remote version');
+#         +   logger.warn('local version');
+#
+# State comes from the snapshot pull recorded:
+#   ~ local changes   you edited it, nobody else did
+#   ↓ remote changes  somebody else edited it — pull
+#   ! conflict        both moved since the pull
+#   ? unknown         no snapshot; only the raw comparison
+#
+og rules diff rules/env-anomaly --name-only        # just the artifact and its state
+og rules diff rules/env-anomaly --context 8        # more context around code changes
+og rules diff rules/env-anomaly --against production   # what differs between tenants
+og rules diff rules/env-anomaly --exit-code -o json    # CI drift gate
+#
+# --against compares the same artifact in another profile's tenant, ignoring the
+# identifiers and ownership that differ there by construction. --exit-code returns
+# 1 for differences, 0 for none, 2 on error. The -o json shape is a versioned
+# contract: see docs/json-output.md.
+
+# Check an artifact before deploying it — local only, no credentials needed
+og rules validate rules/env-anomaly
+og connectors validate connectors/weather
+og provision validate provision/createUpdate --exit-code   # CI gate
+#
+# Metadata parses, declared code files present, brackets balance, and the
+# per-family rules that catch an artifact which deploys happily and never fires:
+# a REQUEST connector function with no operationName, a COLLECTION one with no
+# southCriterias, an ADVANCED rule with no code, a provision script missing
+# normalizeRawObject or actionsPlanning. Not a JavaScript parser — the script
+# itself is covered by the generated typings and your editor's type-checker.
+
+# Deploy on save
+og rules watch rules/ --org sensehat --dry-run     # see what it would do first
+og rules watch rules/ --org sensehat
+og rules watch rules/ --org sensehat --json        # NDJSON, one event per line
+#
+#   12:52:19  started       rules  7 directories, org sensehat, debounce 300ms
+#   12:52:22  deployed      env-anomaly  [local changes]
+#   12:52:24  refused       collectareas [conflict]  the remote changed since you pulled
+#   12:52:27  invalid       battery-low  error: javascript.js:33: "{" is never closed
+#
+# This is the only og command that writes without a decision per action, so:
+#   • a changed file deploys the artifact it belongs to, not the whole tree
+#   • one save is one deploy (editors replace files, producing several events)
+#   • every artifact is validated first; --no-validate must be explicit
+#   • a CONFLICT refuses to deploy, and there is NO --force
+#   • add `production: true` to a profile and watch refuses to start on it
+#     without --allow-production
 
 # pull-all / wrap mirror the workspace verbs
 og rules pull-all --dir rules/ --org sensehat
@@ -438,6 +518,41 @@ ADVANCED rule JavaScript context: `entity['<datastream>']._value._current.value`
 `openAlarm(null, name, ruleName, severity, priority, message)`. See
 [demo/rules/](demo/rules/default_channel/env-anomaly/javascript.js) for a working
 multi-datastream rule with hysteresis.
+
+**Editor support.** `pull` also writes `og-globals.d.ts` and `jsconfig.json` next
+to the code, so any LSP-capable editor — Neovim, VS Code, Cursor, Zed — gives
+completion and diagnostics through `tsserver` with no editor-specific setup. The
+declarations are generated from **your** platform: the organization's datamodel
+becomes the set of valid datastream identifiers with their value types, and the
+rule's own `parameters` become a typed `parameterObject`. So this is an error in
+the editor, before deploying:
+
+```js
+entity['sensro.temperature']   // Property 'sensro.temperature' does not exist
+                               // on type 'OGEntity'. Did you mean
+                               // 'sensor.temperature'?
+alarm.open({ severity: 'HIGH' })   // 'HIGH' is not assignable to OGSeverity
+                                    // ('INFORMATIVE' | 'URGENT' | 'CRITICAL')
+```
+
+Every datamodel in the organization contributes its datastreams (sensehat has 27,
+holding 664 between them), plus two sources specific to the artifact: the rule's
+own trigger, and the identifiers its code already reads. That last part matters —
+live rules do reference datastreams no datamodel declares, and typings that
+redden working code get deleted.
+
+Regenerate standalone after a datamodel change — the header records what each
+file was generated from:
+
+```bash
+og typegen --context rule/ADVANCED --org sensehat --out rules/<rule-slug>/
+og typegen --context rule/ADVANCED --org sensehat --datamodel multisensor --out .   # restrict to one
+og typegen --help        # available contexts
+```
+
+Both generated files are safe to keep in the artifact directory: `wrap` and
+`deploy` ignore everything they do not declare as a code path, so they never
+reach the platform. Commit them or gitignore them, as you prefer.
 
 ### connectors (alias: cf)
 
@@ -715,6 +830,19 @@ og workspace pull-file ws.json --dir wsroot/
 # wrap refuses a malformed artifact tree rather than deploying a partial one: a
 # widget directory with a missing or unparseable widget.json fails the wrap,
 # naming the offending directory. Dot-directories (.og/, .git/) are ignored.
+
+# Which fields become .js files is declared per artifact family, not guessed
+# from the content: a rule's `javascript`, a connector function's `javascript`,
+# a provision function's `scriptProcessor.script`, and the widget code fields
+# (_widgetConfigCode, _formatterCode, formatter, ...). A declared field is
+# always extracted — even when empty — so the file's path stays put across
+# edits. Widget configs additionally keep a content heuristic as a transitional
+# fallback: an unlisted field that looks like code is still extracted, with a
+# `hint:` on stderr naming it (please report those).
+#
+# A .js file the family does not declare — your own helper.js, generated
+# typings — is left alone on wrap and never deployed as a payload field. It is
+# reported with a `hint:` so it is clear it is not being uploaded.
 
 # Ownership filter: unwrap only writes items you can actually edit. A workspace
 # (or nested dashboard) whose `owner` is not the active profile's email is not
