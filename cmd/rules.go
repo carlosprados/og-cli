@@ -452,7 +452,22 @@ Examples:
 
 var rulesValidateCmd = newValidateCmd(unwrap.RuleDescriptor(), "validate <rule-dir>", "Check a local rule directory before deploying it")
 
+var rulesWatchCmd = newWatchCmd(watchSpec{
+	Descriptor: unwrap.RuleDescriptor(),
+	Use:        "watch <dir>",
+	Short:      "Deploy rules as their files change",
+	Fetch: func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetRule(ctx, org, rulesChannel, id)
+	},
+	Deploy: func(ctx context.Context, c *opengate.Client, org, id string, body json.RawMessage) error {
+		return c.UpdateRule(ctx, org, rulesChannel, id, body)
+	},
+	Channel: func() string { return rulesChannel },
+})
+
 func init() {
+	rulesCmd.AddCommand(rulesWatchCmd)
+	addWatchFlags(rulesWatchCmd)
 	rulesCmd.AddCommand(rulesValidateCmd)
 	addValidateFlags(rulesValidateCmd)
 	rulesCmd.AddCommand(rulesDiffCmd)

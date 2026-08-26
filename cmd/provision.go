@@ -424,7 +424,22 @@ Examples:
 
 var provisionValidateCmd = newValidateCmd(unwrap.ProvisionFunctionDescriptor(), "validate <pf-dir>", "Check a local provision function directory before deploying it")
 
+var provisionWatchCmd = newWatchCmd(watchSpec{
+	Descriptor: unwrap.ProvisionFunctionDescriptor(),
+	Use:        "watch <dir>",
+	Short:      "Deploy provision functions as their files change",
+	Fetch: func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetProvisionProcessor(ctx, org, id)
+	},
+	Deploy: func(ctx context.Context, c *opengate.Client, org, id string, body json.RawMessage) error {
+		return c.UpdateProvisionProcessor(ctx, org, id, body)
+	},
+	Channel: func() string { return "" },
+})
+
 func init() {
+	provisionCmd.AddCommand(provisionWatchCmd)
+	addWatchFlags(provisionWatchCmd)
 	provisionCmd.AddCommand(provisionValidateCmd)
 	addValidateFlags(provisionValidateCmd)
 	provisionCmd.AddCommand(provisionDiffCmd)

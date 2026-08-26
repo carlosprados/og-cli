@@ -417,7 +417,22 @@ Examples:
 
 var connectorsValidateCmd = newValidateCmd(unwrap.ConnectorFunctionDescriptor(), "validate <cf-dir>", "Check a local connector function directory before deploying it")
 
+var connectorsWatchCmd = newWatchCmd(watchSpec{
+	Descriptor: unwrap.ConnectorFunctionDescriptor(),
+	Use:        "watch <dir>",
+	Short:      "Deploy connector functions as their files change",
+	Fetch: func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetConnectorFunction(ctx, org, connectorsChannel, id)
+	},
+	Deploy: func(ctx context.Context, c *opengate.Client, org, id string, body json.RawMessage) error {
+		return c.UpdateConnectorFunction(ctx, org, connectorsChannel, id, body)
+	},
+	Channel: func() string { return connectorsChannel },
+})
+
 func init() {
+	connectorsCmd.AddCommand(connectorsWatchCmd)
+	addWatchFlags(connectorsWatchCmd)
 	connectorsCmd.AddCommand(connectorsValidateCmd)
 	addValidateFlags(connectorsValidateCmd)
 	connectorsCmd.AddCommand(connectorsDiffCmd)
