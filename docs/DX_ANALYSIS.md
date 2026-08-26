@@ -841,3 +841,63 @@ No fixture exercises workspace → dashboard → widget in one pass, because no 
 contains all three: a workspace GET embeds its dashboards' layout but not their grids. Workspace →
 dashboard is covered by the workspace fixtures, dashboard → widget by `dashboard_get.json`. The
 `workspace_export.json` envelope (`{"workspaces":[…]}`) is now iterated rather than skipped.
+
+---
+
+## 14. Phase 5 as built (2026-08-26)
+
+`internal/basestate`: a `.og/` store at the root of a pull, holding a canonical snapshot per
+artifact plus a manifest recording provenance. 74.2% statement coverage.
+
+```
+rules/
+  .gitignore          ← pull adds .og/ to it
+  .og/
+    base/rule__r-1.canon.json
+    manifest.json     {schemaVersion, entries: {"rule:r-1": {hash, baseFile, dir,
+                       profile, host, org, channel, pulledAt, kind, id, name}}}
+  env-anomaly/
+    rule.json  javascript.js  og-globals.d.ts  jsconfig.json
+```
+
+### The classification, and one case the design missed
+
+| local vs base | remote vs base | State | marker | safe to deploy |
+|---|---|---|---|---|
+| = | = | clean | (space) | yes |
+| ≠ | = | local changes | `~` | yes |
+| = | ≠ | remote changes | `↓` | no |
+| ≠ | ≠ | **conflict** | `!` | no |
+| — | — | **unknown** (no base) | `?` | yes |
+
+Two additions to the handoff's table:
+
+- **Converged edits are not a conflict.** When both sides moved to the *same* value — two people
+  making the same change — blocking would be theatre. Compared by hash, so it costs nothing.
+- **`Unknown` must not block.** Every tree pulled before this existed has no base snapshot, and
+  refusing to deploy those would break the current workflow for no safety gain.
+
+### Design decisions worth recording
+
+- **The store is found by walking up**, the way git finds its repository. `deploy` receives an
+  artifact directory (`rules/env-anomaly`), while the store lives at the pull root (`rules/`), so a
+  fixed relative path would not work.
+- **Entries are namespaced by kind.** Nothing guarantees a rule and a connector function cannot
+  share an identifier.
+- **The snapshot filename is recorded, not derived.** An artifact identifier is not guaranteed to be
+  a safe filename, and two sanitised identifiers could collide — deriving it would silently alias
+  one artifact's base onto another's.
+- **Empty recorded fields are not compared.** An entry written before a field existed must not raise
+  a false alarm about it.
+
+### What is visible today
+
+The footgun closes: `deploy` warns when aimed at a different host, profile, organization or channel
+than the artifact was pulled from. Verified end to end against a simulated staging tree — it names
+all three differences, then lets the command proceed. It **warns rather than blocks**: promoting an
+artifact between tenants is the documented cross-tenant workflow, it just should not happen by
+accident. Silence when the target matches, and silence when there is no store at all.
+
+`Classify` itself has no consumer yet — it is what Phase 6 (`diff`) and Phase 7 (`watch`) are
+written against. It ships now, with the four-outcome table under test, because the base snapshots it
+reads have to be recorded from this release onward for it to have anything to work with later.

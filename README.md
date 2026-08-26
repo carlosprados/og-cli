@@ -432,6 +432,18 @@ og rules deploy rules/<rule-slug> --update --org sensehat
 # --no-typings skips the two generated files (and the datamodel lookup)
 og rules pull <rule-id> --dir rules/ --org sensehat --no-typings
 
+# pull also records what it fetched under <dir>/.og/ — a canonical snapshot plus
+# where it came from (host, profile, organization, channel). It is a per-developer
+# sync cache, so pull adds .og/ to .gitignore. Deleting it loses only the ability
+# to tell a local edit from a remote one.
+#
+# deploy warns when it is aimed somewhere other than where the artifact was
+# pulled from, which nothing recorded before:
+#   warning: this rule was pulled from org staging, profile staging
+#            deploying to a different organization staging → production
+# It warns rather than blocks: promoting an artifact between tenants is a real
+# workflow, it just should not happen by accident.
+
 # pull-all / wrap mirror the workspace verbs
 og rules pull-all --dir rules/ --org sensehat
 og rules wrap rules/<rule-slug> --out rule.json
