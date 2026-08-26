@@ -288,3 +288,50 @@ func indexOf(s, sub string) int {
 	}
 	return -1
 }
+
+// The store root can arrive absolute (from Find, which walks up) while the
+// artifact directory arrives relative (from a command argument). Relativising
+// one against the other fails, and the fallback stored a path LookupByDir could
+// never match — so every classification after the first deploy reported
+// "unknown". Found by watching a real deploy, not by a test.
+func TestRecordAndLookupMixAbsoluteAndRelativePaths(t *testing.T) {
+	root := t.TempDir()
+	artifact := filepath.Join(root, "env-anomaly")
+	if err := os.MkdirAll(artifact, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Record with a relative-style root, look up through a store found by
+	// walking up — which yields an absolute root.
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(cwd) }()
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Open(".").Record(unwrap.KindRule, "r-1", "R", "env-anomaly",
+		json.RawMessage(rulePayload), Target{Org: "acme"}); err != nil {
+		t.Fatalf("record: %v", err)
+	}
+
+	found, ok := Find("env-anomaly")
+	if !ok {
+		t.Fatal("store not found")
+	}
+	if _, ok := found.LookupByDir("env-anomaly"); !ok {
+		m, _ := found.LoadManifest()
+		t.Errorf("entry not found through an absolute-rooted store; manifest holds %+v", m.Entries)
+	}
+
+	// And the reverse: absolute record, relative lookup.
+	if err := Open(root).Record(unwrap.KindRule, "r-2", "R2", artifact,
+		json.RawMessage(rulePayload), Target{Org: "acme"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := Open(".").LookupByDir("env-anomaly"); !ok {
+		t.Error("entry recorded with absolute paths must be findable with relative ones")
+	}
+}

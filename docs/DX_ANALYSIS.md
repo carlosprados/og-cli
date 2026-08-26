@@ -1095,8 +1095,22 @@ Two bugs found by running it rather than by testing it:
 - A comment accidentally left in a `rule.json` during testing was correctly rejected as invalid JSON
   with the line number, which is a nice accidental demonstration of the validation path.
 
-### Not yet exercised: the write itself
+### The write itself, and the bug only writing could find
 
-Every guard has been verified against the real platform, but the successful-deploy path has only
-been run with `--dry-run` or blocked by a guard. Exercising it means writing to Charlie's production
-tenant, which needs his say-so — proposed as a throwaway inactive rule, created and deleted.
+Exercised on Charlie's go-ahead with a throwaway rule — `claudia-watch-test`, `active: false`, so it
+triggered nothing — created in sensehat, driven through `watch`, and deleted afterwards. sensehat is
+back to its original six rules.
+
+The first run deployed twice and reported the second as **`[unknown]`** instead of `local changes`.
+The cause: `basestate.Find` returns an absolute root (it walks up), while a command hands it a
+relative artifact directory. `filepath.Rel` of one against the other fails, and the fallback stored a
+path `LookupByDir` could never match — so after the first deploy every classification came back
+unknown, and with it the conflict detection that makes watch safe to leave running would have been
+silently dead.
+
+`--dry-run` could not have caught it: the re-record only happens after a real deploy. Nor could the
+unit tests, which used consistent path styles throughout. Fixed by normalising both sides before
+relativising, with a regression test that deliberately mixes absolute and relative.
+
+Re-verified against production: three consecutive saves, three real deploys, each correctly
+classified as `local changes`, and the platform ended up holding the last version written.

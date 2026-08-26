@@ -168,10 +168,12 @@ func (s *Store) Record(kind unwrap.Kind, id, name, artifactDir string, payload j
 		return fmt.Errorf("writing base snapshot: %w", err)
 	}
 
-	rel, err := filepath.Rel(s.Root, artifactDir)
-	if err != nil {
-		rel = artifactDir
-	}
+	// Normalise both sides before relativising. The store root can arrive
+	// absolute (from Find, which walks up) while the artifact directory arrives
+	// relative (from a command's argument), and filepath.Rel of one against the
+	// other fails — silently storing a path that LookupByDir can never match, so
+	// every later classification reports "unknown".
+	rel := relativeTo(s.Root, artifactDir)
 
 	m, err := s.LoadManifest()
 	if err != nil {
@@ -184,6 +186,24 @@ func (s *Store) Record(kind unwrap.Kind, id, name, artifactDir string, payload j
 		PulledAt: time.Now().UTC(),
 	}
 	return s.saveManifest(m)
+}
+
+// relativeTo expresses dir relative to root, with both made absolute first.
+// Falls back to dir unchanged when either cannot be resolved.
+func relativeTo(root, dir string) string {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return dir
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return dir
+	}
+	rel, err := filepath.Rel(absRoot, absDir)
+	if err != nil {
+		return dir
+	}
+	return rel
 }
 
 // Lookup returns the recorded entry for an artifact.
@@ -199,14 +219,7 @@ func (s *Store) Lookup(kind unwrap.Kind, id string) (Entry, bool) {
 // LookupByDir returns the entry recorded for an artifact directory, which is
 // what a deploy has in hand.
 func (s *Store) LookupByDir(artifactDir string) (Entry, bool) {
-	abs, err := filepath.Abs(artifactDir)
-	if err != nil {
-		return Entry{}, false
-	}
-	rel, err := filepath.Rel(s.Root, abs)
-	if err != nil {
-		return Entry{}, false
-	}
+	rel := relativeTo(s.Root, artifactDir)
 	m, err := s.LoadManifest()
 	if err != nil {
 		return Entry{}, false
