@@ -901,3 +901,61 @@ accident. Silence when the target matches, and silence when there is no store at
 `Classify` itself has no consumer yet — it is what Phase 6 (`diff`) and Phase 7 (`watch`) are
 written against. It ships now, with the four-outcome table under test, because the base snapshots it
 reads have to be recorded from this release onward for it to have anything to work with later.
+
+---
+
+## 15. Phase 6 as built (2026-08-26)
+
+`internal/diff` plus `og rules diff`, `og connectors diff`, `og provision diff`. 83.2% coverage.
+Also lands sequencing item 5 (the JSON envelope and typed exit codes), which `diff` needs.
+
+### Two diffs, kept apart
+
+Metadata is structural over the canonical form (`+`/`-`/`~` with a dotted path); code is a textual
+unified diff. Mixing them is what makes generated diffs unreadable — a structural diff of a
+1500-character script reports that one string changed, and a textual diff of reordered JSON reports
+the whole document.
+
+The textual diff is a line-level LCS written here, about thirty lines: this is a lean single binary,
+and a dependency would only earn its place if word-level or move detection were wanted. Long
+unchanged stretches collapse to `… N unchanged lines`, or a one-line change in a 500-line rule
+prints the whole file.
+
+### One direction for the whole report — found by reading the output
+
+The first working version read **local → remote** for metadata and **remote → local** for code,
+because the code direction had been chosen deliberately ("what deploying would do") and the metadata
+direction had not been chosen at all. Two directions in one report is worse than either. Both now
+read remote → local, the same convention as `git diff`: the report is what deploying would do to the
+platform.
+
+### Flags
+
+| Flag | Notes |
+|---|---|
+| `--name-only` | the artifact and its state, no bodies |
+| `--exit-code` | `1` differences, `0` none, `2` error — the CI drift gate |
+| `--against <profile>` | cross-tenant: identity fields are ignored, since they differ by construction |
+| `--context N` | lines of context around each code change (default 3) |
+| `-o json` | the versioned envelope, documented in `docs/json-output.md` |
+
+### Exit codes needed Cobra's error printing moved
+
+`--exit-code` returning `1` for "differences found" must not print `Error:` — finding differences is
+the command working. That needs an error that carries a code and no message, which means Cobra can no
+longer print errors itself (`SilenceErrors`), so `main` prints them instead, in the same format.
+Verified: an ordinary failure still prints `Error: …` and exits `2`; a successful command exits `0`.
+
+### Verified end to end, not just in tests
+
+A fake OpenGate served a known rule payload on localhost while the real binary diffed a local tree
+against it. All four states render with their markers — `~ local changes`, `↓ remote changes`,
+`! conflict`, and `?` with no snapshot — and `--exit-code` returns 1 with differences, 0 without.
+
+### Scope note
+
+The three flat families have `diff`. Workspaces and dashboards do not yet: the engine is
+family-agnostic and their payloads canonicalize fine, but the useful rendering for them is the
+hierarchical one from the handoff's §9 example — a tree of dashboards and widgets, each with its own
+marker — rather than one flat list of `dashboards[0].dashboard.grid[2]…` paths. That is a rendering
+job, not an engine one, and it is deliberately left for its own change.

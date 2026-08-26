@@ -444,6 +444,40 @@ og rules pull <rule-id> --dir rules/ --org sensehat --no-typings
 # It warns rather than blocks: promoting an artifact between tenants is a real
 # workflow, it just should not happen by accident.
 
+# Compare a local tree against the platform
+og rules diff rules/env-anomaly --org sensehat
+og connectors diff connectors/weather --org sensehat
+og provision diff provision/createUpdate --org sensehat
+#
+# Metadata is reported as a structural diff over the canonical form, the code as
+# a textual one — mixing them is what makes generated diffs unreadable. Both read
+# remote → local, so the report is what deploying would do (same direction as
+# `git diff`). Server-managed and requester-derived fields never participate.
+#
+#   ~ Environmental anomaly  (rule r-1)  [local changes]
+#     metadata:
+#       ~ parameters[0].value: 30 → 28
+#     javascript.js  +2 −1
+#           if (t) {
+#         -   logger.info('remote version');
+#         +   logger.warn('local version');
+#
+# State comes from the snapshot pull recorded:
+#   ~ local changes   you edited it, nobody else did
+#   ↓ remote changes  somebody else edited it — pull
+#   ! conflict        both moved since the pull
+#   ? unknown         no snapshot; only the raw comparison
+#
+og rules diff rules/env-anomaly --name-only        # just the artifact and its state
+og rules diff rules/env-anomaly --context 8        # more context around code changes
+og rules diff rules/env-anomaly --against production   # what differs between tenants
+og rules diff rules/env-anomaly --exit-code -o json    # CI drift gate
+#
+# --against compares the same artifact in another profile's tenant, ignoring the
+# identifiers and ownership that differ there by construction. --exit-code returns
+# 1 for differences, 0 for none, 2 on error. The -o json shape is a versioned
+# contract: see docs/json-output.md.
+
 # pull-all / wrap mirror the workspace verbs
 og rules pull-all --dir rules/ --org sensehat
 og rules wrap rules/<rule-slug> --out rule.json

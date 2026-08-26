@@ -170,6 +170,13 @@ og rules pull <rule-id> --dir rules/ --org <org>   # → rules/<slug>/rule.json 
 og typegen --context rule/ADVANCED --org <org> --out rules/<slug>/   # regenerate after a datamodel change
 og rules pull <rule-id> --dir rules/ --org <org> --no-typings        # skip them
 # edit javascript.js in the IDE
+og rules diff rules/<slug> --org <org>             # before deploying: what would change?
+#   metadata as a structural diff, code as a textual one; both read remote → local,
+#   so it shows what the deploy would DO. Volatile/requester-derived fields ignored.
+#   State from the pull-time snapshot: ~ local / ↓ remote / ! conflict / ? no snapshot.
+#   --against <profile> compares tenants; --exit-code for CI (1=differs, 0=same, 2=error).
+#   -o json is a versioned contract (docs/json-output.md).
+#   ALWAYS diff before a provision-function deploy: a bad one corrupts data at bulk scale.
 og rules deploy rules/<slug> --update --org <org>  # PUT (requires identifier in rule.json)
 og rules deploy rules/<slug> --org <org>           # POST: create new (no identifier needed)
 ```
