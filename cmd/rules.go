@@ -253,7 +253,8 @@ var rulesPullCmd = &cobra.Command{
 			p, perr := activeProfile()
 			if perr == nil {
 				writeTypings(dir, typegen.ContextRuleAdvanced,
-					datamodelForTypings(cmd, p, orgName), orgName, typegen.ParametersFrom(raw))
+					datamodelForTypings(cmd, p, orgName), orgName,
+					typegen.ParametersFrom(raw), datastreamsFor(raw, dir))
 			}
 		}
 		return nil
@@ -285,10 +286,10 @@ var rulesPullAllCmd = &cobra.Command{
 
 		// Resolve the datamodel once, not per rule: the typings only differ in
 		// each rule's own parameters.
-		var dm *opengate.Datamodel
+		var dms []opengate.Datamodel
 		orgName, orgErr := resolveOrg(p)
 		if !ruleNoTypings && orgErr == nil {
-			dm = datamodelForTypings(cmd, p, orgName)
+			dms = datamodelForTypings(cmd, p, orgName)
 		}
 
 		count := 0
@@ -302,7 +303,7 @@ var rulesPullAllCmd = &cobra.Command{
 			recordBase(d.Kind, opengate.ParseRuleSummary(raw).Identifier, d.NameOf(raw),
 				dir, rulePullDir, raw, syncTarget(p, orgName, rulesChannel))
 			if !ruleNoTypings && orgErr == nil {
-				writeTypings(dir, typegen.ContextRuleAdvanced, dm, orgName, typegen.ParametersFrom(raw))
+				writeTypings(dir, typegen.ContextRuleAdvanced, dms, orgName, typegen.ParametersFrom(raw), datastreamsFor(raw, dir))
 			}
 			count++
 		}
@@ -492,4 +493,12 @@ func init() {
 	rulesCmd.AddCommand(rulesLogsCmd)
 
 	rootCmd.AddCommand(rulesCmd)
+}
+
+// datastreamsFor collects the datastream identifiers a rule references: the ones
+// it triggers on, and the ones its code reads. Both are needed because a live
+// rule can reference a datastream no datamodel declares.
+func datastreamsFor(raw json.RawMessage, dir string) []string {
+	out := typegen.DatastreamsTriggering(raw)
+	return append(out, datastreamsInCode(dir)...)
 }

@@ -53,11 +53,19 @@ var volatileFields = map[unwrap.Kind][]string{
 	unwrap.KindWorkspace: {"__v", "lastAccess", "allowedProfiles", "editable"},
 	unwrap.KindDashboard: {"__v", "lastAccess", "allowedProfiles", "editable"},
 
-	// Rules, connector functions and provision functions: no server-managed
-	// field has been observed in a real payload yet. Left empty deliberately
-	// rather than guessed — a wrongly listed field would hide a real change.
+	// A connector function GET returns `errors`, which the platform writes when
+	// the function fails — not something a developer edits. Observed in
+	// production (always null on sensehat's current functions, so clean() drops
+	// it today anyway); listed so a populated one is never reported as your
+	// change. Remove it if it turns out to be editable.
+	unwrap.KindConnectorFunction: {"errors"},
+
+	// Rules and provision functions: no server-managed field observed in a real
+	// payload. Verified against production, not assumed — a rule GET returns
+	// exactly what was written, and a provision processor only
+	// configurationParams, name, provisionProcessorId and scriptProcessor.
+	// Left empty rather than guessed: a wrongly listed field hides a real change.
 	unwrap.KindRule:              {},
-	unwrap.KindConnectorFunction: {},
 	unwrap.KindProvisionFunction: {},
 }
 
@@ -67,7 +75,11 @@ var identityFields = map[unwrap.Kind][]string{
 	unwrap.KindWorkspace: {"_id", "id", "owner"},
 	unwrap.KindDashboard: {"_id", "id", "owner", "workspaces"},
 
-	unwrap.KindRule:              {"identifier", "organizationId", "channelId"},
+	// Verified against sensehat in production: a rule GET returns `organization`
+	// and `channel`, NOT the organizationId/channelId of the search summary
+	// struct. Both spellings are listed because the API is inconsistent about
+	// this elsewhere, and an extra name here costs nothing.
+	unwrap.KindRule:              {"identifier", "organization", "channel", "organizationId", "channelId"},
 	unwrap.KindConnectorFunction: {"identifier"},
 	unwrap.KindProvisionFunction: {"provisionProcessorId"},
 }

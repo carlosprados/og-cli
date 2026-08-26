@@ -119,17 +119,48 @@ func TestIdentityScoping(t *testing.T) {
 	}
 }
 
-// Rules, connector functions and provision functions have no verified volatile
-// field. An invented one would hide a real change, so the tables are empty on
-// purpose — this test states that intent so a future addition is deliberate.
-func TestFlatFamiliesHaveNoVolatileFieldsYet(t *testing.T) {
-	for _, kind := range []unwrap.Kind{unwrap.KindRule, unwrap.KindConnectorFunction, unwrap.KindProvisionFunction} {
+// Volatile fields must be verified against a real payload, never guessed: a
+// wrongly listed one hides a real change. This test pins the current, verified
+// state so that adding to the tables is always a deliberate act.
+func TestVolatileTablesMatchWhatWasVerified(t *testing.T) {
+	// Verified against sensehat in production: a connector function GET returns
+	// `errors`, which the platform writes on failure.
+	if got := VolatileFields(unwrap.KindConnectorFunction, SameTenant); len(got) != 1 || got[0] != "errors" {
+		t.Errorf("connector function volatile fields = %v, want [errors]", got)
+	}
+
+	// A rule GET returns exactly what was written; a provision processor returns
+	// only configurationParams, name, provisionProcessorId and scriptProcessor.
+	for _, kind := range []unwrap.Kind{unwrap.KindRule, unwrap.KindProvisionFunction} {
 		if got := VolatileFields(kind, SameTenant); len(got) != 0 {
-			t.Errorf("%s: volatile fields = %v; add them only when verified against a real payload", kind, got)
+			t.Errorf("%s: volatile fields = %v; none has been verified, and a guessed one hides a real change", kind, got)
 		}
+	}
+
+	// Every family must ignore identity cross-tenant, or --against reports noise
+	// on every artifact.
+	for _, kind := range []unwrap.Kind{unwrap.KindRule, unwrap.KindConnectorFunction, unwrap.KindProvisionFunction} {
 		if got := VolatileFields(kind, CrossTenant); len(got) == 0 {
-			t.Errorf("%s: identity fields must be ignored cross-tenant", kind)
+			t.Errorf("%s: identity must be ignored cross-tenant", kind)
 		}
+	}
+}
+
+// A rule GET returns `organization` and `channel` — not the organizationId /
+// channelId spelling of the search summary struct. Getting this wrong makes
+// --against report both fields as differences on every single rule.
+func TestRuleIdentityUsesTheRealFieldNames(t *testing.T) {
+	staging := json.RawMessage(`{"identifier":"r-a","organization":"staging","channel":"default_channel","name":"R","active":true}`)
+	prod := json.RawMessage(`{"identifier":"r-b","organization":"prod","channel":"other_channel","name":"R","active":true}`)
+
+	same, err := Equal(staging, prod, Options{Kind: unwrap.KindRule, Scope: CrossTenant})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !same {
+		ca, _ := Canonicalize(staging, Options{Kind: unwrap.KindRule, Scope: CrossTenant})
+		cb, _ := Canonicalize(prod, Options{Kind: unwrap.KindRule, Scope: CrossTenant})
+		t.Errorf("cross-tenant: organization and channel must be ignored\n  a: %s\n  b: %s", ca, cb)
 	}
 }
 

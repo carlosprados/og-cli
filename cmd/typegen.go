@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/carlosprados/og-cli/v2/internal/config"
@@ -32,9 +33,10 @@ Two halves are written: the platform catalogue for the execution context
 resolved — the organization's real datastream identifiers with their value
 types, so entity['sensro.temperature'] is flagged before it is ever deployed.
 
-The datamodel comes from --datamodel, or from the single datamodel of the
-organization when it has exactly one. Without either, only the platform
-datastreams are declared.
+By default every datamodel in the organization contributes its datastreams,
+since a device's entity can carry datastreams from any of them. --datamodel
+restricts the typings to one. Where two datamodels declare the same identifier
+with different types, it is left untyped rather than guessed.
 
 Regenerate after a datamodel change.
 
@@ -52,11 +54,11 @@ Examples:
 		p, err := cfg.ActiveProfile(profile)
 		if err == nil {
 			if orgName, orgErr := resolveOrg(p); orgErr == nil {
-				dm, dmErr := resolveDatamodel(cmd, p, orgName)
+				dms, dmErr := resolveDatamodels(cmd, p, orgName)
 				if dmErr != nil {
 					fmt.Fprintf(os.Stderr, "  hint: %v — generating platform datastreams only\n", dmErr)
 				}
-				opts.Datamodel, opts.OrgName = dm, orgName
+				opts.Datamodels, opts.OrgName = dms, orgName
 			}
 		}
 
@@ -64,7 +66,9 @@ Examples:
 		// parameters too — the rule states each parameter's schema.
 		if raw, err := os.ReadFile(filepath.Join(dirOrDot(typegenOut), "rule.json")); err == nil {
 			opts.Parameters = typegen.ParametersFrom(raw)
+			opts.ExtraDatastreams = typegen.DatastreamsTriggering(raw)
 		}
+		opts.ExtraDatastreams = append(opts.ExtraDatastreams, datastreamsInCode(dirOrDot(typegenOut))...)
 
 		out, err := typegen.Generate(opts)
 		if err != nil {
@@ -92,40 +96,50 @@ Examples:
 	},
 }
 
-// resolveDatamodel finds the datamodel to type against: the one named with
-// --datamodel, or the organization's only one. Ambiguity is reported rather
-// than guessed — typing against the wrong datamodel would flag correct code.
-func resolveDatamodel(cmd *cobra.Command, p *config.Profile, orgName string) (*opengate.Datamodel, error) {
+// resolveDatamodels returns the datamodels to type against: the one named with
+// --datamodel, or every datamodel in the organization.
+//
+// All of them by default, because a real tenant has many — sensehat has 27 — and
+// a device's entity can carry datastreams from any of them. Typing against a
+// single one would flag correct code as wrong, and refusing to choose (as this
+// first did) throws away the whole point of the feature.
+//
+// One request: the datamodel search response already carries each model's
+// categories and datastreams, so merging them costs nothing extra.
+func resolveDatamodels(cmd *cobra.Command, p *config.Profile, orgName string) ([]opengate.Datamodel, error) {
 	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
-
-	if typegenDatamodel != "" {
-		return c.GetDatamodel(cmd.Context(), orgName, typegenDatamodel)
-	}
 
 	resp, err := c.SearchDatamodels(cmd.Context(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("listing datamodels: %w", err)
 	}
-	switch len(resp.Datamodels) {
-	case 0:
+	if len(resp.Datamodels) == 0 {
 		return nil, fmt.Errorf("no datamodels found for organization %s", orgName)
-	case 1:
-		return c.GetDatamodel(cmd.Context(), orgName, resp.Datamodels[0].Identifier)
-	default:
-		names := make([]string, 0, len(resp.Datamodels))
-		for _, dm := range resp.Datamodels {
-			names = append(names, dm.Identifier)
-		}
-		return nil, fmt.Errorf("organization %s has %d datamodels (%s); pick one with --datamodel",
-			orgName, len(names), strings.Join(names, ", "))
 	}
+
+	if typegenDatamodel == "" {
+		return resp.Datamodels, nil
+	}
+
+	for _, dm := range resp.Datamodels {
+		if dm.Identifier == typegenDatamodel {
+			return []opengate.Datamodel{dm}, nil
+		}
+	}
+	names := make([]string, 0, len(resp.Datamodels))
+	for _, dm := range resp.Datamodels {
+		names = append(names, dm.Identifier)
+	}
+	sort.Strings(names)
+	return nil, fmt.Errorf("datamodel %q not found in organization %s (available: %s)",
+		typegenDatamodel, orgName, strings.Join(names, ", "))
 }
 
 func init() {
 	typegenCmd.Flags().StringVar(&typegenContext, "context", string(typegen.ContextRuleAdvanced),
 		"execution context: "+strings.Join(typegen.Contexts(), " | "))
 	typegenCmd.Flags().StringVar(&typegenOut, "out", ".", "directory to write og-globals.d.ts and jsconfig.json into")
-	typegenCmd.Flags().StringVar(&typegenDatamodel, "datamodel", "", "datamodel identifier to type against (default: the organization's only one)")
+	typegenCmd.Flags().StringVar(&typegenDatamodel, "datamodel", "", "restrict the typings to one datamodel (default: every datamodel in the organization)")
 	typegenCmd.Flags().BoolVar(&typegenNoJSConf, "no-jsconfig", false, "do not write jsconfig.json")
 
 	rootCmd.AddCommand(typegenCmd)
@@ -142,9 +156,10 @@ func dirOrDot(dir string) string {
 // writeTypings generates og-globals.d.ts and jsconfig.json into an unwrapped
 // artifact directory. Failures are reported and swallowed: a pull that fetched
 // the artifact correctly must not fail because the typings could not be built.
-func writeTypings(dir string, ctx typegen.Context, dm *opengate.Datamodel, orgName string, params []typegen.Parameter) {
+func writeTypings(dir string, ctx typegen.Context, dms []opengate.Datamodel, orgName string, params []typegen.Parameter, extra []string) {
 	out, err := typegen.Generate(typegen.Options{
-		Context: ctx, Datamodel: dm, OrgName: orgName, Parameters: params, Version: version,
+		Context: ctx, Datamodels: dms, OrgName: orgName, Parameters: params,
+		ExtraDatastreams: extra, Version: version,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  hint: typings not generated: %v\n", err)
@@ -162,11 +177,32 @@ func writeTypings(dir string, ctx typegen.Context, dm *opengate.Datamodel, orgNa
 // datamodelForTypings resolves the organization's datamodel once per command,
 // for the typings written during a pull. A failure is not fatal: the typings
 // degrade to platform datastreams only.
-func datamodelForTypings(cmd *cobra.Command, p *config.Profile, orgName string) *opengate.Datamodel {
-	dm, err := resolveDatamodel(cmd, p, orgName)
+func datamodelForTypings(cmd *cobra.Command, p *config.Profile, orgName string) []opengate.Datamodel {
+	dms, err := resolveDatamodels(cmd, p, orgName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  hint: %v — typings will declare platform datastreams only\n", err)
 		return nil
 	}
-	return dm
+	return dms
+}
+
+// datastreamsInCode collects the datastream identifiers the .js files in an
+// artifact directory already read, so the declarations cover working code.
+func datastreamsInCode(dir string) []string {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".js" {
+			continue
+		}
+		code, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			continue
+		}
+		out = append(out, typegen.DatastreamsReferencedBy(string(code))...)
+	}
+	return out
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 )
 
-func demoDatamodel(t *testing.T) *opengate.Datamodel {
+func demoDatamodel(t *testing.T) []opengate.Datamodel {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "demo", "datamodels", "multisensor.json"))
 	if err != nil {
@@ -20,13 +20,13 @@ func demoDatamodel(t *testing.T) *opengate.Datamodel {
 	if err := json.Unmarshal(raw, &dm); err != nil {
 		t.Fatalf("parsing demo datamodel: %v", err)
 	}
-	return &dm
+	return []opengate.Datamodel{dm}
 }
 
 // The organization's own datastream identifiers must reach the declarations —
 // this is the half no generic editor or LLM can produce.
 func TestGenerateDeclaresDatamodelDatastreams(t *testing.T) {
-	out, err := Generate(Options{Context: ContextRuleAdvanced, Datamodel: demoDatamodel(t), OrgName: "sensehat"})
+	out, err := Generate(Options{Context: ContextRuleAdvanced, Datamodels: demoDatamodel(t), OrgName: "sensehat"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func TestJSConfigEnablesDiagnostics(t *testing.T) {
 // recognisable.
 func TestHeaderRecordsProvenance(t *testing.T) {
 	out, err := Generate(Options{
-		Context: ContextRuleAdvanced, Datamodel: demoDatamodel(t), OrgName: "sensehat", Version: "v9.9.9",
+		Context: ContextRuleAdvanced, Datamodels: demoDatamodel(t), OrgName: "sensehat", Version: "v9.9.9",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -169,5 +169,158 @@ func TestContextsIsSorted(t *testing.T) {
 		if got[i-1] > got[i] {
 			t.Errorf("contexts not sorted: %v", got)
 		}
+	}
+}
+
+// A real tenant has many datamodels — sensehat has 27, holding 664 datastreams
+// between them — and a device's entity can carry datastreams from any of them.
+// Typing against one would flag correct code as wrong.
+func TestGenerateMergesSeveralDatamodels(t *testing.T) {
+	dms := []opengate.Datamodel{
+		{
+			Identifier: "weather", Version: "1.0",
+			Categories: []opengate.Category{{Identifier: "env", Name: "Environment", Datastreams: []opengate.Datastream{
+				{Identifier: "weather.temperature", Name: "Temp", Schema: json.RawMessage(`{"type":"number"}`)},
+			}}},
+		},
+		{
+			Identifier: "bts", Version: "2.0",
+			Categories: []opengate.Category{{Identifier: "power", Datastreams: []opengate.Datastream{
+				{Identifier: "bts.voltage", Name: "Voltage", Schema: json.RawMessage(`{"type":"number"}`)},
+			}}},
+		},
+	}
+
+	out, err := Generate(Options{Context: ContextRuleAdvanced, Datamodels: dms, OrgName: "sensehat"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"weather.temperature", "bts.voltage"} {
+		if !strings.Contains(out, "'"+id+"'") {
+			t.Errorf("datastream %q from a merged datamodel is missing", id)
+		}
+	}
+	// The header must say what it merged, so a stale file is recognisable.
+	if !strings.Contains(out, "datamodels: 2") || !strings.Contains(out, "bts, weather") {
+		t.Errorf("header should list the merged datamodels:\n%s", firstLines(out, 8))
+	}
+}
+
+// The same identifier in two datamodels with the same type keeps that type; with
+// different types it is left untyped, because asserting either would flag
+// correct code that used the other.
+func TestGenerateMergeTypeConflicts(t *testing.T) {
+	mk := func(id, dsID, jsonType string) opengate.Datamodel {
+		return opengate.Datamodel{
+			Identifier: id,
+			Categories: []opengate.Category{{Datastreams: []opengate.Datastream{
+				{Identifier: dsID, Schema: json.RawMessage(`{"type":"` + jsonType + `"}`)},
+			}}},
+		}
+	}
+
+	agreeing, err := Generate(Options{Context: ContextRuleAdvanced,
+		Datamodels: []opengate.Datamodel{mk("a", "shared.ds", "number"), mk("b", "shared.ds", "number")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(agreeing, "'shared.ds'?: OGDatastream<number>") {
+		t.Error("agreeing types should be kept")
+	}
+	if !strings.Contains(agreeing, "[in: a, b]") {
+		t.Error("the doc comment should name both source datamodels")
+	}
+	// One entry, not two.
+	if n := strings.Count(agreeing, "'shared.ds'?:"); n != 1 {
+		t.Errorf("the identifier is declared %d times, want 1", n)
+	}
+
+	conflicting, err := Generate(Options{Context: ContextRuleAdvanced,
+		Datamodels: []opengate.Datamodel{mk("a", "shared.ds", "number"), mk("b", "shared.ds", "string")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(conflicting, "'shared.ds'?: OGDatastream<unknown>") {
+		t.Error("conflicting types should fall back to unknown")
+	}
+	if !strings.Contains(conflicting, "conflicting types") {
+		t.Error("the doc comment should explain why it is untyped")
+	}
+}
+
+func firstLines(s string, n int) string {
+	lines := strings.SplitN(s, "\n", n+1)
+	if len(lines) > n {
+		lines = lines[:n]
+	}
+	return strings.Join(lines, "\n")
+}
+
+// Verified in production: sensehat has a live rule triggering on
+// `temperature.from.pressure`, which appears in NO datamodel. Declaring only
+// what the datamodels hold would flag that rule's working code as an error.
+func TestExtraDatastreamsCoverWhatNoDatamodelDeclares(t *testing.T) {
+	out, err := Generate(Options{
+		Context:          ContextRuleAdvanced,
+		Datamodels:       demoDatamodel(t),
+		ExtraDatastreams: []string{"temperature.from.pressure", "sensor.temperature"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(out, "'temperature.from.pressure'?: OGDatastream<unknown>") {
+		t.Error("an identifier no datamodel declares must still be declared, untyped")
+	}
+	if !strings.Contains(out, "declared in no datamodel") {
+		t.Error("the doc comment should say where it came from")
+	}
+	// One already in the datamodel must keep its real type, not be downgraded.
+	if !strings.Contains(out, "'sensor.temperature'?: OGDatastream<number>") {
+		t.Error("an identifier the datamodel declares must keep its type")
+	}
+	if n := strings.Count(out, "'sensor.temperature'?:"); n != 1 {
+		t.Errorf("declared %d times, want 1", n)
+	}
+}
+
+func TestDatastreamsReferencedBy(t *testing.T) {
+	code := `
+		var t = entity['sensor.temperature'];
+		var g = gateway["gw.status"];
+		var again = entity[ 'sensor.temperature' ];
+		var spaced = entity [ "spaced.one" ];
+		var dynamic = entity[someVariable];
+	`
+	got := DatastreamsReferencedBy(code)
+
+	want := []string{"gw.status", "sensor.temperature", "spaced.one"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("got %v, want %v", got, want)
+			break
+		}
+	}
+}
+
+func TestDatastreamsTriggering(t *testing.T) {
+	// The shape of a real rule's trigger, from sensehat.
+	rule := []byte(`{"name":"R","type":{"name":"DATASTREAM","datastreams":[
+	  {"name":"temperature.from.pressure","fields":[{"alias":"x","field":"_current.value"}]},
+	  {"name":"sensor.humidity"}]}}`)
+
+	got := DatastreamsTriggering(rule)
+	if len(got) != 2 || got[0] != "sensor.humidity" || got[1] != "temperature.from.pressure" {
+		t.Errorf("got %v, want the two trigger datastreams sorted", got)
+	}
+
+	if got := DatastreamsTriggering([]byte(`{"name":"R"}`)); len(got) != 0 {
+		t.Errorf("a rule with no trigger datastreams should yield none, got %v", got)
+	}
+	if got := DatastreamsTriggering([]byte(`not json`)); got != nil {
+		t.Errorf("malformed input should yield nothing, got %v", got)
 	}
 }

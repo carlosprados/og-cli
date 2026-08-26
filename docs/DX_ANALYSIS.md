@@ -959,3 +959,72 @@ family-agnostic and their payloads canonicalize fine, but the useful rendering f
 hierarchical one from the handoff's §9 example — a tree of dashboards and widgets, each with its own
 marker — rather than one flat list of `dashboards[0].dashboard.grid[2]…` paths. That is a rendering
 job, not an engine one, and it is deliberately left for its own change.
+
+---
+
+## 16. Validation against the real platform (2026-08-26)
+
+Everything above had been verified against tests, fixtures and a fake OpenGate served on localhost.
+Charlie's instruction was to use the real thing instead: the `sensehat` organization on
+`api.opengate.es`. Read-only, and logged in with `--no-web` so no browser session could be
+invalidated (the rule/CF/PF path is North API only — see §5.6).
+
+It worked, and it found four things no fixture had.
+
+### What held
+
+- `og rules pull` of a live ADVANCED rule produced the tree, the typings and the `.og/` store.
+- **`og rules diff` on the untouched tree reported "No differences", exit 0.** That is the real
+  test of canonicalization: a live payload, with whatever the platform actually returns.
+- After editing the code and the description, the diff reported exactly those two things, with the
+  right state (`~ local changes`) and the recorded origin.
+
+### 1. Identity field names were wrong
+
+A rule GET returns **`organization`** and **`channel`**. The table had `organizationId` and
+`channelId`, taken from the search summary struct. Consequence: `diff --against` would have reported
+both fields as differences on **every single rule**, which is exactly the noise identity fields
+exist to remove. Both spellings are now listed.
+
+### 2. A connector function has a server-managed `errors` field
+
+Not in any fixture. Always `null` on sensehat's current functions, so `clean()` drops it today, but
+the platform writes it when a function fails — it would surface as "your change". Now listed as
+volatile, with a note to remove it if it turns out to be editable.
+
+The `TestFlatFamiliesHaveNoVolatileFieldsYet` test failed when this was added, which is exactly what
+it was written for: it forces any addition to be deliberate rather than incidental.
+
+### 3. One datamodel per organization is a fiction
+
+sensehat has **27 datamodels, 664 datastreams**. The first implementation refused to choose and
+generated platform datastreams only — throwing away the whole point of the feature on any real
+tenant.
+
+They are now merged. The datamodel *search* response already carries every model's categories and
+datastreams, so this costs one request, not 27. Where two datamodels declare the same identifier
+with different types, the entry is left `unknown` and says so: asserting either would flag correct
+code that used the other.
+
+### 4. Live rules reference datastreams no datamodel declares
+
+The rule that was pulled triggers on **`temperature.from.pressure`**, which appears in **none** of
+the 27 datamodels. Strict typings generated from datamodels alone would have marked that rule's
+working code as an error — and typings that redden correct code get deleted, taking the feature with
+them.
+
+Two further sources now feed the declarations, both specific to the artifact being pulled:
+
+- the rule's own trigger (`type.datastreams[].name`), which the platform guarantees will be present;
+- the identifiers the code already reads, found by matching `entity['…']` / `gateway['…']`.
+
+Such entries are declared `unknown` — nothing states their type — and say why in their doc comment.
+
+**The trade-off, stated plainly:** a typo already present in the code when the typings were
+generated is declared, and therefore not flagged. Inventing errors in code that works is the worse
+failure. A typo written *afterwards* is still caught, which is the case that matters while editing.
+
+Verified with `tsc 5.9` against the real artifact: the production rule's code type-checks **clean**,
+and typos added afterwards are still reported —
+`Property 'temperature.from.presure' does not exist… Did you mean 'temperature.from.pressure'?` —
+including on the identifier that no datamodel declares.

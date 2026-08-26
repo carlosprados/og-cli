@@ -20,6 +20,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -72,12 +73,29 @@ var platformDatastreams = []struct {
 
 // Options controls a generation run.
 type Options struct {
-	Context   Context
-	Datamodel *opengate.Datamodel // optional: without it only platform datastreams are declared
-	OrgName   string
+	Context Context
+
+	// Datamodels are the organization's datamodels, whose datastreams become
+	// the valid keys of the entity object. Plural because a real tenant has
+	// many — sensehat has 27, and a device's entity can carry datastreams from
+	// any of them — so typing against one would flag correct code as wrong.
+	// Empty means only platform datastreams are declared.
+	Datamodels []opengate.Datamodel
+	OrgName    string
 	// Parameters are the rule's declared parameters, when generating for a
 	// specific rule rather than for a context in general.
 	Parameters []Parameter
+
+	// ExtraDatastreams are identifiers the artifact itself references but that
+	// no datamodel declares.
+	//
+	// This is not a nicety. Verified in production: sensehat has a live rule
+	// triggering on `temperature.from.pressure`, which appears in no datamodel
+	// at all. Declaring only what the datamodels hold would flag that rule's
+	// working code as an error, and typings that redden correct code get
+	// deleted. Sources are the artifact's own trigger and the identifiers its
+	// code already reads.
+	ExtraDatastreams []string
 	// Version is the og version stamped in the header, for traceability.
 	Version string
 }
@@ -108,17 +126,30 @@ func writeHeader(b *strings.Builder, o Options) {
 	if o.Version != "" {
 		fmt.Fprintf(b, "// generator: og %s\n", o.Version)
 	}
-	if o.Datamodel != nil {
-		fmt.Fprintf(b, "// datamodel: %s", o.Datamodel.Identifier)
-		if o.Datamodel.Version != "" {
-			fmt.Fprintf(b, " v%s", o.Datamodel.Version)
+	switch len(o.Datamodels) {
+	case 0:
+		b.WriteString("// datamodel: none — only platform datastreams are declared\n")
+	case 1:
+		dm := o.Datamodels[0]
+		fmt.Fprintf(b, "// datamodel: %s", dm.Identifier)
+		if dm.Version != "" {
+			fmt.Fprintf(b, " v%s", dm.Version)
 		}
 		if o.OrgName != "" {
 			fmt.Fprintf(b, " (organization %s)", o.OrgName)
 		}
 		b.WriteString("\n")
-	} else {
-		b.WriteString("// datamodel: none — only platform datastreams are declared\n")
+	default:
+		names := make([]string, 0, len(o.Datamodels))
+		for _, dm := range o.Datamodels {
+			names = append(names, dm.Identifier)
+		}
+		sort.Strings(names)
+		fmt.Fprintf(b, "// datamodels: %d", len(names))
+		if o.OrgName != "" {
+			fmt.Fprintf(b, " in organization %s", o.OrgName)
+		}
+		fmt.Fprintf(b, "\n//            %s\n", strings.Join(names, ", "))
 	}
 	fmt.Fprintf(b, "// source:    .claude/skills/og-device-ops/rules-js-reference.md\n")
 	fmt.Fprintf(b, "//\n// Regenerate after a datamodel change: og typegen --context %q --org <org>\n\n", o.Context)
@@ -138,7 +169,8 @@ func writeEntity(b *strings.Builder, o Options) {
 	for _, ds := range platformDatastreams {
 		entries = append(entries, datastreamEntry{ID: ds.ID, TSType: ds.Type, Indexed: ds.Indexed, Doc: "platform datastream"})
 	}
-	entries = append(entries, datamodelEntries(o.Datamodel)...)
+	entries = append(entries, datamodelEntries(o.Datamodels)...)
+	entries = append(entries, extraEntries(o.ExtraDatastreams, entries)...)
 
 	b.WriteString("// ── Datastreams ─────────────────────────────────────────────────────────────\n\n")
 	b.WriteString("/** Every datastream identifier declared for this organization, plus the\n")
@@ -172,27 +204,83 @@ func writeEntity(b *strings.Builder, o Options) {
 	b.WriteString("declare const gateway: OGEntity | null;\n")
 }
 
-// datamodelEntries turns the organization's datamodel into entity keys.
-func datamodelEntries(dm *opengate.Datamodel) []datastreamEntry {
-	if dm == nil {
-		return nil
+// datamodelEntries turns the organization's datamodels into entity keys,
+// merging them.
+//
+// The same datastream identifier can appear in several datamodels. When their
+// declared types agree, the merged entry keeps that type. When they disagree the
+// entry falls back to `unknown` and says so in its doc comment: asserting one of
+// the two would flag correct code that used the other.
+func datamodelEntries(dms []opengate.Datamodel) []datastreamEntry {
+	type merged struct {
+		entry    datastreamEntry
+		types    map[string]bool
+		sources  []string
+		conflict bool
 	}
-	var out []datastreamEntry
-	for _, cat := range dm.Categories {
-		for _, ds := range cat.Datastreams {
-			if ds.Identifier == "" {
-				continue
+	byID := map[string]*merged{}
+
+	for _, dm := range dms {
+		for _, cat := range dm.Categories {
+			for _, ds := range cat.Datastreams {
+				if ds.Identifier == "" {
+					continue
+				}
+				tsType := tsTypeOf(ds.Schema)
+				m, seen := byID[ds.Identifier]
+				if !seen {
+					byID[ds.Identifier] = &merged{
+						entry: datastreamEntry{
+							ID:      ds.Identifier,
+							TSType:  tsType,
+							Indexed: strings.Contains(ds.Identifier, "[]"),
+							Doc:     docFor(ds, cat),
+						},
+						types:   map[string]bool{tsType: true},
+						sources: []string{dm.Identifier},
+					}
+					continue
+				}
+				m.types[tsType] = true
+				if len(m.types) > 1 {
+					m.conflict = true
+				}
+				if !contains(m.sources, dm.Identifier) {
+					m.sources = append(m.sources, dm.Identifier)
+				}
+				// Keep the first non-empty doc: an identifier documented in one
+				// datamodel and bare in another should keep the documentation.
+				if m.entry.Doc == "" {
+					m.entry.Doc = docFor(ds, cat)
+				}
 			}
-			out = append(out, datastreamEntry{
-				ID:      ds.Identifier,
-				TSType:  tsTypeOf(ds.Schema),
-				Indexed: strings.Contains(ds.Identifier, "[]"),
-				Doc:     docFor(ds, cat),
-			})
 		}
+	}
+
+	out := make([]datastreamEntry, 0, len(byID))
+	for _, m := range byID {
+		e := m.entry
+		if m.conflict {
+			e.TSType = "unknown"
+			e.Doc = strings.TrimSpace(e.Doc + " — declared with conflicting types across datamodels, so left untyped")
+		}
+		if len(m.sources) > 1 {
+			sort.Strings(m.sources)
+			e.Doc = strings.TrimSpace(e.Doc) + " [in: " + strings.Join(m.sources, ", ") + "]"
+		}
+		out = append(out, e)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
+}
+
+func contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
 
 // docFor builds the doc comment for a datastream: its name, description,
@@ -405,4 +493,85 @@ func writeParameters(b *strings.Builder, params []Parameter) {
 		fmt.Fprintf(b, "  %s: %s;\n", quote(p.Name), p.TSType)
 	}
 	b.WriteString("}\n\ndeclare const parameterObject: OGParameters;\n")
+}
+
+// extraEntries declares identifiers the artifact references that no datamodel
+// covers, skipping any the datamodels already declared.
+//
+// Their type is unknown: nothing states it. That is still worth declaring —
+// the alternative is an error on code that works.
+func extraEntries(ids []string, existing []datastreamEntry) []datastreamEntry {
+	if len(ids) == 0 {
+		return nil
+	}
+	known := make(map[string]bool, len(existing))
+	for _, e := range existing {
+		known[e.ID] = true
+	}
+
+	seen := map[string]bool{}
+	var out []datastreamEntry
+	for _, id := range ids {
+		if id == "" || known[id] || seen[id] {
+			continue
+		}
+		seen[id] = true
+		out = append(out, datastreamEntry{
+			ID:      id,
+			TSType:  "unknown",
+			Indexed: strings.Contains(id, "[]"),
+			Doc:     "referenced by this artifact but declared in no datamodel — type unknown",
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+// datastreamPattern finds entity['...'] and gateway['...'] reads in artifact
+// code, single or double quoted.
+var datastreamPattern = regexp.MustCompile(`(?:entity|gateway)\s*\[\s*['"]([^'"]+)['"]\s*\]`)
+
+// DatastreamsReferencedBy returns the identifiers an artifact's code reads.
+//
+// Used so the generated declarations cover what the artifact already does. A
+// typo present in the code when the typings were generated is therefore
+// declared and not flagged — the alternative, inventing errors in code that
+// works, is worse. A typo written afterwards is still caught, which is the case
+// that matters while editing.
+func DatastreamsReferencedBy(code string) []string {
+	matches := datastreamPattern.FindAllStringSubmatch(code, -1)
+	seen := map[string]bool{}
+	var out []string
+	for _, m := range matches {
+		if len(m) < 2 || seen[m[1]] {
+			continue
+		}
+		seen[m[1]] = true
+		out = append(out, m[1])
+	}
+	sort.Strings(out)
+	return out
+}
+
+// DatastreamsTriggering returns the datastream identifiers a rule declares as
+// its trigger, which the platform guarantees the entity will carry.
+func DatastreamsTriggering(rulePayload json.RawMessage) []string {
+	var rule struct {
+		Type struct {
+			Datastreams []struct {
+				Name string `json:"name"`
+			} `json:"datastreams"`
+		} `json:"type"`
+	}
+	if json.Unmarshal(rulePayload, &rule) != nil {
+		return nil
+	}
+	out := make([]string, 0, len(rule.Type.Datastreams))
+	for _, ds := range rule.Type.Datastreams {
+		if ds.Name != "" {
+			out = append(out, ds.Name)
+		}
+	}
+	sort.Strings(out)
+	return out
 }

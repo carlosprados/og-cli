@@ -505,12 +505,18 @@ alarm.open({ severity: 'HIGH' })   // 'HIGH' is not assignable to OGSeverity
                                     // ('INFORMATIVE' | 'URGENT' | 'CRITICAL')
 ```
 
+Every datamodel in the organization contributes its datastreams (sensehat has 27,
+holding 664 between them), plus two sources specific to the artifact: the rule's
+own trigger, and the identifiers its code already reads. That last part matters —
+live rules do reference datastreams no datamodel declares, and typings that
+redden working code get deleted.
+
 Regenerate standalone after a datamodel change — the header records what each
 file was generated from:
 
 ```bash
 og typegen --context rule/ADVANCED --org sensehat --out rules/<rule-slug>/
-og typegen --context rule/ADVANCED --org sensehat --datamodel multisensor --out .
+og typegen --context rule/ADVANCED --org sensehat --datamodel multisensor --out .   # restrict to one
 og typegen --help        # available contexts
 ```
 
