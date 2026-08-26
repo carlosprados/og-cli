@@ -156,7 +156,7 @@ func TestHeaderRecordsProvenance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"DO NOT EDIT", "rule/ADVANCED", "og v9.9.9", "multisensor v1.0", "organization sensehat", "rules-js-reference.md"} {
+	for _, want := range []string{"DO NOT EDIT", "rule/ADVANCED", "og v9.9.9", "multisensor v1.0", "organization sensehat", "tools/ogdocgen"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("header missing %q", want)
 		}
@@ -359,9 +359,10 @@ func TestConnectorFunctionTemplate(t *testing.T) {
 	for _, decl := range []string{
 		"declare const collection", "declare const response", "declare const cf",
 		"declare function log(", "declare function httpRequest(",
-		"declare function responseCF(", "declare function collectionCF(",
+		"declare function responseCF(", "declare function collectCF(",
 		"declare function ogCollection(", "declare function ogResponse(",
 		"declare const mqtt", "declare const http", "declare const snmp", "declare const dlms",
+		"declare const logger", "declare const utils", "declare const crypt",
 	} {
 		if !strings.Contains(out, decl) {
 			t.Errorf("missing declaration: %s", decl)
@@ -369,8 +370,8 @@ func TestConnectorFunctionTemplate(t *testing.T) {
 	}
 
 	// logger must be variadic: production code calls logger.debug('x: ', value).
-	if !strings.Contains(out, "debug(...msg: unknown[])") {
-		t.Error("logger methods must be variadic")
+	if !strings.Contains(out, "debug(...msg: any[])") {
+		t.Error("logger methods must be variadic: the docs show one parameter but state that they concatenate")
 	}
 	// mqtt.topic is assigned by production code, not just published to.
 	if !strings.Contains(out, "topic: string") {

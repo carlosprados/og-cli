@@ -42,31 +42,35 @@ const (
 	ContextCFResponse Context = "connector-function/RESPONSE"
 	// ContextCFCollection processes collected data into datapoints.
 	ContextCFCollection Context = "connector-function/COLLECTION"
+	// ContextProvisionFunction is a bulk provisioning processor's script.
+	ContextProvisionFunction Context = "provision-function"
+	// ContextTimeseriesFunction is a timeseries aggregation function.
+	ContextTimeseriesFunction Context = "timeseries-function"
 )
 
-// templateFor maps a context to its embedded platform catalogue. The three
-// connector function types share one: the objects that differ between them are
-// declared in all three, since declaring too little is what makes typings redden
-// working code.
+// baseTemplate holds the types the documentation does not describe — the shape
+// of a datastream value, the alarm enumerations — and is included in every
+// context.
+const baseTemplate = "templates/base.d.ts"
+
+// templateFor maps a context to its generated platform catalogue.
+//
+// Those files come from tools/ogdocgen, which reads the OpenGate documentation:
+// some 450 functions, methods and properties across the connector function,
+// rule, provision function and timeseries function APIs. Maintaining them by
+// hand was tried first and got four signatures wrong in ways that only showed
+// up when type-checking real production artifacts.
+//
+// The three connector function types share one file: the objects that differ
+// between them are declared in all three, since declaring too little is what
+// makes typings redden working code.
 var templateFor = map[Context]string{
-	ContextRuleAdvanced: "templates/rule-advanced.d.ts",
-	ContextCFRequest:    "templates/connector-function.d.ts",
-	ContextCFResponse:   "templates/connector-function.d.ts",
-	ContextCFCollection: "templates/connector-function.d.ts",
-}
-
-// protocolTemplate holds the per-protocol objects, appended for connector
-// function contexts.
-const protocolTemplate = "templates/cf-protocols.d.ts"
-
-// isConnectorFunction reports whether a context is one of the connector
-// function types.
-func isConnectorFunction(c Context) bool {
-	switch c {
-	case ContextCFRequest, ContextCFResponse, ContextCFCollection:
-		return true
-	}
-	return false
+	ContextRuleAdvanced:       "templates/rule-advanced.generated.d.ts",
+	ContextCFRequest:          "templates/connector-function.generated.d.ts",
+	ContextCFResponse:         "templates/connector-function.generated.d.ts",
+	ContextCFCollection:       "templates/connector-function.generated.d.ts",
+	ContextProvisionFunction:  "templates/provision-function.generated.d.ts",
+	ContextTimeseriesFunction: "templates/timeseries-function.generated.d.ts",
 }
 
 // ContextForConnectorFunction maps a connector function's `type` field to its
@@ -157,20 +161,17 @@ func Generate(o Options) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("reading embedded template: %w", err)
 	}
+	base, err := templates.ReadFile(baseTemplate)
+	if err != nil {
+		return "", fmt.Errorf("reading base template: %w", err)
+	}
 
 	var b strings.Builder
 	writeHeader(&b, o)
-	b.WriteString(string(catalogue))
+	b.Write(base)
 	b.WriteString("\n")
-
-	if isConnectorFunction(o.Context) {
-		protocols, err := templates.ReadFile(protocolTemplate)
-		if err != nil {
-			return "", fmt.Errorf("reading protocol template: %w", err)
-		}
-		b.WriteString(string(protocols))
-		b.WriteString("\n")
-	}
+	b.Write(catalogue)
+	b.WriteString("\n")
 	writeEntity(&b, o)
 	writeParameters(&b, o.Parameters)
 	return b.String(), nil
@@ -207,11 +208,7 @@ func writeHeader(b *strings.Builder, o Options) {
 		}
 		fmt.Fprintf(b, "\n//            %s\n", strings.Join(names, ", "))
 	}
-	source := "rules-js-reference.md"
-	if isConnectorFunction(o.Context) {
-		source = "connector-functions-js-reference.md"
-	}
-	fmt.Fprintf(b, "// source:    .claude/skills/og-device-ops/%s\n", source)
+	b.WriteString("// source:    the OpenGate documentation, via tools/ogdocgen\n")
 	if len(o.Protocols) > 0 {
 		fmt.Fprintf(b, "// protocols: %s (from the south criteria)\n", strings.Join(o.Protocols, ", "))
 	}
@@ -271,9 +268,12 @@ func writeEntity(b *strings.Builder, o Options) {
 	b.WriteString("  resourceType?: OGDatastream<string>;\n")
 	b.WriteString("  device?: any;\n")
 	b.WriteString("}\n\n")
-	b.WriteString("declare const entity: OGEntity & OGEntityProperties;\n")
+	// OGEntityMethods comes from the generated catalogue: the documentation
+	// describes entity._value(datastream, index) and friends, which live on the
+	// same object as the datastream map.
+	b.WriteString("declare const entity: OGEntity & OGEntityProperties & OGEntityMethods;\n")
 	b.WriteString("/** The gateway entity, when the rule runs behind one. */\n")
-	b.WriteString("declare const gateway: (OGEntity & OGEntityProperties) | null;\n")
+	b.WriteString("declare const gateway: (OGEntity & OGEntityProperties & OGEntityMethods) | null;\n")
 }
 
 // datamodelEntries turns the organization's datamodels into entity keys,

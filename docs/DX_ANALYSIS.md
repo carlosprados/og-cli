@@ -31,7 +31,7 @@ this first, because it changes the plan's shape and its cost.
 | "Locate the SHA256 config comparison used to assert wrap is lossless" | **No SHA256 exists anywhere in the repo.** Losslessness is asserted by `reflect.DeepEqual` over decoded trees in tests only. **Source of the confusion found** (2026-08-25): the `og-workspaces` skill claimed *"wrap reproduces identical widget configs (same SHA256)"* — a documentation overstatement, now corrected there                                                      | `grep sha256` → no Go matches, `verified-code`                      |
 | Three divergent `pull`/`wrap`/`deploy` implementations                | One shared core (`ExtractJSFields`/`ReinjectJSFields`/`Slugify`) plus **three byte-identical adapters** and one genuinely different nested pipeline (workspace→dashboard→widget) | `internal/unwrap/{rules,connectors,provisions}.go`, `verified-code` |
 | Connector functions have `REQUEST` and `RESPONSE` variants            | Three types: `REQUEST`, `RESPONSE`, **`COLLECTION`**                                                                                                                             | `pkg/opengate/connectors.go`, `verified-live`                       |
-| Helper is `collectCF()`                                               | Concatenation helpers are **`responseCF`** and **`collectionCF`**; `collectCF` does not exist                                                                                    | JS reference §concatenation, `from-docs`                            |
+| Helper is `collectCF()` | **The handoff was right and this row was wrong.** The official documentation says `collectCF` in six places, including a worked SNMP example; the vendored copy of the guide says `collectionCF` once, and that is what this row was based on. Reported for correction in `docs/opengate-documentation-handoff.md` §2 | `from-docs`, corrected 2026-08-26 |
 | "South criteria are the routing key"                                  | Only for `RESPONSE`/`COLLECTION`. `REQUEST` matches on `operationName` + `northCriterias`                                                                                        | `cmd/connectors.go` long help, `verified-live`                      |
 | `og pf test <slug> --input sample.csv`                                | The input is an **Excel spreadsheet**, not CSV                                                                                                                                   | `configurationParams.spreadsheet`, `verified-live`                  |
 
@@ -1175,3 +1175,79 @@ afterwards are still caught in the checked ones, with suggestions: `logger.dbug`
 Provision functions have **no** typings: there is no vendored JS reference for their execution
 context, and the honest options were to invent globals or to ship nothing. Nothing shipped. Widget
 formatters are also still open (`widget-js-api.md` exists and would be the source).
+
+---
+
+## 19. Typings generated from the documentation (2026-08-26)
+
+Charlie pointed at the real documentation repository — `odm-documentation-hugo` — and asked whether
+the JavaScript APIs could be vendored wholesale for editor support. They can, and the case for it is
+the four signatures §18 got wrong by hand.
+
+`tools/ogdocgen` reads the documentation and writes the declaration files. A development tool, not
+part of the binary: run it when the documentation changes, commit the result. The generated files
+stay reviewable — the diff of a regeneration shows what changed in the platform — and og needs no
+access to the documentation repository.
+
+### Coverage
+
+43 pages carry a JavaScript API `type` in their front matter, and every page with JS signatures
+outside `libs/ogapi-docs` is correctly typed, so nothing is missed through absent front matter.
+
+| Context | Pages | Declarations |
+|---|---|---|
+| connector functions (core + 15 protocols) | 26 | 24 functions, 244 methods in 35 objects, **57 properties** |
+| ADVANCED rules | 10 | 46 functions, 23 methods in 8 objects |
+| **provision functions** | 6 | 42 functions, 46 methods |
+| **timeseries functions** | 1 | 23 methods in 5 objects |
+
+Roughly 450 declarations against the ~100 maintained by hand — and two contexts that did not exist
+before, including the provision functions §18 declared unshippable for want of a reference. The 57
+properties matter: they are the assignable fields (`mqtt.topic`, `http.client.body`) that a
+signature-only reading of any reference misses entirely, and `mqtt.topic` had already bitten once.
+
+### What the generator does and does not decide
+
+The documentation is authoritative about what **exists**. It is not always right about details, so
+`tools/ogdocgen/overrides.go` carries corrections — currently one — each with its evidence, since an
+unexplained override is indistinguishable from a mistake. Separately, `paramTypes` refines a
+documented `string` or `*` into a named type where that is the whole point: a datastream identifier
+is one of the organization's, not any string, and an alarm severity is one of three words.
+
+The hand-written half shrinks to `templates/base.d.ts`: the datastream value shape and the small
+enumerations, which the documentation does not describe. Everything it does describe is generated.
+
+### Four bugs in the generator, all found the same way
+
+Type-checking the 13 live artifacts, not by inspection:
+
+1. **`http` and `coap` vanished entirely.** Both are documented only as `http.client.get()` and
+   `http.server.response.send()`, so the parent objects exist purely as containers; the emitter
+   handled one level of nesting and dropped them. It builds the object tree recursively now.
+2. **`entity` is two things at once** — a map keyed by datastream identifier, and an object with
+   accessor methods (`entity._value(ds, i)`). Emitting it as a second `declare const` shadowed the
+   per-organization map, silently losing every datastream identifier. The methods are emitted as an
+   interface that the generated map intersects.
+3. **Rest parameters lost their dots.** The documentation writes `logger.trace(...msg)` correctly;
+   the parser stripped the `...` without recording it, making `log('a: ', b)` an arity error on
+   working code.
+4. **A properties table under a nested heading** (`server.response Object Properties`) keys on the
+   leaf, not the full path.
+
+All 13 real artifacts type-check clean afterwards, and typos introduced later are still caught.
+
+### The documentation handoff
+
+Four items for `odm-documentation-hugo`, in `docs/opengate-documentation-handoff.md`. One is a real
+error: two pages state the provision processor entry point is `normalizeRowMap`, while the same
+page's example — and the live function in sensehat — use `normalizeRawObject`.
+
+That exercise also corrected **this document**: §1 claimed the original handoff was wrong about
+`collectCF`. It was right; the vendored copy of the guide I checked against says `collectionCF` once,
+the official documentation says `collectCF` six times with a worked example.
+
+### Still open
+
+`libs/ogapi-docs/JS Reference/` — 92 pages of the `$api` (opengate-js) surface used in **widget**
+code — has no `type` in its front matter, so it is not machine-readable. That is the one context
+where og still cannot offer completion, and it is the request in the handoff with real leverage.
