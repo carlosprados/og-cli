@@ -113,6 +113,17 @@ Widget JS runs sandboxed with globals `$api`, `$user`, `$moment`, `http` — see
 >    Filter field names come from the platform OpenAPI specs (datapoints search:
 >    `datapoints.entityIdentifier`, `datapoints.datastreamId`). Other builders:
 >    devicesSearchBuilder, entitiesSearchBuilder (https://amplia-iiot.github.io/opengate-js/).
+>    Since opengate-js 16.0.0 the library ships its own TypeScript declarations, so
+>    `og typegen` in a customChart/customTable directory writes og-globals.d.ts +
+>    jsconfig.json + package.json: run `npm install` there and $api completes and
+>    type-checks in the editor. A misspelled builder becomes an error with a
+>    "Did you mean" suggestion instead of a runtime "Data not found".
+>    In the editor you get completion only (a widget returns at top level, which
+>    TypeScript rejects on a plain file). For real diagnostics run
+>    `og widget check` in the widget directory — it type-checks the code inside
+>    the platform's own async wrapper and maps positions back to your file.
+>    `--exit-code` makes it a CI gate; `--strict` also shows the two idioms it
+>    sets aside (Date subtraction, and a property read on a `null`-initialised var).
 >
 > 2. **ES5 only** — the platform lints widget code with JSHint at render time:
 >    `const`/`let`/arrow functions/`for...of` FAIL; use `var`, `function`
