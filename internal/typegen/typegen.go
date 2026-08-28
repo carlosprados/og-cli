@@ -46,7 +46,25 @@ const (
 	ContextProvisionFunction Context = "provision-function"
 	// ContextTimeseriesFunction is a timeseries aggregation function.
 	ContextTimeseriesFunction Context = "timeseries-function"
+	// ContextWidgetChart is a customChart widget's configuration script, which
+	// returns an ECharts option object.
+	ContextWidgetChart Context = "widget/CHART"
+	// ContextWidgetTable is a customTable widget's script, which delivers its
+	// rows through the callback rather than returning them.
+	ContextWidgetTable Context = "widget/TABLE"
 )
+
+// isWidget reports whether a context is widget code, which is shaped unlike
+// every other artifact: its data API is the opengate-js package rather than a
+// catalogue generated from the documentation, it has no entity, and the
+// platform wraps it in an async function whose parameters are in scope.
+func isWidget(c Context) bool {
+	return c == ContextWidgetChart || c == ContextWidgetTable
+}
+
+// IsWidgetContext reports whether a context is widget code. Exported because
+// the CLI decides which jsconfig to write from it.
+func IsWidgetContext(c Context) bool { return isWidget(c) }
 
 // baseTemplate holds the types the documentation does not describe — the shape
 // of a datastream value, the alarm enumerations — and is included in every
@@ -71,6 +89,8 @@ var templateFor = map[Context]string{
 	ContextCFCollection:       "templates/connector-function.generated.d.ts",
 	ContextProvisionFunction:  "templates/provision-function.generated.d.ts",
 	ContextTimeseriesFunction: "templates/timeseries-function.generated.d.ts",
+	ContextWidgetChart:        "templates/widget.d.ts",
+	ContextWidgetTable:        "templates/widget.d.ts",
 }
 
 // ContextForConnectorFunction maps a connector function's `type` field to its
@@ -85,6 +105,23 @@ func ContextForConnectorFunction(cfType string) Context {
 		return ContextCFCollection
 	default:
 		return ContextCFCollection
+	}
+}
+
+// ContextForWidget maps a widget's `definition.type` to its context, and
+// reports whether that widget kind takes JavaScript at all.
+//
+// Only the two custom kinds do. Every other widget type on a dashboard is
+// configured, not programmed — a FullDevicesList has column formatters, which
+// are expressions rather than a script with the async wrapper around it.
+func ContextForWidget(widgetType string) (Context, bool) {
+	switch strings.ToLower(widgetType) {
+	case "customchart":
+		return ContextWidgetChart, true
+	case "customtable":
+		return ContextWidgetTable, true
+	default:
+		return "", false
 	}
 }
 
@@ -168,6 +205,19 @@ func Generate(o Options) (string, error) {
 
 	var b strings.Builder
 	writeHeader(&b, o)
+
+	// A widget has no entity, no datastream map and no rule parameters: it reads
+	// the platform through $api. Emitting the artifact base template here would
+	// declare `payload`, `contextParams` and `ruleName`, none of which exist in
+	// a widget, and writeEntity would declare an `entity` global that shadows
+	// nothing and means nothing.
+	if isWidget(o.Context) {
+		b.Write(catalogue)
+		b.WriteString("\n")
+		writeWidgetWrapper(&b, o.Context)
+		return b.String(), nil
+	}
+
 	b.Write(base)
 	b.WriteString("\n")
 	b.Write(catalogue)
@@ -177,12 +227,66 @@ func Generate(o Options) (string, error) {
 	return b.String(), nil
 }
 
+// writeWidgetWrapper declares the parameters of the async function the platform
+// wraps a widget's code in.
+//
+// They are not globals, but from the script's point of view they behave like
+// them — it is written inside that function body — so an editor has to be told
+// about them or every reference to `filters` or `callback` is an error. The two
+// widget kinds take different ones, and the last parameter differs in kind:
+// a customChart RETURNS its ECharts option object, a customTable delivers rows
+// through `callback`.
+func writeWidgetWrapper(b *strings.Builder, c Context) {
+	b.WriteString("// ── The async wrapper's parameters ───────────────────────────────────────────\n")
+	b.WriteString("//\n")
+	b.WriteString("// Widget code is not a standalone script: the platform wraps it in an async\n")
+	b.WriteString("// function and these are its arguments. That wrapper is also why a top-level\n")
+	b.WriteString("// `await` and a top-level `return` are both correct here.\n\n")
+	b.WriteString("declare global {\n")
+	b.WriteString("  /** Data of the entity the dashboard is scoped to. */\n")
+	b.WriteString("  const entityData: any;\n")
+	b.WriteString("  /** Entities related to the scoped one. */\n")
+	b.WriteString("  const relatedEntities: any;\n")
+	b.WriteString("  /** Timeseries data the widget was configured to receive. */\n")
+	b.WriteString("  const timeserieData: any;\n")
+	b.WriteString("  /** Alarm data the widget was configured to receive. */\n")
+	b.WriteString("  const alarmData: any;\n")
+	b.WriteString("  /** Filters set at dashboard level. */\n")
+	b.WriteString("  const dashboardFilters: any;\n")
+	b.WriteString("  /** Filters set on this widget. */\n")
+	b.WriteString("  const filters: any;\n")
+	if c == ContextWidgetTable {
+		b.WriteString("  /** Page size requested by the table. */\n")
+		b.WriteString("  const pageElements: number;\n")
+		b.WriteString("  /** Page number requested by the table, 1-based. */\n")
+		b.WriteString("  const page: number;\n")
+		b.WriteString("  /** Deliver the rows. A customTable returns nothing; it calls this. */\n")
+		b.WriteString("  function callback(rows: any[]): void;\n")
+	} else {
+		b.WriteString("  /** Optional completion callback. A customChart normally returns its\n")
+		b.WriteString("   *  ECharts option object instead of calling this. */\n")
+		b.WriteString("  function callback(result?: any): void;\n")
+	}
+	b.WriteString("}\n")
+}
+
 func writeHeader(b *strings.Builder, o Options) {
 	fmt.Fprintf(b, "// og-globals.d.ts — generated by `og typegen`. DO NOT EDIT.\n")
 	fmt.Fprintf(b, "// context:   %s\n", o.Context)
 	if o.Version != "" {
 		fmt.Fprintf(b, "// generator: og %s\n", o.Version)
 	}
+
+	// A widget has no datamodel half and its API does not come from the
+	// documentation, so the provenance lines below would all be false.
+	if isWidget(o.Context) {
+		b.WriteString("// source:    the opengate-js package's own declarations, resolved from node_modules\n")
+		b.WriteString("//\n")
+		b.WriteString("// $api is typed by the library itself, not by og: run `npm install` in this\n")
+		b.WriteString("// directory once, and the editor resolves it. Regenerate only when og changes.\n\n")
+		return
+	}
+
 	switch len(o.Datamodels) {
 	case 0:
 		b.WriteString("// datamodel: none — only platform datastreams are declared\n")
@@ -507,6 +611,120 @@ func JSConfigFor(code string) string {
   "include": ["*.js", "og-globals.d.ts"]
 }
 `
+}
+
+// JSConfigForWidget returns the jsconfig.json for a widget directory.
+//
+// Widget code differs from every other artifact in three ways that the config
+// has to account for, all verified against sensehat's live Multisensor Demo:
+//
+//   - `$api` is resolved from node_modules, so the config needs a module system
+//     and a resolution strategy. All four of node, node16, nodenext and bundler
+//     resolve opengate-js 16.0.0 correctly, so this picks the one that matches
+//     how the platform actually loads the code and does not depend on the
+//     editor's default.
+//   - The wrapper is async, so a top-level `await` is correct. TypeScript only
+//     allows one in a module and only from ES2017, hence the target — even
+//     though the platform's JSHint demands ES5 SYNTAX in the source. The target
+//     governs what TypeScript accepts, not what it asks you to write.
+//   - Widgets sit one per directory but several share a parent, and two
+//     top-level `var devices` in sibling files collide in the global scope
+//     (TS2403). Each widget therefore gets its own config scoped to its own
+//     file.
+func JSConfigForWidget(codeFile, code string) string {
+	if codeFile == "" {
+		codeFile = "*.js"
+	}
+	include := `["` + codeFile + `", "og-globals.d.ts"]`
+
+	if widgetCheckable(code) {
+		return `{
+  "compilerOptions": {
+    "target": "es2017",
+    "lib": ["es2017", "dom"],
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "skipLibCheck": true
+  },
+  "include": ` + include + `
+}
+`
+	}
+
+	// completion only: this widget cannot be checked without reporting errors on
+	// correct code.
+	return `{
+  "compilerOptions": {
+    "target": "es2017",
+    "lib": ["es2017", "dom"],
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": false,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "skipLibCheck": true
+  },
+  "include": ` + include + `
+}
+`
+}
+
+// widgetCheckable reports whether a widget's code can be type-checked without
+// reporting an error on something that is correct JavaScript.
+//
+// noImplicitAny is already off for widgets — untyped helper parameters are the
+// norm here, and there is no datastream map for it to protect, which is the only
+// thing that earned it in the other contexts. Three things still disqualify:
+//
+//	a top-level `return`      TS1108, and the platform wraps widget code in an
+//	                          async function, so returning is the contract: a
+//	                          customChart returns its ECharts option object.
+//	new Date(a) - new Date(b) TS2362/2363 on the ordinary chronological sort,
+//	                          which JavaScript resolves through valueOf.
+//	var x = null; … x.field   TS2339: TypeScript narrows x to `never` and
+//	                          reports a read that happens after an assignment.
+//
+// All three appear in sensehat's two live $api widgets, and the first is
+// structural rather than stylistic — in practice every widget has one. Widgets
+// therefore land on completion-only far more often than rules do, which is a
+// real limit of this approach and not a bug: hover, navigation and signature
+// help over the 246 opengate-js declarations still work, and those are most of
+// the day-to-day value.
+func widgetCheckable(code string) bool {
+	return !hasTopLevelReturn(code) &&
+		!dateArithmeticPattern.MatchString(code) &&
+		!hasNullThenMemberRead(code)
+}
+
+// dateArithmeticPattern finds `new Date(...) - new Date(...)`, valid JavaScript
+// through valueOf and the ordinary way to write a chronological sort.
+var dateArithmeticPattern = regexp.MustCompile(`new\s+Date\s*\([^)]*\)\s*[-+*/]`)
+
+// nullInitPattern finds a variable initialised to null.
+var nullInitPattern = regexp.MustCompile(`(?m)\bvar\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*null\b`)
+
+// hasNullThenMemberRead reports whether a variable initialised to null is later
+// read for a property.
+//
+// The initialisation alone is harmless and common; it is the later read that
+// TypeScript rejects, having narrowed the variable to `never`. Matching only the
+// declaration would disqualify far more code than it needs to.
+func hasNullThenMemberRead(code string) bool {
+	for _, m := range nullInitPattern.FindAllStringSubmatch(code, -1) {
+		name := regexp.QuoteMeta(m[1])
+		if regexp.MustCompile(`\b` + name + `\s*[.\[]`).MatchString(code) {
+			return true
+		}
+	}
+	return false
 }
 
 // JSConfig is the strict configuration, kept for callers with no code to inspect.
