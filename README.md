@@ -478,6 +478,15 @@ og rules diff rules/env-anomaly --exit-code -o json    # CI drift gate
 # 1 for differences, 0 for none, 2 on error. The -o json shape is a versioned
 # contract: see docs/json-output.md.
 
+# Read one remote code file, raw — no envelope, no table, nothing around it
+og rules show <rule-id> --org sensehat                       # list the files it carries
+og rules show <rule-id> --org sensehat --path javascript.js  # print that one to stdout
+#
+# The names are the ones `pull` writes on disk, so a path from the local tree
+# addresses the same file remotely. This is what an editor plugin uses for the
+# remote side of a native diff view — the same command serves connectors and
+# provision functions.
+
 # Check an artifact before deploying it — local only, no credentials needed
 og rules validate rules/env-anomaly
 og connectors validate connectors/weather

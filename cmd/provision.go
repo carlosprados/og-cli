@@ -401,6 +401,12 @@ func provisionClient() (*opengate.Client, string, error) {
 
 // --- init ---
 
+var provisionShowCmd = newShowCmd(unwrap.ProvisionFunctionDescriptor(),
+	func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetProvisionProcessor(ctx, org, id)
+	},
+	"show <pp-id>", "Print a provision function's remote code files")
+
 var provisionDiffCmd = newDiffCmd(diffSpec{
 	Descriptor: unwrap.ProvisionFunctionDescriptor(),
 	Use:        "diff <pf-dir>",
@@ -444,6 +450,8 @@ func init() {
 	addValidateFlags(provisionValidateCmd)
 	provisionCmd.AddCommand(provisionDiffCmd)
 	addDiffFlags(provisionDiffCmd)
+	provisionCmd.AddCommand(provisionShowCmd)
+	addShowFlags(provisionShowCmd)
 	provisionCreateCmd.Flags().StringVarP(&ppCreateFile, "file", "f", "", "path to JSON file with provision function definition")
 	provisionCreateCmd.MarkFlagRequired("file")
 
