@@ -33,14 +33,14 @@ all 13 live sensehat artifacts type-check clean.
 | 10c | Documentation response consumed: `@deprecated`, documented return types, `Param` tables, `entity` as ambient global | unreleased |
 | 11 | Widget `$api` typings, from `opengate-js` 16.0.0's own declarations | unreleased |
 | 12 | `og widget check` — diagnostics inside the platform's async wrapper | unreleased |
+| 13 | `og workspace diff` — hierarchical renderer for workspaces and dashboards | unreleased |
+| 14 | `og workspace watch` + sync snapshots recorded on workspace pull | unreleased |
 
 ## Not done
 
 | Item | Why it is not done | Size |
 |---|---|---|
-| **`diff` for workspaces/dashboards** | The engine is family-agnostic and their payloads canonicalize fine; what is missing is the hierarchical renderer — a tree of dashboards and widgets each with its own marker, rather than a flat list of `dashboards[0].dashboard.grid[2]…` paths. A rendering job. | medium |
-| **`watch` for workspaces/dashboards** | Depends on the above, and on the session-invalidation warning that only applies to these two families. | small after diff |
-| **Phase 11: VS Code extension** | Gated on the governance decision (community tool vs Amplía product), which Charlie has yet to discuss internally. | large |
+| **Phase 11: VS Code extension** | **Unblocked 2026-08-28.** Charlie has had the conversation at Amplía: we publish it ourselves as an unofficial community product, carrying that disclaimer. Nothing gates it now — it is the next substantial piece of work. | large |
 | Volatile fields for rules and provision functions | None observed in a real payload. Deliberately empty, with a test pinning that intent. Fill from a live GET if one ever shows one. | trivial |
 
 ---
@@ -50,9 +50,11 @@ all 13 live sensehat artifacts type-check clean.
 | Decision | When | Note |
 |---|---|---|
 | Widget diagnostics come from a rebuilt wrapper, not from a laxer config | 2026-08-28 | TS1108 on a top-level `return` is unavoidable in every module configuration tried, and every widget has one. Rather than force `checkJs` on and ask the author to ignore a known error, `og widget check` wraps the code in the platform's own async function and checks that — the return and the `await` become ordinary and nothing is suppressed. Two JS-vs-TS idioms are set aside by name, narrowly enough that a misspelled `$api` member still reports. |
+| Workspace watch deploys dashboards, not workspaces | 2026-08-28 | The watch rule is that a change resolves to the smallest deployable unit, and for a widget edit that is its dashboard; deploying a whole workspace per keystroke is the blast radius the rule exists to avoid. It also needed `og workspace pull` to record a sync snapshot, which it never did — without a base every classification is Unknown and the conflict guard is a blind overwrite. Verified live: a genuine conflict is refused. |
+| Workspace diff matches children by identity, not by position | 2026-08-28 | Matching by index turns one widget inserted at the top of a dashboard into "every widget changed", which is the output that makes a diff useless. Position is reported separately as a move, and a move counts as a change in both the marker column and the JSON status — anything else traps a consumer filtering on status. Verified live: reorder, insert and delete each report as themselves. |
 | The widget `$api` surface is consumed, never generated | 2026-08-28 | `opengate-js` 16.0.0 ships 246 `.d.ts` from its own JSDoc, resolved from node_modules under all four module-resolution strategies. Verified against sensehat's two live `$api` widgets. Generating a second copy from `libs/ogapi-docs` would have been strictly worse — those pages came from an unmerged branch. og writes the injected globals and the async wrapper's parameters, and nothing else. |
 | **Always verify against the real OpenGate** (`sensehat` on api.opengate.es), never a mock | 2026-08-26, standing | Found 4 API bugs, a false positive on working code, and a path bug that silently disabled conflict detection. Log in with `--no-web` so the North-API-only path cannot invalidate a browser session. Ask before anything that writes. |
-| Governance: **community tool, for now** | 2026-08-25 | Provisional, pending Charlie's conversation at Amplía. Gates the extension. |
+| Governance: **community tool**, and we publish the extension ourselves | 2026-08-25, settled 2026-08-28 | The Amplía conversation happened: og stays a community tool, and the VS Code extension ships from us under an explicit "unofficial, community product" disclaimer rather than as an Amplía product. No longer provisional, and Phase 11 is no longer gated. The `production: true` guard on watch stays — a community tool writing to a customer's platform has no support channel to catch the fallout. |
 | No JavaScript parser dependency | 2026-08-26 | `validate` does JSON, declared files, bracket balance and per-family traps. The script itself is covered by typings + the editor's real type-checker. |
 | Untyped values are `any`, not `unknown` | 2026-08-26 | `unknown` rejects `entity['x']._value._current.value > n`, which is correct JavaScript. The goal is catching mistyped identifiers. |
 | The generated `jsconfig` adapts to the code | 2026-08-26 | `checkJs` off where a top-level `return`, an untyped helper parameter or a dynamic index would flag working code. 8 of 13 live artifacts are fully checked, 5 completion-only. |

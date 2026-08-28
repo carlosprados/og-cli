@@ -312,7 +312,7 @@ edit, will lose the other's changes wholesale. Not caused by this roadmap; worth
 | 3   | Connector functions per channel or per org?   | **Per channel**, like rules. Provision functions are **per org**. `verified-live`                                                                                                                                                |
 | 4   | Real input contract for provision functions?  | Excel spreadsheet + `normalizeRawObject`/`actionsPlanning`; server-side `plan` already exists (§3.4).                                                                                                                            |
 | 5   | Should `og cf test` stub protocol execution?  | **Recommendation: no.** Ship static validation instead (§6.2).                                                                                                                                                                   |
-| 6   | Governance: community tool or Amplía product? | **Decided 2026-08-25: community tool, for now.** Charlie has yet to discuss it with others at Amplía, so treat it as provisional — revisit before the extension ships (§9). Interacts with `docs/premium-open-core-analysis.md`. |
+| 6   | Governance: community tool or Amplía product? | **Settled 2026-08-28: community tool, and we publish the extension ourselves.** The Amplía conversation happened. og stays a community tool, and the VS Code extension ships from us carrying an explicit "unofficial, community product" disclaimer rather than as an Amplía product. No longer provisional; Phase 11 is no longer gated. Interacts with `docs/premium-open-core-analysis.md`. |
 
 ---
 
@@ -588,14 +588,16 @@ Phases 2 and 3 of the handoff are struck: already shipped.
 
 ## 9. Consequences of the decisions
 
-### 9.1 Community tool (provisional)
+### 9.1 Community tool (settled 2026-08-28)
 
 - The unofficial/no-warranty framing in `README.md` stands; nothing needs softening yet.
 - `watch` still ships the `production: true` profile guard and `--allow-production` (§5.6). A
   community tool writing to a customer's production platform is *more* reason for the guard, not
   less — the tool carries no support channel to catch the fallout.
-- Phase 11 (VS Code extension) stays gated: publishing to a marketplace under a community banner
-  is a distribution decision, not a technical one. Revisit when the Amplía conversation happens.
+- Phase 11 (VS Code extension) is **no longer gated** (settled 2026-08-28). Publishing to a
+  marketplace under a community banner was a distribution decision rather than a technical one, and
+  it has been taken: we publish it, with the unofficial/community disclaimer carried into the
+  marketplace listing and the extension's own README, not only into this repository's.
 - No change to the roadmap's technical content.
 
 ### 9.2 B1–B3 as a patch release — with one correction

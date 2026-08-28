@@ -124,6 +124,16 @@ Widget JS runs sandboxed with globals `$api`, `$user`, `$moment`, `http` — see
 >    the platform's own async wrapper and maps positions back to your file.
 >    `--exit-code` makes it a CI gate; `--strict` also shows the two idioms it
 >    sets aside (Date subtraction, and a property read on a `null`-initialised var).
+>    Before deploying, `og workspace diff <dir>` shows what the deploy would do as
+>    a tree: workspace → dashboard → widget, with '+' created, '−' deleted and '~'
+>    changed. Widgets are matched by identity, so a reorder reads as a move rather
+>    than as a rewrite of every widget. Same flags as the other families
+>    (`--name-only`, `--against <profile>`, `--exit-code`, `--context`).
+>    `og workspace watch <dir>` deploys on save, with the DASHBOARD as the unit:
+>    a widget edit deploys its dashboard, not the whole workspace; workspace.json
+>    edits are skipped (use deploy). It refuses on conflict, with no --force, and
+>    refuses to start against a `production: true` profile without
+>    --allow-production. Start with --dry-run.
 >
 > 2. **ES5 only** — the platform lints widget code with JSHint at render time:
 >    `const`/`let`/arrow functions/`for...of` FAIL; use `var`, `function`

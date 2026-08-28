@@ -629,6 +629,59 @@ exist on type 'OpenGateAPI'. Did you mean 'datapointsSearchBuilder'?
 
 which otherwise surfaces as "Data not found" at render time.
 
+### workspace diff
+
+A workspace is a tree — dashboards holding widgets — so its diff is rendered as
+one, rather than as the flat key paths the other families use. Dashboards and
+widgets are matched by identity, so moving a widget is a move and not two
+rewrites, and unchanged branches are pruned to leave the path to what differs:
+
+```bash
+og workspace diff ws/multisensor-demo
+```
+
+```
+~ workspace Multisensor Demo  (_multisensor_demo_ws)
+  metadata:
+    + color: #ff0000
+  ~ dashboard Multisensor Overview (staging)  (multisensor-overview)
+    metadata:
+      ~ title: Multisensor Overview → Multisensor Overview (staging)
+    ~ widget 02__customChart__demo-temp-chart  (demo-temp-chart)
+      _widgetConfigCode.js  +1 −1
+        - var devices = ['multisensor-001', …];
+        + var devices = ['multisensor-999', …];
+```
+
+Read remote → local, so it is what deploying would do: `+` would be created,
+`−` deleted, `~` changed. Widget JavaScript is compared as a textual diff of the
+extracted files — the ones the editor works on — and everything else as a
+structural diff of the metadata. `--name-only`, `--against <profile>`,
+`--exit-code` and `--context` work as they do for the flat families.
+
+### workspace watch
+
+Deploys on save, with the dashboard as the unit: editing a widget's JavaScript
+deploys the dashboard that widget belongs to, not the whole workspace. Edits to
+`workspace.json` are reported and skipped — `og workspace deploy` is for those.
+
+```bash
+og workspace watch ws/ --dry-run
+og workspace watch ws/
+```
+
+```
+15:34:09  refused  00__multisensor-overview  [conflict]  the remote changed since
+you pulled — deploying would discard it. Run `og workspace diff`, then pull or
+resolve by hand.
+```
+
+The conflict guard needs the snapshot `og workspace pull` records under `.og/`.
+A dashboard pulled before that existed, or unwrapped from an export file rather
+than fetched, has no snapshot and is reported as unknown rather than silently
+overwritten. Same flags as the other families, including the `production: true`
+profile guard and `--allow-production`.
+
 ### connectors (alias: cf)
 
 Manage **connector functions** — JavaScript hooks in the device-integration
