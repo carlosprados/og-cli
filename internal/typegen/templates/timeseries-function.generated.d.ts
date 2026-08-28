@@ -12,52 +12,52 @@ declare const aggFunct: {
   /**
    *  The engine will calculate the arithmetic average of all received values in the configured time bucket. Only available in numeric values.
    */
-  AVG(receivedValues: any, currentValue: any, extra: any): any;
+  AVG(receivedValues: any[], currentValue: any, extra: any): any;
   /** The engine will store the count of total number values received per time bucket. */
-  COUNT(receivedValues: any, currentValue: any, extra: any): any;
+  COUNT(receivedValues: any[], currentValue: any, extra: any): any;
   /**
    *  The engine will store only the first received value per time bucket. The collection engine ignores the following values obtained in the same time bucket.
    */
-  FIRST(receivedValues: any, currentValue: any, extra: any): any;
+  FIRST(receivedValues: any[], currentValue: any, extra: any): any;
   /**
    *  The engine will calculate the geometric average of all received values in the configured time bucket. Only available in numeric values.
    */
-  GEO_AVG(receivedValues: any, currentValue: any, extra: any): any;
+  GEO_AVG(receivedValues: any[], currentValue: any, extra: any): any;
   /**
    *  The engine will store only the last received value per time bucket, overwriting the previous ones.
    */
-  LAST(receivedValues: any, currentValue: any, extra: any): any;
+  LAST(receivedValues: any[], currentValue: any, extra: any): any;
   /**
    *  The engine will save the maximum value of all received values in the configured time bucket. Only available for numeric values.
    */
-  MAX(receivedValues: any, currentValue: any, extra: any): any;
+  MAX(receivedValues: any[], currentValue: any, extra: any): any;
   /**
    *  The engine will calculate the median of all received values in the configured time bucket. Only available in numeric values.
    */
-  MEDIAN(receivedValues: any, currentValue: any, extra: any): any;
+  MEDIAN(receivedValues: any[], currentValue: any, extra: any): any;
   /**
    *  The engine will save the minimum value of all received values in the configured time bucket. Only available for numeric values.
    */
-  MIN(receivedValues: any, currentValue: any, extra: any): any;
+  MIN(receivedValues: any[], currentValue: any, extra: any): any;
   /**
    *  The engine will calculate the standard deviation of all received values in the configured time bucket. Only available in numeric values.
    */
-  STD_DEVIATION(receivedValues: any, currentValue: any, extra: any): any;
+  STD_DEVIATION(receivedValues: any[], currentValue: any, extra: any): any;
   /**
    *  The engine will save the sum of all received values in the configured time bucket. Only available for numeric values.
    */
-  SUM(receivedValues: any, currentValue: any, extra: any): any;
+  SUM(receivedValues: any[], currentValue: any, extra: any): any;
   /**
    *  The engine will calculate the variance of all received values in the configured time bucket. Only available in numeric values.
    */
-  VARIANCE(receivedValues: any, currentValue: any, extra: any): any;
+  VARIANCE(receivedValues: any[], currentValue: any, extra: any): any;
 };
 
 declare const data: {
   /**
    *  Aux method to check if some value has value. If value is `undefined` or `null` it will return false.
    */
-  exists(value: any): any;
+  exists(value: any): boolean;
   /**
    *  Aux method to replace all undefined fields with null values. Internally used to avoid issues when processing execution result.
    */
@@ -68,11 +68,11 @@ declare const date: {
   /**
    *  Compares two dates. These dates can be passed as strings in ISO format or as Date objects. The result is:
    */
-  compare(date1: any, date2: any): any;
+  compare(date1: Date, date2: Date): any;
   /** Create Date object from ISO string. */
-  fromString(stringDate: any): any;
+  fromString(stringDate: string): any;
   /** Returns iso string representation of Date object. */
-  toString(date: any): any;
+  toString(date: Date): any;
 };
 
 declare const log: {

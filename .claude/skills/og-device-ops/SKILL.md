@@ -167,6 +167,10 @@ og rules pull <rule-id> --dir rules/ --org <org>   # → rules/<slug>/rule.json 
 # their schema. entity['sensro.temperature'] and severity:'HIGH' become editor
 # errors instead of silent runtime undefined. Both files are ignored by wrap and
 # deploy — they never reach the platform.
+# The declarations also carry the platform's deprecations: 41 superseded globals
+# are marked @deprecated with their replacement. Two of them REVERSE their
+# arguments — collectCF(data, criteria) → cf.collection(criteria, payload), and
+# responseCF likewise — so migrating a call means swapping them, not renaming.
 og typegen --context rule/ADVANCED --org <org> --out rules/<slug>/   # regenerate after a datamodel change
 og rules pull <rule-id> --dir rules/ --org <org> --no-typings        # skip them
 # edit javascript.js in the IDE

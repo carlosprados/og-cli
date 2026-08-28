@@ -14,138 +14,138 @@
 // ── Plain functions ─────────────────────────────────────────────────────────
 
 /** Builds Create Asset action with provided JSON. */
-declare function CREATE_ASSET_ACTION(entityJson: any, description: any): any;
+declare function CREATE_ASSET_ACTION(entityJson: any, description: string): any;
 
 /** Builds Create Device action with provided JSON. */
-declare function CREATE_DEVICE_ACTION(entityJson: any, description: any): any;
+declare function CREATE_DEVICE_ACTION(entityJson: any, description: string): any;
 
 /** Builds Create Subscriber action with provided JSON. */
-declare function CREATE_SUBSCRIBER_ACTION(entityJson: any, description: any): any;
+declare function CREATE_SUBSCRIBER_ACTION(entityJson: any, description: string): any;
 
 /** Builds Create Subscription action with provided JSON. */
-declare function CREATE_SUBSCRIPTION_ACTION(entityJson: any, description: any): any;
+declare function CREATE_SUBSCRIPTION_ACTION(entityJson: any, description: string): any;
 
 /** Builds Delete Asset action with provided JSON. */
-declare function DELETE_ASSET_ACTION(entityJson: any, description: any): any;
+declare function DELETE_ASSET_ACTION(entityJson: any, description: string): any;
 
 /** Builds Delete Device action with provided JSON. */
-declare function DELETE_DEVICE_ACTION(entityJson: any, full: any, description: any): any;
+declare function DELETE_DEVICE_ACTION(entityJson: any, full: boolean, description: string): any;
 
 /** Builds Delete Subscriber action with provided JSON. */
-declare function DELETE_SUBSCRIBER_ACTION(entityJson: any, description: any): any;
+declare function DELETE_SUBSCRIBER_ACTION(entityJson: any, description: string): any;
 
 /** Builds Delete Subscription action with provided JSON. */
-declare function DELETE_SUBSCRIPTION_ACTION(entityJson: any, description: any): any;
+declare function DELETE_SUBSCRIPTION_ACTION(entityJson: any, description: string): any;
 
 /**
  *  Init `entityJson` property with an entity identifier. Use `new Entity(entityIdentifier)` to create a new Entity.
  */
-declare function Entity(entityIdentifier: any): any;
+declare function Entity(entityIdentifier: string): any;
 
 /** Initialize ErrorManager entity. Use `new` keyword to create an instance of ErrorManager. */
-declare function ErrorManager(platformErrors: any, actionObject: any, defaultErrorMessage: any): any;
+declare function ErrorManager(platformErrors: any, actionObject: any, defaultErrorMessage: string): any;
 
 /** Builds Patch Asset action with provided JSON. */
-declare function PATCH_ASSET_ACTION(entityJson: any, description: any): any;
+declare function PATCH_ASSET_ACTION(entityJson: any, description: string): any;
 
 /** Builds Patch DEVICE action with provided JSON. */
-declare function PATCH_DEVICE_ACTION(entityJson: any, description: any): any;
+declare function PATCH_DEVICE_ACTION(entityJson: any, description: string): any;
 
 /** Builds Patch Subscriber action with provided JSON. */
-declare function PATCH_SUBSCRIBER_ACTION(entityJson: any, description: any): any;
+declare function PATCH_SUBSCRIBER_ACTION(entityJson: any, description: string): any;
 
 /** Builds Patch Subscription action with provided JSON. */
-declare function PATCH_SUBSCRIPTION_ACTION(entityJson: any, description: any): any;
+declare function PATCH_SUBSCRIPTION_ACTION(entityJson: any, description: string): any;
 
 /** Builds Update Asset action with provided JSON. */
-declare function UPDATE_ASSET_ACTION(entityJson: any, description: any): any;
+declare function UPDATE_ASSET_ACTION(entityJson: any, description: string): any;
 
 /** Builds Update Device action with provided JSON. */
-declare function UPDATE_DEVICE_ACTION(entityJson: any, description: any): any;
+declare function UPDATE_DEVICE_ACTION(entityJson: any, description: string): any;
 
 /** Builds Update Subscriber action with provided JSON. */
-declare function UPDATE_SUBSCRIBER_ACTION(entityJson: any, description: any): any;
+declare function UPDATE_SUBSCRIBER_ACTION(entityJson: any, description: string): any;
 
 /** Builds Update Subscription action with provided JSON. */
-declare function UPDATE_SUBSCRIPTION_ACTION(entityJson: any, description: any): any;
+declare function UPDATE_SUBSCRIPTION_ACTION(entityJson: any, description: string): any;
 
 /** *Internal method.* */
-declare function _checkDuplicatedDS(currentEntityIdentifierDatastream: any, currentEntityIdentifierValue: any, ...datastreamsToCheck: any[]): any;
+declare function _checkDuplicatedDS(currentEntityIdentifierDatastream: string, currentEntityIdentifierValue: string, ...datastreamsToCheck: any[]): boolean;
 
 /** *Internal method.* */
-declare function _checkEntity(id: any, resourceType: any): any;
+declare function _checkEntity(id: string, resourceType: string): boolean;
 
 /** *Internal method.* */
-declare function _createAction(action: any, entityJson: any, entityType: any, full: any, description: any): any;
+declare function _createAction(action: string, entityJson: any, entityType: string, full: boolean, description: string): any;
 
 /** Auxiliary method to build params maps for Java Queries */
 declare function _minJavaParams(queryContextParams: any): any;
 
 /** Check if an Asset exists for specified id. */
-declare function checkAsset(id: any): any;
+declare function checkAsset(id: string): boolean;
 
 /** Check if a Device exists for specified id. */
-declare function checkDevice(id: any): any;
+declare function checkDevice(id: string): boolean;
 
 /** Check if a Subscriber exists for specified id. */
-declare function checkSubscriber(id: any): any;
+declare function checkSubscriber(id: string): boolean;
 
 /** Check if a Subscription exists for specified id. */
-declare function checkSubscription(id: any): any;
+declare function checkSubscription(id: string): boolean;
 
 /** Searches for duplicated datastreams in other Assets (other than currentAssetId). */
-declare function duplicatedDsInAssets(currentAssetId: any, ...datastreamsToCheck: any[]): any;
+declare function duplicatedDsInAssets(currentAssetId: string, ...datastreamsToCheck: any[]): boolean;
 
 /** Searches for duplicated datastreams in other Devices (other than currentDeviceId). */
-declare function duplicatedDsInDevices(currentDeviceId: any, ...datastreamsToCheck: any[]): any;
+declare function duplicatedDsInDevices(currentDeviceId: string, ...datastreamsToCheck: any[]): boolean;
 
 /**
  *  Searches for duplicated datastreams in other Subscribers (other than currentSubscriberId).
  */
-declare function duplicatedDsInSubscribers(currentSubscriberId: any, ...datastreamsToCheck: any[]): any;
+declare function duplicatedDsInSubscribers(currentSubscriberId: string, ...datastreamsToCheck: any[]): boolean;
 
 /**
  *  Searches for duplicated datastreams in other Subscriptions (other than currentSubscriptionId).
  */
-declare function duplicatedDsInSubscriptions(currentSubscriptionId: any, ...datastreamsToCheck: any[]): any;
+declare function duplicatedDsInSubscriptions(currentSubscriptionId: string, ...datastreamsToCheck: any[]): boolean;
 
 /** Invokes Java V8 `genericSearchInternal` method for ENTITIES. */
-declare function entitiesGenericSearch(searchFilter: any, queryContextParams: any): any;
+declare function entitiesGenericSearch(searchFilter: string, queryContextParams: any): any;
 
 /** Searches entities with provided filter. Your script calls it through */
-declare function genericSearchInternal(searchTypeValue: any, searchQueryValue: any, javaParams: any): any;
+declare function genericSearchInternal(searchTypeValue: string, searchQueryValue: string, javaParams: any): string;
 
 /** Gets specific Asset for specified id. */
-declare function getAssetEntity(id: any): any;
+declare function getAssetEntity(id: string): any;
 
 /** Gets specific Device for specified id. */
-declare function getDeviceEntity(id: any): any;
+declare function getDeviceEntity(id: string): any;
 
 /** Invokes Java V8 `getEntityInternal` method. */
-declare function getEntity(entityId: any, resourceType: any, queryContextParams: any): any;
+declare function getEntity(entityId: string, resourceType: string, queryContextParams: any): any;
 
 /** Gets specific Entity for provided id. Your script calls it through */
-declare function getEntityInternal(provisionType: any, resourceType: any, entityId: any, javaParams: any): any;
+declare function getEntityInternal(provisionType: string, resourceType: string, entityId: string, javaParams: any): string;
 
 /** Gets specific Subscriber for specified id. */
-declare function getSubscriberEntity(id: any): any;
+declare function getSubscriberEntity(id: string): any;
 
 /** Gets specific Subscription for specified id. */
-declare function getSubscriptionEntity(id: any): any;
+declare function getSubscriptionEntity(id: string): any;
 
 /** Creates Entity class object with specified entity json. */
 declare function newEntityBuilder(fromEntityJson: any): any;
 
 /** Invokes Java V8 `printLogInternal` method. */
-declare function printLog(msg: any): any;
+declare function printLog(msg: string): void;
 
 /**
  *  Writes INFO log messages. Your script calls it through [printLog](../provision_functions_v8utils_js_api/#printlogmsg).
  */
-declare function printLogInternal(msg: any): any;
+declare function printLogInternal(msg: string): void;
 
 /** Auxiliary method to read values from the specified map. */
-declare function readMapValue(map: any, headerName: any, defaultValue: any, headerColumn: any): any;
+declare function readMapValue(map: any, headerName: string, defaultValue: any, headerColumn: string): any;
 
 // ── Objects ─────────────────────────────────────────────────────────────────
 
@@ -154,107 +154,107 @@ interface OGEntityMethods {
   /** *Internal method.* */
   _addToEntity(datastream: any): any;
   /** *Internal method.* */
-  _cleanArray(valuesArray: any): any;
+  _cleanArray(valuesArray: any[]): any[];
   /** *Internal method.* */
-  _generateDatastreamEntry(datastream: any, dsJson: any): any;
+  _generateDatastreamEntry(datastream: string, dsJson: any): any;
   /** *Internal method.* */
-  _generateDatastreamJsonWithArray(datastream: any, valuesArray: any): any;
+  _generateDatastreamJsonWithArray(datastream: string, valuesArray: any[]): any;
   /** *Internal method.* */
-  _generateDatastreamWithJson(datastream: any, value: any): any;
+  _generateDatastreamWithJson(datastream: string, value: any): any;
   /** *Internal method.* */
-  _generateIndexedJson(index: any, value: any): any;
+  _generateIndexedJson(index: string, value: any): any;
   /** *Internal method.* */
   _generateJsonCurrentValue(value: any): any;
   /** Method to be used to add datastreams to current entity. */
-  addDatastream(datastream: any, value: any, _index: any): any;
+  addDatastream(datastream: string, value: string, _index: any): any;
   /**
    *  Delete specified datastream. This function requires always complete datastream (ignores withPrefix functions calls).
    */
-  deleteDatastream(datastream: any, _index: any): any;
+  deleteDatastream(datastream: string, _index: any): any;
   /**
    *  Search specified datastream and returns value. This function requires always complete datastream (ignores withPrefix functions calls).
    */
-  getDatastream(datastream: any, _index: any): any;
+  getDatastream(datastream: string, _index: any): any;
   /** Define the prefix of the datastreams to be used by `addDatastream` method. */
-  withPrefix(prefixToBeUsed: any): any;
+  withPrefix(prefixToBeUsed: string): any;
 }
 
 declare const errorManager: {
   /** Returns provision action type (POST, PUT, PATCH, DELETE) from OdmProvisionAction */
-  getAction(): any;
+  getAction(): string;
   /** Returns entity administration identifier. */
-  getAdministrationIdentifier(): any;
+  getAdministrationIdentifier(): string;
   /**
    *  Returns from entity (in OdmProvisionAction) specific datastream value (datastream._value._current.value). It can be an object or plain string.
    */
-  getDatastreamValue(index: any): any;
+  getDatastreamValue(index: number): any;
   /**
    *  Returns from entity (in OdmProvisionAction) specific datastream value (datastream._value._current.value). It can be a json string.
    */
-  getDatastreamValueAsString(index: any): any;
+  getDatastreamValueAsString(index: number): string;
   /** **Kind**: instance method of [ErrorManager](#errormanager) */
-  getDefaultMessage(): any;
+  getDefaultMessage(): string;
   /**
    *  Returns provision entity type (asset, device, subscription, subscriber) from OdmProvisionAction
    */
-  getEntityType(): any;
+  getEntityType(): string;
   /** Returns number of errors contained. */
-  getErrorsSize(): any;
+  getErrorsSize(): number;
   /** Returns first error's first context object. */
   getFirstContext(): any;
   /** Returns first error's first context object as string. */
-  getFirstContextAsString(): any;
+  getFirstContextAsString(): string;
   /** Returns first error's first context's name property. */
-  getFirstContextName(): any;
+  getFirstContextName(): string;
   /** Returns first error's first context's value property. */
-  getFirstContextValue(): any;
+  getFirstContextValue(): string;
   /** Returns first error object. */
   getFirstError(): any;
   /** Returns first error object as string */
-  getFirstErrorAsString(): any;
+  getFirstErrorAsString(): string;
   /** Returns first error's code property. */
-  getFirstErrorCode(): any;
+  getFirstErrorCode(): string;
   /** Returns first error's context property. */
-  getFirstErrorContextArray(): any;
+  getFirstErrorContextArray(): any[];
   /** Returns first error's context property. */
-  getFirstErrorContextArrayAsString(): any;
+  getFirstErrorContextArrayAsString(): string;
   /** Returns first error's message property. */
-  getFirstErrorMessage(): any;
+  getFirstErrorMessage(): string;
   /** Returns specific context in specific error. */
-  getSpecificContext(errorIndex: any, contextIndex: any): any;
+  getSpecificContext(errorIndex: number, contextIndex: number): any;
   /** Returns specific context in specific error as string. */
-  getSpecificContextAsString(errorIndex: any, contextIndex: any): any;
+  getSpecificContextAsString(errorIndex: number, contextIndex: number): string;
   /** Returns specific context's name in specific error. */
-  getSpecificContextName(errorIndex: any, contextIndex: any): any;
+  getSpecificContextName(errorIndex: number, contextIndex: number): string;
   /** Returns specific context's value in specific error. */
-  getSpecificContextValue(errorIndex: any, contextIndex: any): any;
+  getSpecificContextValue(errorIndex: number, contextIndex: number): string;
   /** Returns specific error's code */
-  getSpecificErrorCode(index: any): any;
+  getSpecificErrorCode(index: number): string;
   /** Returns specific error's context property as array. */
-  getSpecificErrorContextArray(index: any): any;
+  getSpecificErrorContextArray(index: number): any[];
   /** Returns specific error's context property as string. */
-  getSpecificErrorContextArrayAsString(index: any): any;
+  getSpecificErrorContextArrayAsString(index: number): string;
   /** Returns specific error's message */
-  getSpecificErrorMessage(index: any): any;
+  getSpecificErrorMessage(index: number): string;
   /** Returns specific error object */
-  getSpecificErrorObject(index: any): any;
+  getSpecificErrorObject(index: number): any;
   /** Returns specific error object as a string */
-  getSpecificErrorObjectAsString(index: any): any;
+  getSpecificErrorObjectAsString(index: number): string;
   /** **Kind**: instance method of [ErrorManager](#errormanager) */
-  isAsset(): any;
+  isAsset(): boolean;
   /** **Kind**: instance method of [ErrorManager](#errormanager) */
-  isDelete(): any;
+  isDelete(): boolean;
   /** **Kind**: instance method of [ErrorManager](#errormanager) */
-  isDevice(): any;
+  isDevice(): boolean;
   /** **Kind**: instance method of [ErrorManager](#errormanager) */
-  isPatch(): any;
+  isPatch(): boolean;
   /** **Kind**: instance method of [ErrorManager](#errormanager) */
-  isPost(): any;
+  isPost(): boolean;
   /** **Kind**: instance method of [ErrorManager](#errormanager) */
-  isPut(): any;
+  isPut(): boolean;
   /** **Kind**: instance method of [ErrorManager](#errormanager) */
-  isSubscriber(): any;
+  isSubscriber(): boolean;
   /** **Kind**: instance method of [ErrorManager](#errormanager) */
-  isSubscription(): any;
+  isSubscription(): boolean;
 };
 
