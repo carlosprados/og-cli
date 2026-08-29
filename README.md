@@ -397,6 +397,32 @@ og alarms close <alarm-uuid> --notes "Resolved"
 
 **Alarm fields:** `alarm.severity` (INFORMATIVE, URGENT, CRITICAL), `alarm.status` (OPEN, ATTEND, CLOSED), `alarm.name`, `alarm.rule`, `alarm.entityIdentifier`, `alarm.organization`, `alarm.channel`, `alarm.priority` (LOW, MEDIUM, HIGH), `alarm.openingDate`.
 
+### whoami
+
+```bash
+og whoami           # who, where, and how long the token has left — local, offline, instant
+og whoami --check   # also asks the platform whether it still accepts it
+og whoami -o json   # for a script or an editor plugin
+```
+
+```
+sensehat@amplia.es (Sense)
+  profile       default
+  host          https://api.opengate.es
+  organization  sensehat
+  token         valid for 21h36m0s (until 2026-08-30T11:35:13+02:00)
+  web session   yes — workspace and dashboard commands are available
+```
+
+Reads the token's own claims, so it needs no network and no organization. That
+answers the question that comes up most — is there a session, whose, and has it
+expired — which a 401 from some other command cannot: it does not distinguish
+"never logged in" from "expired an hour ago".
+
+Exit 0 when there is a usable session, 1 when there is none or it has expired
+(or, with `--check`, was rejected), 2 on failure. The API key the token also
+carries is never printed; the JSON reports only whether one is stored.
+
 ### rules
 
 Manage automation rules. Two modes: **EASY** (declarative condition + actions) and

@@ -40,6 +40,10 @@ skill requires rebuilding `og` for the embedded copy to pick up the change.
 
 ```bash
 og login -e user@example.com            # password prompted; stores North JWT + Web JWT + API key
+og whoami                          # is there a session, whose, and until when? local, offline
+og whoami --check                  # also confirms the platform still accepts the token
+#   exit 0 usable session / 1 none or expired / 2 failure — use it as a guard
+#   before a batch of calls instead of reading a 401 afterwards
 og login -e user@example.com --profile staging
 og login -e user@example.com --no-web   # skip Web API signin (no workspace/dashboard cmds)
 og login -e user@example.com --2fa-code 123456   # TOTP 2FA-enabled accounts
