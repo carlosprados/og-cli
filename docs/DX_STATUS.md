@@ -5,7 +5,7 @@ Short, current, and meant to be read first. The reasoning behind every decision 
 
 **Last updated:** 2026-08-29
 **Branch:** `main`, pushed and clean
-**Released:** `v2.3.0`. Nothing unreleased.
+**Released:** `v2.4.0`. Nothing unreleased.
 **Health:** build clean, tests green, lint at the 42-issue baseline, 13/13 live sensehat
 artifacts type-check clean under TypeScript 5.9 and 6.0.
 
@@ -13,9 +13,9 @@ artifacts type-check clean under TypeScript 5.9 and 6.0.
 
 | | | |
 |---|---|---|
-| [`og-cli`](https://github.com/carlosprados/og-cli) | `v2.3.0` | the binary; everything else drives it |
+| [`og-cli`](https://github.com/carlosprados/og-cli) | `v2.4.0` | the binary; everything else drives it |
 | [`og.nvim`](https://github.com/carlosprados/og.nvim) | unversioned | Neovim plugin |
-| [`og-vscode`](https://github.com/carlosprados/og-vscode) | `0.3.0` on the Marketplace | VS Code extension |
+| [`og-vscode`](https://github.com/carlosprados/og-vscode) | `0.4.0` packaged; `0.3.0` still live on the Marketplace | VS Code extension |
 
 **Sibling repo:** `og.nvim` now exists at `../og.nvim` — one commit, git initialised, **no GitHub
 remote yet and nothing pushed**. Target remote: `github.com/carlosprados/og.nvim`.
@@ -49,6 +49,9 @@ remote yet and nothing pushed**. Target remote: `github.com/carlosprados/og.nvim
 | 16 | `og whoami` — session state, local and offline, with usable exit codes | v2.3.0 |
 | 11a | **og.nvim** — Neovim plugin | published |
 | 11b | **og-vscode** — VS Code extension | published, `0.3.0` |
+| 17 | `og dashboard show --path` + `og dashboard diff` + `dashboards_code` — a widget is editable | v2.4.0 |
+| 18 | og.nvim's README and `doc/og.txt` rewritten around the nine commands it has | og.nvim `main` |
+| 19 | Both plugins level again: widgets diff and deploy, `anchor` replaces the per-family special cases | og.nvim `main`, og-vscode `0.4.0` |
 
 ## Not done
 
@@ -64,6 +67,10 @@ remote yet and nothing pushed**. Target remote: `github.com/carlosprados/og.nvim
 
 | Decision | When | Note |
 |---|---|---|
+| The dashboard is the smallest addressable unit; the widget is not | 2026-08-29 | A widget is a grid item, not something the platform can name, so it gets no `show`, `diff` or `deploy` of its own — its dashboard does. Editing a widget still works exactly as editing a rule does; only the deploy and the comparison move up a level, and both say so. The same boundary `og workspace watch` already drew. |
+| `show --path` matches widgets by identity, not by grid position | 2026-08-29 | The `NN__` prefix in a widget directory is the remote grid order at the moment of the pull. Match on it and a reorder on the platform orphans every path in a local tree. Where identity is ambiguous — same type, neither widget carrying an id — the path is reported as not found rather than guessed. Consistent with the workspace diff, which already matched children by identity. |
+| A missing cobra subcommand exits 0, so a new verb is checked by exit code | 2026-08-29 | `og dashboard diff` did not exist, and cobra answered it with the family's help page and exit 0. Both editor plugins rendered that help as a diff, and og-vscode confirmed a real dashboard deploy against it. Nothing looked broken from the outside. |
+| The TUI stays out of the artifact-code business | 2026-08-29 | No family shows artifact code in the TUI — not rules, not connector functions — so a widget code viewer would put dashboards ahead of the rest for no reason, and it needs a viewport the TUI does not have. When a code viewer lands it should land for all four families at once. |
 | Both plugins are thin shells; all API logic stays in the binary | 2026-08-29 | Reimplementing a call in Lua or TypeScript makes two sources of truth, and the copy is the one that goes stale. Every platform interaction is a child process. |
 | og.nvim browses with a picker, og-vscode with a sidebar | 2026-08-29 | Parity is of capability, not of chrome. `vim.ui.select` is overridden by LazyVim, Telescope, fzf-lua and snacks, so it inherits the user's own finder and imposes no layout; a hand-rolled tree would be more code and worse. |
 | The session is checked before the work, not after the 401 | 2026-08-29 | A 401 collapses "you never logged in" and "your session expired", which need different things from the reader. `og whoami` is local and instant, so asking first costs a process and no request. Validate stays unguarded: it needs no credentials. |
@@ -93,22 +100,17 @@ remote yet and nothing pushed**. Target remote: `github.com/carlosprados/og.nvim
 Phase 11 is done: both plugins exist and are published. What is left is polish and
 one gap, in the order I would take them.
 
-### 1. og.nvim's documentation is stale — the most urgent thing
+### 1. Upload og-vscode 0.4.0 to the Marketplace
 
-The README and `doc/og.txt` still describe the five original commands. og.nvim gained
-`:OgLogin`, `:OgInstall`, `:OgBrowse` and `:OgPull` on 2026-08-29 and neither mentions
-them. The README is the first thing a LazyVim user reads, so today the plugin
-under-sells itself and its login is undiscoverable.
+Packaged and verified — `og-vscode-0.4.0.vsix`, run against the live tenant from the
+archive itself — but **not uploaded**: the portal route needs a browser session.
+`PUBLISHING.md` §5: **+ New extension** → **Visual Studio Code** → the `.vsix`.
 
-og-vscode's README was rewritten as a help page with a quick start; og.nvim's should
-get the same treatment. That page is the model.
+### 2. Decide whether the plugins get tags
 
-### 2. Two small parity gaps
-
-- `:OgDiff` on an artifact rather than a `.js` file. og-vscode resolves the code file
-  and offers a pick when there are several; og.nvim does not.
-- og-vscode's `MINIMUM_VERSION` still says 2.2.0. 0.3.0 needs 2.3.0 for `whoami`, and
-  an older binary degrades silently rather than being reported.
+Neither repository has ever had one, so there is no way to say "fixed in". og-vscode
+at least has a `version` in `package.json`; og.nvim has nothing, and it is installed
+from a git ref. Open question 4 below, still open.
 
 ### 3. Open VSX
 
