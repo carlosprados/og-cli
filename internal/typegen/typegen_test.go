@@ -554,3 +554,33 @@ func TestJSConfigForWidget(t *testing.T) {
 		t.Error("a null init with no member read should stay checkable")
 	}
 }
+
+// TypeScript 6 reports `target: es5` as a deprecation ERROR, and VS Code ships
+// its own compiler — so this appeared on every artifact og had generated, in the
+// editor the typings exist to serve. The remedy TypeScript suggests,
+// `ignoreDeprecations: "6.0"`, is an invalid value in TypeScript 5, so it would
+// only move the error to a different audience. Verified against both compilers.
+func TestGeneratedConfigsAreCleanOnTypeScript5And6(t *testing.T) {
+	configs := map[string]string{
+		"checkable":       JSConfigFor(""),
+		"completion-only": JSConfigFor("return 1;"),
+		"widget":          JSConfigForWidget("w.js", "var x = 1;"),
+		"widget check":    WidgetCheckConfig("w.js"),
+	}
+	for name, conf := range configs {
+		if strings.Contains(conf, `"target": "es5"`) {
+			t.Errorf("%s config still targets es5, which TypeScript 6 reports as an error:\n%s", name, conf)
+		}
+		if strings.Contains(conf, "ignoreDeprecations") {
+			t.Errorf("%s config uses ignoreDeprecations, which TypeScript 5 rejects as an invalid value", name)
+		}
+	}
+
+	// lib must stay at es5 for the artifact contexts: moving it would put Map,
+	// Set and Promise in scope regardless of what the platform's engine runs.
+	for _, name := range []string{"checkable", "completion-only"} {
+		if !strings.Contains(configs[name], `"lib": ["es5"]`) {
+			t.Errorf("%s config no longer pins lib to es5:\n%s", name, configs[name])
+		}
+	}
+}

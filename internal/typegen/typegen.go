@@ -558,6 +558,17 @@ func quote(s string) string {
 //
 // Two compiler options carry the diagnostic value:
 //
+//	target/lib     `target: es2015` with `lib: ["es5"]`, which looks odd and is
+//	               deliberate. TypeScript 6 deprecates `target: es5` and reports
+//	               it as an error — in VS Code, which ships its own compiler,
+//	               that error appeared on every artifact og had ever generated.
+//	               The remedy TypeScript suggests, `ignoreDeprecations: "6.0"`,
+//	               is rejected as an invalid value by TypeScript 5, so it would
+//	               trade one editor's error for another's. Moving only the
+//	               target is clean on both. `lib` stays at es5 so the APIs in
+//	               scope are unchanged: target governs the syntax TypeScript
+//	               accepts, not what the platform's engine can run, and artifact
+//	               source is still expected to be ES5.
 //	checkJs        without it the declarations give completion but no
 //	               diagnostics, which is half the point.
 //	noImplicitAny  this is what makes entity['sensro.temperature'] an error.
@@ -584,7 +595,7 @@ func JSConfigFor(code string) string {
 	if strict {
 		return `{
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2015",
     "lib": ["es5"],
     "allowJs": true,
     "checkJs": true,
@@ -601,7 +612,7 @@ func JSConfigFor(code string) string {
 	// correct code (a top-level return, or an untyped helper parameter).
 	return `{
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2015",
     "lib": ["es5"],
     "allowJs": true,
     "checkJs": false,
