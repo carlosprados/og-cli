@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 
+	"github.com/carlosprados/og-cli/v2/internal/unwrap"
 	"github.com/carlosprados/og-cli/v2/pkg/opengate"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -13,6 +16,7 @@ import (
 func registerDashboardTools(r *registrar) {
 	r.tool(tsDashboards, dashListTool(), dashListHandler(r.p))
 	r.tool(tsDashboards, dashGetTool(), dashGetHandler(r.p))
+	r.tool(tsDashboards, dashCodeTool(), dashCodeHandler(r.p))
 	r.tool(tsDashboards, dashExportTool(), dashExportHandler(r.p))
 	r.tool(tsDashboardsWrite, dashImportTool(), dashImportHandler(r.p))
 	r.tool(tsDashboardsWrite, dashUpdateTool(), dashUpdateHandler(r.p))
@@ -112,6 +116,89 @@ func dashGetHandler(p *provider) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
 		}
 		result, _ := json.Marshal(d)
+		return mcp.NewToolResultText(string(result)), nil
+	}
+}
+
+// --- code ---
+//
+// dashboards_get already returns the widget code, but buried: it is one string
+// among the nested config of every widget in the grid, so reading one formatter
+// costs the whole dashboard in context. This is the same extraction
+// `og dashboard show` performs, addressed by the path `og workspace pull`
+// writes on disk — so an agent and a person editing the tree name a file the
+// same way.
+//
+// The flat families get no equivalent on purpose: a rule's code is a single
+// field of a payload rules_get returns whole, and a second way to read it would
+// buy nothing.
+
+func dashCodeTool() mcp.Tool {
+	return mcp.NewTool("dashboards_code",
+		mcp.WithDescription(`Read a dashboard's widget JavaScript, one file at a time.
+Without 'path': lists the code files the dashboard carries, with their size.
+With 'path': returns that file's content and nothing else.
+Paths are '<widget-dir>/<file>.js', the same ones 'og workspace pull' writes; the
+NN prefix is the grid position and is ignored when matching, so a path from a
+tree pulled before a reorder still resolves.`),
+		mcp.WithString("id", mcp.Description("Dashboard ID"), mcp.Required()),
+		mcp.WithString("path", mcp.Description("Code file to return, e.g. 01__customtable__sales/_widgetConfigCode.js")),
+	)
+}
+
+type dashCodeEntry struct {
+	File  string `json:"file"`
+	Bytes int    `json:"bytes"`
+	Lines int    `json:"lines"`
+}
+
+func dashCodeHandler(p *provider) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		c, errRes := p.client(ctx)
+		if errRes != nil {
+			return errRes, nil
+		}
+		args := request.GetArguments()
+		id, _ := args["id"].(string)
+		if id == "" {
+			return mcp.NewToolResultError("id is required"), nil
+		}
+
+		d, err := c.GetDashboard(ctx, id)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("get failed: %v", err)), nil
+		}
+		files, err := unwrap.DashboardCodeFiles(d)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("reading the widget code failed: %v", err)), nil
+		}
+
+		names := make([]string, 0, len(files))
+		for name := range files {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+
+		if path, _ := args["path"].(string); path != "" {
+			content, ok := unwrap.ResolveCodePath(files, path)
+			if !ok {
+				// Naming what is there turns a wrong guess into one more call
+				// rather than into a dead end.
+				return mcp.NewToolResultError(fmt.Sprintf("dashboard %s carries no file %q; it has: %s",
+					id, path, strings.Join(names, ", "))), nil
+			}
+			return mcp.NewToolResultText(content), nil
+		}
+
+		entries := make([]dashCodeEntry, 0, len(names))
+		for _, name := range names {
+			entries = append(entries, dashCodeEntry{
+				File:  name,
+				Bytes: len(files[name]),
+				Lines: strings.Count(files[name], "\n") + 1,
+			})
+		}
+		result, _ := json.Marshal(entries)
 		return mcp.NewToolResultText(string(result)), nil
 	}
 }

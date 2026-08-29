@@ -405,7 +405,9 @@ var provisionShowCmd = newShowCmd(unwrap.ProvisionFunctionDescriptor(),
 	func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
 		return c.GetProvisionProcessor(ctx, org, id)
 	},
-	"show <pp-id>", "Print a provision function's remote code files")
+	"show <pp-id>", "Print a provision function's remote code files",
+	"og provision show <pp-id> --org sensehat",
+	"og provision show <pp-id> --org sensehat --path javascript.js")
 
 var provisionDiffCmd = newDiffCmd(diffSpec{
 	Descriptor: unwrap.ProvisionFunctionDescriptor(),

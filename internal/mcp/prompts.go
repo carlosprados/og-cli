@@ -47,7 +47,7 @@ When the user says...          → Use this tool
 "send data", "enviar dato", "collect", "publicar" → iot_collect, iot_collect_payload (HTTP South); iot_collect_raw to trigger a connector function over its HTTP south route (raw body to a CF southCriteria path)
 "MQTT", "publish/subscribe", "virtual device", "dispositivo virtual", "responder operaciones" → iot_mqtt_publish, iot_mqtt_subscribe, iot_mqtt_device (MQTT South; broker auth user=deviceId pass=apiKey; topics default odm/iot|request|response/{id} but are OVERRIDABLE — connector functions define custom southCriterias; iot_mqtt_device auto-answers operation jobs)
 "workspace", "espacio de trabajo" → workspaces_list, workspaces_get, workspaces_export, workspaces_import, workspaces_update, workspaces_delete
-"dashboard", "panel", "cuadro de mando" → dashboards_list, dashboards_get, dashboards_export, dashboards_import, dashboards_update, dashboards_delete
+"dashboard", "panel", "cuadro de mando" → dashboards_list, dashboards_get, dashboards_code, dashboards_export, dashboards_import, dashboards_update, dashboards_delete
 
 ## Available resources
 
@@ -177,6 +177,19 @@ dashboard lands under a different workspace on the destination tenant.
 
 For full workspace migration (workspace + all dashboards) use workspaces_export/import.
 
+Reading widget JavaScript: use dashboards_code, not dashboards_get. A dashboard's code
+sits inside the nested config of every widget in the grid, so dashboards_get costs the
+whole dashboard to read one formatter. dashboards_code(id) lists the code files with
+their size; dashboards_code(id, path) returns one of them and nothing else.
+Paths are "<widget-dir>/<file>.js" — the same names 'og workspace pull' writes on disk,
+so a path a developer quotes from their tree can be used verbatim. The leading NN is the
+widget's grid position and is ignored when matching, so a path from a tree pulled before
+someone reordered the dashboard still resolves.
+
+There is no dashboards_diff: comparing a local directory against the platform is a
+filesystem operation and stays on the CLI ('og dashboard diff <dir>'), like every other
+family's diff.
+
 ## Creating jobs (operations on devices)
 
 To execute an operation on one or more devices, use jobs_create with a JSON body:
@@ -261,6 +274,8 @@ User: "Exporta el workspace abc-123" → workspaces_export(id: "abc-123")
 User: "Dashboards del workspace abc-123" → dashboards_list(workspace_id: "abc-123")
 User: "Todos los dashboards" → dashboards_list()
 User: "Exporta el dashboard xyz" → dashboards_export(id: "xyz")
+User: "Qué código tiene el dashboard xyz" → dashboards_code(id: "xyz")
+User: "Enséñame el formatter de la columna 2 de ese widget" → dashboards_code(id: "xyz", path: "01__fulldeviceslist__w-3/columns__2___formatterCode.js")
 User: "Importa el dashboard X bajo el workspace Y" → dashboards_import(body: <json>, workspace_id: "Y")
 User: "Comparte el workspace X con maria@acme.com" → workspaces_share(id: "X", users: "maria@acme.com")
 User: "Deja de compartir el workspace X" → workspaces_share(id: "X", users: "", domains: "")

@@ -434,7 +434,9 @@ var connectorsShowCmd = newShowCmd(unwrap.ConnectorFunctionDescriptor(),
 	func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
 		return c.GetConnectorFunction(ctx, org, connectorsChannel, id)
 	},
-	"show <cf-id>", "Print a connector function's remote code files")
+	"show <cf-id>", "Print a connector function's remote code files",
+	"og connectors show <cf-id> --org sensehat",
+	"og connectors show <cf-id> --org sensehat --path javascript.js")
 
 var connectorsValidateCmd = newValidateCmd(unwrap.ConnectorFunctionDescriptor(), "validate <cf-dir>", "Check a local connector function directory before deploying it")
 

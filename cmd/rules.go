@@ -454,7 +454,10 @@ var rulesShowCmd = newShowCmd(unwrap.RuleDescriptor(),
 	func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
 		return c.GetRule(ctx, org, rulesChannel, id)
 	},
-	"show <rule-id>", "Print a rule's remote code files")
+	"show <rule-id>", "Print a rule's remote code files",
+	"og rules show <rule-id> --org sensehat",
+	"og rules show <rule-id> --org sensehat --path javascript.js",
+	"og rules show <rule-id> --org sensehat --path javascript.js > /tmp/remote.js")
 
 var rulesValidateCmd = newValidateCmd(unwrap.RuleDescriptor(), "validate <rule-dir>", "Check a local rule directory before deploying it")
 
