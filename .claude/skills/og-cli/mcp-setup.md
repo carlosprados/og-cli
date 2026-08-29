@@ -90,7 +90,7 @@ Read groups (non-mutating) — also reachable via the `readonly` alias:
 | `provision` | provision_list, provision_get, provision_bulk_status, provision_bulk_details |
 | `optypes` | optypes_catalog, optypes_search, optypes_get |
 | `workspaces` | workspaces_list, workspaces_get, workspaces_export |
-| `dashboards` | dashboards_list, dashboards_get, dashboards_export |
+| `dashboards` | dashboards_list, dashboards_get, dashboards_code, dashboards_export |
 | `tasks` | tasks_search, tasks_get |
 
 Write / ops groups (mutations & high-impact actions):

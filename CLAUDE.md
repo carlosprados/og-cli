@@ -99,6 +99,29 @@ capability the CLI offers must be reachable from the TUI too (a field, an auto-d
 code from the stored secret, or a challenge prompt). When you touch login on one
 surface, update the other three in the same PR — no "use the CLI instead" shortcuts.
 
+**The dashboard family's edit verbs (2026-08-29).** `og dashboard show --path` and
+`og dashboard diff` exist so a widget is editable from an editor the way a rule
+already was. Three decisions came with them, and each is load-bearing:
+
+- **The widget is not the unit; the dashboard is.** A widget is a grid item, not
+  something the platform can address on its own, so there is no `og widget show`,
+  `diff` or `deploy`. Same boundary `og workspace watch` already draws when a widget
+  edit deploys its dashboard.
+- **Paths are matched by widget identity, not by grid position.** The `NN__` prefix in
+  a widget directory is the remote grid order at the moment of the pull; a reorder on
+  the platform would otherwise make every path in a local tree address nothing. Where
+  identity is ambiguous (same type, neither widget carrying an id) the path is reported
+  as not found rather than guessed — see `unwrap.ResolveCodePath`.
+- **A missing subcommand is not a loud failure.** cobra answers a subcommand a family
+  does not have by printing that family's help and exiting **0**, so `og dashboard diff`
+  used to look like a successful comparison. Both editor plugins were confirming a
+  deploy against a help page. When a family gains a verb the others have, check the
+  exit code, not just the output.
+
+The TUI was deliberately left alone: no family shows artifact code in the TUI, so a
+widget code viewer would put dashboards ahead of rules and connector functions for no
+reason. When a code viewer lands it should land for all four families at once.
+
 **Deliberate MCP exclusions.** Two operations are CLI-only on purpose, beyond the
 local-filesystem lifecycle verbs:
 

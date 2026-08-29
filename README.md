@@ -510,8 +510,9 @@ og rules show <rule-id> --org sensehat --path javascript.js  # print that one to
 #
 # The names are the ones `pull` writes on disk, so a path from the local tree
 # addresses the same file remotely. This is what an editor plugin uses for the
-# remote side of a native diff view — the same command serves connectors and
-# provision functions.
+# remote side of a native diff view — the same command serves connectors,
+# provision functions and dashboards (see `og dashboard show`, where the path is
+# `<widget-dir>/<file>.js`).
 
 # Check an artifact before deploying it — local only, no credentials needed
 og rules validate rules/env-anomaly
@@ -1146,7 +1147,33 @@ og dashboard wrap dashroot/<dashboard-dir> --out d.json    # to file
 og dashboard deploy wsroot/<ws>/<dashboard-dir>
 og dashboard deploy wsroot/<ws>/<dashboard-dir> --update
 og dashboard deploy wsroot/<ws>/<dashboard-dir> --workspace <other-ws-id>
+
+# Compare a dashboard directory against the platform — what would deploying change?
+og dashboard diff wsroot/<ws>/<dashboard-dir>
+og dashboard diff wsroot/<ws>/<dashboard-dir> --name-only
+og dashboard diff wsroot/<ws>/<dashboard-dir> --against production   # promotion
+og dashboard diff wsroot/<ws>/<dashboard-dir> --exit-code            # CI drift gate
+
+# Read one remote widget code file, raw — the other half of an editor diff
+og dashboard show <dashboard-id>                        # list the code files it carries
+og dashboard show <dashboard-id> --path 01__customtable__sales/_widgetConfigCode.js
 ```
+
+`og dashboard diff` is `og workspace diff` narrowed to one dashboard: same tree
+renderer, same flags, same identity matching for widgets. Use it when the dashboard
+is what you edited and the workspace one when you want the whole tree.
+
+`og dashboard show --path` is the dashboard's answer to `og rules show --path`. The
+paths are the ones `og workspace pull` writes — `<widget-dir>/<file>.js` — and the
+leading `NN` is the widget's grid position, ignored when matching: a path from a tree
+pulled before someone reordered the dashboard still resolves. Where it cannot tell two
+widgets apart (same type, neither carrying an id) it reports the path as not found
+rather than guessing.
+
+There is no `og widget diff`, `og widget show` or `og widget deploy`, and that is
+deliberate: a widget is a grid item, not an artifact the platform can address on its
+own, so the dashboard is the smallest unit that can be fetched, compared or deployed —
+the same boundary `og workspace watch` draws when a widget edit deploys its dashboard.
 
 Dashboard verb pair `pull ↔ deploy` (same as workspace):
 
@@ -1496,6 +1523,7 @@ For a detailed guide on how prompts, resources, and tools work together, see [do
 | `workspaces_share` | Share a workspace with users/domains (grants UI visibility) |
 | `dashboards_list` | List dashboards (all, or filtered by workspace) |
 | `dashboards_get` | Get a dashboard with grid layout and widgets |
+| `dashboards_code` | Read widget JavaScript one file at a time: list them, or return one by path |
 | `dashboards_export` | Export a dashboard via `/dashboards/export/{id}` |
 | `dashboards_import` | Create a dashboard from JSON payload, optionally overriding target workspace |
 | `dashboards_update` | Update a dashboard |

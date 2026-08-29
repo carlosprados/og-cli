@@ -129,6 +129,18 @@ Widget JS runs sandboxed with globals `$api`, `$user`, `$moment`, `http` — see
 >    changed. Widgets are matched by identity, so a reorder reads as a move rather
 >    than as a rewrite of every widget. Same flags as the other families
 >    (`--name-only`, `--against <profile>`, `--exit-code`, `--context`).
+>    `og dashboard diff <dashboard-dir>` is the same comparison narrowed to one
+>    dashboard — use it when the dashboard is what you edited, and reach for the
+>    workspace one when you want the whole tree. There is no `og widget diff`: a
+>    widget is a grid item, not an addressable artifact, so the dashboard is the
+>    smallest unit that can be compared or deployed (the same boundary
+>    `og workspace watch` draws when a widget edit deploys its dashboard).
+>    To read the remote side of ONE file — the other half of an editor diff —
+>    `og dashboard show <dash-id> --path <widget-dir>/<file>.js` prints it raw;
+>    without `--path` it lists what the dashboard carries. The paths are the ones
+>    `og workspace pull` writes, and the leading NN is the widget's grid position,
+>    ignored when matching: a path from a tree pulled before someone reordered the
+>    dashboard still resolves.
 >    `og workspace watch <dir>` deploys on save, with the DASHBOARD as the unit:
 >    a widget edit deploys its dashboard, not the whole workspace; workspace.json
 >    edits are skipped (use deploy). It refuses on conflict, with no --force, and
@@ -171,6 +183,18 @@ og dashboard pull-file dash.json --dir dashroot/
 #   --force-owner overrides the single-item refusal (on `workspace pull` it also
 #                 forces the nested dashboards). Items with owner=null (system/shared)
 #                 are never "owned" — they always need --force-owner.
+
+# Compare — what would deploying this tree change?
+og workspace diff wsroot/<workspace-slug>            # the whole tree
+og dashboard diff wsroot/<ws>/<dashboard-dir>        # narrowed to one dashboard
+# flags: --name-only, --against <profile> (promotion), --exit-code (CI gate), --context N
+# no `og widget diff`: the dashboard is the smallest comparable unit
+
+# Read the remote side of one code file (the other half of an editor diff)
+og dashboard show <dash-id>                          # list the widget code files
+og dashboard show <dash-id> --path <widget-dir>/_widgetConfigCode.js
+# the NN grid-position prefix is ignored when matching, so a path from a tree
+# pulled before a reorder still resolves
 
 # Wrap — tree → single JSON (no upload)
 og workspace wrap wsroot/<workspace-slug> --out ws.json
