@@ -74,8 +74,13 @@ remote yet and nothing pushed**. Target remote: `github.com/carlosprados/og.nvim
 
 ## Next up — Phase 11b, the VS Code extension
 
-Separate repository, as the original brief says. Mixing TypeScript into the binary's repo
-complicates the GoReleaser release for no gain. Suggested: `github.com/carlosprados/og-vscode`.
+Separate repository, as the original brief says — mixing TypeScript into the binary's repo
+complicates the GoReleaser release for no gain. **Confirmed with Charlie 2026-08-29:
+`github.com/carlosprados/og-vscode`**, checked out beside og-cli and og.nvim.
+
+**Start with the minimal useful slice, not the scaffolding**: binary discovery, the native diff and
+diagnostics. That is what made og.nvim useful in an afternoon. The TreeView is the biggest piece and
+the least load-bearing — it comes after.
 
 **og.nvim is the reference implementation.** It is smaller, it is already verified against the live
 tenant, and it settled the questions that matter — so port its decisions rather than rediscovering
