@@ -41,3 +41,16 @@ test1.json
 datamodels/
 devices/
 local_workspaces/
+
+# Working documents kept out of the repository on purpose.
+#
+# premium-open-core-analysis.md is commercial strategy — how parts of og could be
+# monetised — and was deliberately never committed. It contains no secrets, but it
+# is not something a public community tool should ship.
+#
+# og-cli-dx-handoff.md is the brief the whole DX roadmap came from. It is only
+# ignored because it has never been committed, NOT because it should not be:
+# docs/DX_ANALYSIS.md names it as its input, so a clone currently has a dangling
+# reference. Moving it to docs/ and committing it would be the tidier answer.
+/docs/premium-open-core-analysis.md
+/og-cli-dx-handoff.md
