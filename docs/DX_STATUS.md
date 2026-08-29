@@ -4,10 +4,18 @@ Short, current, and meant to be read first. The reasoning behind every decision 
 `DX_ANALYSIS.md`; this file says where things stand.
 
 **Last updated:** 2026-08-29
-**Branch:** `og-cli/ogdocgen-doc-response`, off `main` (`458463b`), **6 commits, none pushed**
-**Released:** `v2.1.0`. Everything below is unreleased.
-**Health:** build clean, 14 packages green, lint at the 42-issue baseline, all 13 live sensehat
-artifacts type-check clean, and a freshly pulled workspace diffs to "No differences".
+**Branch:** `main`, pushed and clean
+**Released:** `v2.3.0`. Nothing unreleased.
+**Health:** build clean, tests green, lint at the 42-issue baseline, 13/13 live sensehat
+artifacts type-check clean under TypeScript 5.9 and 6.0.
+
+**Three repositories now, all public and all pushed:**
+
+| | | |
+|---|---|---|
+| [`og-cli`](https://github.com/carlosprados/og-cli) | `v2.3.0` | the binary; everything else drives it |
+| [`og.nvim`](https://github.com/carlosprados/og.nvim) | unversioned | Neovim plugin |
+| [`og-vscode`](https://github.com/carlosprados/og-vscode) | `0.3.0` on the Marketplace | VS Code extension |
 
 **Sibling repo:** `og.nvim` now exists at `../og.nvim` — one commit, git initialised, **no GitHub
 remote yet and nothing pushed**. Target remote: `github.com/carlosprados/og.nvim`.
@@ -37,8 +45,10 @@ remote yet and nothing pushed**. Target remote: `github.com/carlosprados/og.nvim
 | 12 | `og widget check` — diagnostics inside the platform's async wrapper | unreleased |
 | 13 | `og workspace diff` — hierarchical renderer for workspaces and dashboards | unreleased |
 | 14 | `og workspace watch` + sync snapshots recorded on workspace pull | unreleased |
-| 15 | `og <family> show <id> --path` — the remote side of an editor diff | unreleased |
-| 11a | **og.nvim** — Neovim plugin, thin shell over the binary | `../og.nvim`, uncommitted to any remote |
+| 15 | `og <family> show <id> --path` — the remote side of an editor diff | v2.2.0 |
+| 16 | `og whoami` — session state, local and offline, with usable exit codes | v2.3.0 |
+| 11a | **og.nvim** — Neovim plugin | published |
+| 11b | **og-vscode** — VS Code extension | published, `0.3.0` |
 
 ## Not done
 
@@ -54,6 +64,12 @@ remote yet and nothing pushed**. Target remote: `github.com/carlosprados/og.nvim
 
 | Decision | When | Note |
 |---|---|---|
+| Both plugins are thin shells; all API logic stays in the binary | 2026-08-29 | Reimplementing a call in Lua or TypeScript makes two sources of truth, and the copy is the one that goes stale. Every platform interaction is a child process. |
+| og.nvim browses with a picker, og-vscode with a sidebar | 2026-08-29 | Parity is of capability, not of chrome. `vim.ui.select` is overridden by LazyVim, Telescope, fzf-lua and snacks, so it inherits the user's own finder and imposes no layout; a hand-rolled tree would be more code and worse. |
+| The session is checked before the work, not after the 401 | 2026-08-29 | A 401 collapses "you never logged in" and "your session expired", which need different things from the reader. `og whoami` is local and instant, so asking first costs a process and no request. Validate stays unguarded: it needs no credentials. |
+| Passwords travel in the environment, never in argv | 2026-08-29 | Arguments are readable by anything that can list processes. Neither plugin stores a credential; og writes the token to its own profile at 0600. |
+| Publish to the Marketplace through the web portal, not a PAT | 2026-08-29 | Creating an Azure DevOps organization now demands an Azure subscription and disables *Continue* without saying why — it blocked Charlie for half an hour. The portal needs neither, and global PATs retire 2026-12-01 anyway. |
+| An unparseable version is not a missing binary | 2026-08-29 | A source build prints `og dev (commit: unknown)`. Both plugins treated that as "CLI not found" while it sat on the PATH. Running and being parseable are different questions. |
 | Widget diagnostics come from a rebuilt wrapper, not from a laxer config | 2026-08-28 | TS1108 on a top-level `return` is unavoidable in every module configuration tried, and every widget has one. Rather than force `checkJs` on and ask the author to ignore a known error, `og widget check` wraps the code in the platform's own async function and checks that — the return and the `await` become ordinary and nothing is suppressed. Two JS-vs-TS idioms are set aside by name, narrowly enough that a misspelled `$api` member still reports. |
 | Workspace watch deploys dashboards, not workspaces | 2026-08-28 | The watch rule is that a change resolves to the smallest deployable unit, and for a widget edit that is its dashboard; deploying a whole workspace per keystroke is the blast radius the rule exists to avoid. It also needed `og workspace pull` to record a sync snapshot, which it never did — without a base every classification is Unknown and the conflict guard is a blind overwrite. Verified live: a genuine conflict is refused. |
 | Workspace diff matches children by identity, not by position | 2026-08-28 | Matching by index turns one widget inserted at the top of a dashboard into "every widget changed", which is the output that makes a diff useless. Position is reported separately as a move, and a move counts as a change in both the marker column and the JSON status — anything else traps a consumer filtering on status. Verified live: reorder, insert and delete each report as themselves. |
@@ -72,46 +88,44 @@ remote yet and nothing pushed**. Target remote: `github.com/carlosprados/og.nvim
 
 ---
 
-## Next up — Phase 11b, the VS Code extension
+## Next up
 
-Separate repository, as the original brief says — mixing TypeScript into the binary's repo
-complicates the GoReleaser release for no gain. **Confirmed with Charlie 2026-08-29:
-`github.com/carlosprados/og-vscode`**, checked out beside og-cli and og.nvim.
+Phase 11 is done: both plugins exist and are published. What is left is polish and
+one gap, in the order I would take them.
 
-**Start with the minimal useful slice, not the scaffolding**: binary discovery, the native diff and
-diagnostics. That is what made og.nvim useful in an afternoon. The TreeView is the biggest piece and
-the least load-bearing — it comes after.
+### 1. og.nvim's documentation is stale — the most urgent thing
 
-**og.nvim is the reference implementation.** It is smaller, it is already verified against the live
-tenant, and it settled the questions that matter — so port its decisions rather than rediscovering
-them:
+The README and `doc/og.txt` still describe the five original commands. og.nvim gained
+`:OgLogin`, `:OgInstall`, `:OgBrowse` and `:OgPull` on 2026-08-29 and neither mentions
+them. The README is the first thing a LazyVim user reads, so today the plugin
+under-sells itself and its login is undiscoverable.
 
-| Decision, already made in og.nvim | Why it carries over |
-|---|---|
-| Zero API logic outside the binary | Two sources of truth is the failure mode; the TypeScript one would go stale |
-| Remote side of a diff from `og <family> show --path` | Exists and is verified byte-identical to what `pull` writes |
-| Never re-render a diff | `og diff` carries three-way markers, the pruned workspace tree and the ignored-fields note |
-| Artifact resolution walks up, nearest wins | A widget edit must act on the widget, not the workspace |
-| Deploy-on-save off by default | A plugin that pushes on every save eventually pushes a half-thought |
-| No credentials stored | og's profile is the single place they can be wrong |
-| Trailing-newline handling on remote content | Otherwise every diff opens showing a phantom last-line change |
+og-vscode's README was rewritten as a help page with a quick start; og.nvim's should
+get the same treatment. That page is the model.
 
-What the extension needs that the Neovim one did not:
+### 2. Two small parity gaps
 
-1. **Binary management.** Find `og` on `PATH`; otherwise download the matching GoReleaser asset,
-   verify the checksum, cache in `globalStorage`. An `og.path` setting overrides.
-2. **TreeView.** Profiles → Workspaces → Dashboards → Widgets, plus Rules, Connector Functions and
-   Provision Functions as sibling roots. Populated from `-o json`, children fetched lazily.
-3. **Native diff.** A `TextDocumentContentProvider` for an `og-remote:` scheme, handed to
-   `vscode.diff(remoteUri, localUri, title)`. Never render a diff by hand.
-4. **Diagnostics.** `og <family> validate -o json` → `DiagnosticCollection`. The finding's `file`
-   field is separate from its message, and the message reads as a continuation of it — prefix it
-   when the diagnostic does not land on that file's own document, as og.nvim does.
-5. **Save hooks, not `og watch`.** `onDidSaveTextDocument` → `og … deploy --update`. Two watchers
-   over one tree produce duplicate deploys. `og watch` serves terminal and Neovim users.
-6. **Publish to Open VSX as well as the Marketplace**, or Cursor, Windsurf and VSCodium users are
-   excluded. Carry the unofficial/community disclaimer into the marketplace listing and the
-   extension's own README, not only into this repository's.
+- `:OgDiff` on an artifact rather than a `.js` file. og-vscode resolves the code file
+  and offers a pick when there are several; og.nvim does not.
+- og-vscode's `MINIMUM_VERSION` still says 2.2.0. 0.3.0 needs 2.3.0 for `whoami`, and
+  an older binary degrades silently rather than being reported.
+
+### 3. Open VSX
+
+Never done, and it is what Cursor, Windsurf and VSCodium install from. Needs a GitHub
+login, the Publisher Agreement signed, a token, and `ovsx create-namespace carlosprados`.
+Steps are in `og-vscode/PUBLISHING.md` §2.
+
+### 4. Publishing without a human
+
+Both plugins are uploaded by hand. A workflow on a `v*` tag would end that — see
+`og-vscode/PUBLISHING.md` §6. Note the Marketplace half needs a token, and Azure DevOps
+global PATs retire on 1 December 2026, so the durable answer there is Entra ID.
+
+### 5. Unproven in daily use
+
+Neither plugin has been used in anger. Charlie tries og.nvim in his own LazyVim on
+Monday 2026-08-31. Both grew features nobody has exercised.
 
 ---
 
@@ -138,14 +152,13 @@ The documentation round is closed: `docs/opengate-documentation-handoff.md` (our
 
 ## Open questions
 
-1. Release the three unreleased commits as **v2.1.1**, or hold them for the widget `$api`
-   declarations and ship a single **v2.2.0**? The catalogue moved enough this round to argue for
-   shipping it: 41 `@deprecated` tags, 126 real return types against 3, and 376 typed parameters
-   against 129.
-2. `og pf` as an alias of `og provision`, for symmetry with `og cf`?
-3. `validate` non-overridable on a provision-function deploy, given bulk-scale data corruption?
-4. Widget code-field allowlist: keep the transitional content heuristic, or enumerate widget types
+1. `og pf` as an alias of `og provision`, for symmetry with `og cf`?
+2. `validate` non-overridable on a provision-function deploy, given bulk-scale data
+   corruption?
+3. Widget code-field allowlist: keep the content heuristic, or enumerate widget types
    against a live tenant first?
+4. Does og.nvim want a version and tags at all? It is installed from a git ref, so
+   nothing forces it — but without one there is no way to say "fixed in".
 
 ---
 
@@ -184,3 +197,40 @@ Then `og show --path`, which both editor plugins need, and og.nvim itself.
 5. `validate` non-overridable on a provision-function deploy, given bulk-scale data corruption?
 6. Widget code-field allowlist: keep the content heuristic, or enumerate widget types live first?
 7. Send the documentation team the post-regeneration numbers they asked for.
+
+---
+
+## Session log — 2026-08-29, the editor layer shipped
+
+Three releases of og-cli and two published plugins, from a standing start.
+
+**og-cli v2.2.0** — the editor layer: `og widget check`, the hierarchical
+`og workspace diff`, `og workspace watch` with the sync snapshots the pull had never
+recorded, `og <family> show --path`, and the platform catalogue regenerated after the
+documentation team answered the handoff (3 → 126 typed return types, 129 → 376 typed
+parameters, 41 `@deprecated`).
+
+**v2.2.1** — a defect found by running the VS Code extension rather than by compiling
+anything: VS Code 1.135 ships TypeScript 6, which reports `target: es5` as an error, so
+every artifact directory og had ever generated showed one in the editor the typings
+exist to serve. The fix TypeScript suggests breaks TypeScript 5, so only the target
+moved and `lib` stayed at es5.
+
+**v2.3.0** — `og whoami`, prompted by building the plugins: a 401 cannot distinguish
+"never logged in" from "expired an hour ago".
+
+**og.nvim and og-vscode** — built, published, and then levelled. The Neovim one was
+written first and the extension grew past it; the four missing pieces (login, binary
+management, browse, session check) were ported back the same day.
+
+Things that only surfaced by running the software: the TypeScript 6 error above, a
+415 from GitHub's API for sending one `Accept` everywhere, the diff resolving a
+metadata file instead of code when invoked from the tree, a diagnostic printing the
+filename twice, and the unparseable-version bug. None of them was findable by
+compiling.
+
+Also sent: `docs/opengate-documentation-handoff-3.md`, the numbers the documentation
+team asked for. Written but **not delivered** — Charlie decides the channel.
+
+A draft email to `general@amplia.es` announcing all of it sits unsent in Gmail
+(draft `r-3699741285082560721`).
