@@ -38,82 +38,138 @@ declare function activate(): any;
 
 /**
  *  Adds datapoint to specified datastream in the collection object, if datastream does not exist, it creates the datastream.
+ *  @deprecated Build collections with the `collection` object instead. The object is not a function-for-function replacement: it simplifies what these globals did by hand.
  */
-declare function addOgCollectionDp(datapoint: any, ogCollection: any, datastreamId: any, feed: any): any;
+declare function addOgCollectionDp(datapoint: any, ogCollection: any, datastreamId: string, feed: string): any;
 
 /**
  *  Used in Request or Response connector functions to define a concatenated Collection action.
+ *  @deprecated Use `cf.collection` instead. Note the arguments are in the opposite order: `cf.collection` takes the criteria first and the payload second.
  */
-declare function collectCF(collectionData: any, collectionFunctionCriteria: any): any;
+declare function collectCF(collectionData: any, collectionFunctionCriteria: string): any;
 
 /**
  *  Decrypt an encrypted string with the configuration established by the datastream of the organization
+ *  @deprecated Use `utils.odm.decryptString` instead.
  */
-declare function decryptString(encryptedValue: any, datastreamConfiguration: any, organizationName: any): any;
+declare function decryptString(encryptedValue: string, datastreamConfiguration: string, organizationName: string): string;
 
 /**
  *  Encrypt an original string with the configuration established by the datastream of the organization
+ *  @deprecated Use `utils.odm.encryptString` instead.
  */
-declare function encryptString(originalValue: any, datastreamConfiguration: any, organizationName: any): any;
+declare function encryptString(originalValue: string, datastreamConfiguration: string, organizationName: string): string;
 
-/** Extract from the first entity of entities array specified datastream "value" field value. */
-declare function entitiesValue(entities: any, datastream: OGDatastreamID, index: any): any;
+/**
+ *  Extract from the first entity of entities array specified datastream "value" field value.
+ *  @deprecated Use `utils.odm.entitiesValue` instead. It moved to `utils` because, unlike the rest of this group, it acts across several entities rather than one.
+ */
+declare function entitiesValue(entities: any[], datastream: OGDatastreamID, index?: number): any;
 
-/** Extract from entity specified datastream "at" field value. */
-declare function entityAt(entity: any, datastream: OGDatastreamID, index: any): any;
+/**
+ *  Extract from entity specified datastream "at" field value.
+ *  @deprecated Use `entity._at` instead — the entity is the receiver, so the first argument goes away. The same method works on `gateway`.
+ */
+declare function entityAt(entity: any, datastream: OGDatastreamID, index?: number): any;
 
-/** Extract from entity specified datastream "date" field value. */
-declare function entityDate(entity: any, datastream: OGDatastreamID, index: any): any;
+/**
+ *  Extract from entity specified datastream "date" field value.
+ *  @deprecated Use `entity._date` instead — the entity is the receiver, so the first argument goes away. The same method works on `gateway`.
+ */
+declare function entityDate(entity: any, datastream: OGDatastreamID, index?: number): any;
 
-/** Extract from entity specified datastream "source" field value. */
-declare function entitySource(entity: any, datastream: any, index: any): any;
+/**
+ *  Extract from entity specified datastream "source" field value.
+ *  @deprecated Use `entity._source` instead — the entity is the receiver, so the first argument goes away. The same method works on `gateway`.
+ */
+declare function entitySource(entity: any, datastream: string, index?: number): any;
 
-/** Extract from entity specified datastream "sourceInfo" field value. */
-declare function entitySourceInfo(entity: any, datastream: any, index: any): any;
+/**
+ *  Extract from entity specified datastream "sourceInfo" field value.
+ *  @deprecated Use `entity._sourceInfo` instead — the entity is the receiver, so the first argument goes away. The same method works on `gateway`.
+ */
+declare function entitySourceInfo(entity: any, datastream: string, index?: number): any;
 
-/** Extract from entity specified datastream "value" field value. */
-declare function entityValue(entity: any, datastream: OGDatastreamID, index: any): any;
+/**
+ *  Extract from entity specified datastream "value" field value.
+ *  @deprecated Use `entity._value` instead — the entity is the receiver, so the first argument goes away. The same method works on `gateway`.
+ */
+declare function entityValue(entity: any, datastream: OGDatastreamID, index?: number): any;
 
-/** Calculates the address type from a given address */
-declare function getAddressTypeFromAddress(address: any): any;
+/**
+ *  Calculates the address type from a given address
+ *  @deprecated Use `utils.odm.getAddressTypeFromAddress` instead.
+ */
+declare function getAddressTypeFromAddress(address: string): any;
 
 /** **Builds and returns the request the device must send to respond to the operation** */
 declare function getRequest(): any;
 
-/** Executes specified request with specified payload. */
-declare function httpRequest(request: any, payload: any): any;
+/**
+ *  Executes specified request with specified payload.
+ *  @deprecated Use the `http.client` object instead. It is not a single call: the object is configured first and then one of its methods — `get`, `post`, `put`, `patch`, `delete` or `request` — is invoked.
+ */
+declare function httpRequest(request: any, payload?: any): any;
 
 /**
  *  Creates Info level logging messages. It concatenates msg parameters in the final string to be logged.
+ *  @deprecated Use `logger.debug` instead, or another level of the `logger` object where it fits better.
  */
 declare function log(...msg: any[]): any;
 
-/** Creates OG collection main object. */
-declare function ogCollection(datastreams: any, device: any, version: any): any;
+/**
+ *  Creates OG collection main object.
+ *  @deprecated Build collections with the `collection` object instead. The object is not a function-for-function replacement: it simplifies what these globals did by hand.
+ */
+declare function ogCollection(datastreams: any[], device: string, version: string): any;
 
-/** Creates OG collection datapoint object. */
-declare function ogCollectionDp(value: any, at: any, source: any, sourceInfo: any): any;
+/**
+ *  Creates OG collection datapoint object.
+ *  @deprecated Build collections with the `collection` object instead. The object is not a function-for-function replacement: it simplifies what these globals did by hand.
+ */
+declare function ogCollectionDp(value?: any, at?: number, source?: string, sourceInfo?: string): any;
 
-/** Creates OG collection datastream object. */
-declare function ogCollectionDs(datastreamId: any, feed: any, datapoints: any): any;
+/**
+ *  Creates OG collection datastream object.
+ *  @deprecated Build collections with the `collection` object instead. The object is not a function-for-function replacement: it simplifies what these globals did by hand.
+ */
+declare function ogCollectionDs(datastreamId?: string, feed?: string, datapoints?: any[]): any;
 
-/** Creates OG response object */
-declare function ogResponse(id: any, name: any, deviceId: any, resultCode: any, resultDescription: any, steps: any, timestamp: any, trustedBoot: any, version: any): any;
+/**
+ *  Creates OG response object
+ *  @deprecated Build operation responses with the `response` object instead. The object is not a function-for-function replacement: it simplifies what these globals did by hand.
+ */
+declare function ogResponse(id: string, name: string, deviceId: string, resultCode: string, resultDescription: string, steps: any[], timestamp: string, trustedBoot: string, version: string): any;
 
-/** Creates OG step object used in opengate response object. */
-declare function ogStep(name: any, result: any, description: any, stepResponseList: any): any;
+/**
+ *  Creates OG step object used in opengate response object.
+ *  @deprecated Build operation responses with the `response` object instead. The object is not a function-for-function replacement: it simplifies what these globals did by hand.
+ */
+declare function ogStep(name?: string, result?: string, description?: string, stepResponseList?: string): any;
 
-/** Creates OG step response object, used in step object. */
-declare function ogStepResponse(name: any, value: any): any;
+/**
+ *  Creates OG step response object, used in step object.
+ *  @deprecated Build operation responses with the `response` object instead. The object is not a function-for-function replacement: it simplifies what these globals did by hand.
+ */
+declare function ogStepResponse(name?: any, value?: any): any;
 
-/** Publish specified payload for specified topic and device. */
-declare function publishOnTopic(payload: any, topic: any, deviceId: any): any;
+/**
+ *  Publish specified payload for specified topic and device.
+ *  @deprecated Use the `mqtt` object instead: set `mqtt.topic` and `mqtt.device`, then call `mqtt.publish`.
+ */
+declare function publishOnTopic(payload: any, topic: string, deviceId: string): any;
 
-/** Used in Request connector functions to define a concatenated Response action. */
-declare function responseCF(responseData: any, responseFunctionCriteria: any): any;
+/**
+ *  Used in Request connector functions to define a concatenated Response action.
+ *  @deprecated Use `cf.response` instead. Note the arguments are in the opposite order: `cf.response` takes the criteria first and the payload second.
+ */
+declare function responseCF(responseData: any, responseFunctionCriteria: string): any;
 
-/** Send message to opened websocket */
-declare function webSocketMsg(payload: any, deviceId: any): any;
+/**
+ *  Send message to opened websocket
+ *  @deprecated Use the `websocket` object instead, which has to be configured before calling `websocket.sendMsg`.
+ */
+declare function webSocketMsg(payload: any, deviceId: string): any;
 
 // ── Objects ─────────────────────────────────────────────────────────────────
 
@@ -121,7 +177,7 @@ declare const cf: {
   /**
    *  Sets a call for a COLLECTION connector function, if there is one that matches the south criteria indicated in `collectionFunctionCriteria`, setting its input payload to the value of `collectionPayload`.
    */
-  collection(collectionFunctionCriteria: any, collectionPayload: any): any;
+  collection(collectionFunctionCriteria: string, collectionPayload: any): void;
   /**
    *  Extract from operationObj deviceId field. This function could be used in REQUEST CFs, when the payload is Operation Request json.
    */
@@ -141,11 +197,11 @@ declare const cf: {
   /**
    *  Extract from operationObj timestamp field. This function could be used in REQUEST CFs, when the payload is Operation Request json.
    */
-  operationTimestamp(operationObj: any): any;
+  operationTimestamp(operationObj: any): number;
   /**
    *  Sets a call for a RESPONSE connector function, if there is one that matches the south criteria indicated in `responseFunctionCriteria`, setting its input payload to the value of `responsePayload`.
    */
-  response(responseFunctionCriteria: any, responsePayload: any): any;
+  response(responseFunctionCriteria: string, responsePayload: any): void;
 };
 
 declare const coap: {
@@ -168,46 +224,46 @@ declare const collection: {
   /**
    *  Builds a datapoint object and adds it to the specified datastream in the datastreams list in the `collection` global object.
    */
-  addDatapoint(datastreamId: OGDatastreamID, value: any, at: any, source: any, sourceInfo: any): any;
+  addDatapoint(datastreamId: OGDatastreamID, value?: any, at?: number, source?: string, sourceInfo?: string): void;
   /**
    *  Searches for a datapoint value for the specified datastreamId. It is possible to specify the datapoint index inside the datastream. If not found, a null value will be returned.
    */
-  getValue(datastream: OGDatastreamID, dpIndex: any): any;
+  getValue(datastream: OGDatastreamID, dpIndex?: number): any;
   /**
    *  Sends a collection message to the OpenGate's collection messages flow using the datastreams list in the `collection` global object, after that this list is cleaned.
    */
-  send(): any;
+  send(): void;
   /**
    *  Sets the feed name to a specific datastream in the datastreams list in the `collection` global object.
    */
-  setFeed(datastreamId: OGDatastreamID, feed: any): any;
+  setFeed(datastreamId: OGDatastreamID, feed: string): void;
 };
 
 declare const crypt: {
   aes: {
     /** Decrypt the `data` using the selected AES `algorithm` with the provided shared `key`. */
-    decrypt(algorithm: any, key: any, ivParameterSpec: any, data: any): any;
+    decrypt(algorithm: string, key: Uint8Array, ivParameterSpec: any, data: Uint8Array): Uint8Array;
     /** Encrypt the `data` using the selected AES `algorithm` with the provided shared `key`. */
-    encrypt(algorithm: any, key: any, ivParameterSpec: any, data: any): any;
+    encrypt(algorithm: string, key: Uint8Array, ivParameterSpec: any, data: Uint8Array): Uint8Array;
   };
   hmac: {
     /**
      *  Create a hash from provided string using provided algorithm.
      *  @internal — the documentation marks this API as internal; it is not part of the public surface.
      */
-    hash(algorithm: any, data: any, key: any): any;
+    hash(algorithm: any, data: string, key: Uint8Array): any;
     /** Create a hash from provided string using sha256. */
-    sha256(data: any, key: any): any;
+    sha256(data: string, key: Uint8Array): any;
     /** Create a hash from provided string using sha512. */
-    sha512(data: any, key: any): any;
+    sha512(data: string, key: Uint8Array): any;
   };
 };
 
 declare const dlms: {
   /** Applicable for normal gets. */
-  addAttr(classId: any, obisCode: any, attrId: any): any;
+  addAttr(classId: any[], obisCode: string, attrId: number): any;
   /** `addMethod()` is used for `method()` function. */
-  addMethod(classId: any, obisCode: any, methodId: any, type: any, value: any): any;
+  addMethod(classId: any[], obisCode: string, methodId: string, type: string, value: string): any;
   /** Opens DLMS connection (default via TCP transport). */
   connect(): any;
   /** Close the DLMS connection. */
@@ -215,31 +271,31 @@ declare const dlms: {
   /**
    *  Executes a multi DLMS get attribute request with the previously specified payload (`addAttr(classId, obisCode, attrId)`).
    */
-  get(descriptive: any, forceWithoutList: any): any;
+  get(descriptive?: boolean, forceWithoutList?: boolean): any[];
   /** Extract the compact data serialized in a byte array according to the description given. */
-  getCompactData(typeDescription: any, value: any, descriptive: any, italianMode: any): any;
+  getCompactData(typeDescription: any, value: any, descriptive?: boolean, italianMode?: boolean): any;
   /**
    *  Extract the `Date` of a _dateTime_ object or an `octet-string`. Some _dateTime_ objects or `octet-string` may not contain a complete date and this method will return a date that may not be as accurate as you expect. You should check the _dateTime_ object for unspecified value.
    */
-  getDate(value: any): any;
+  getDate(value: any): Date;
   /**
    *  Extract the _dateTime_ object of a `Date` or an `octet-string`. The resulting _dateTime_ objects generated from a `Date` will use UTC time specifying a deviation of `0`. If you need something else construct the _dateTime_ object manually.
    */
   getDateTime(value: any): any;
   /** Returns the current invocation counter of the ciphering. */
-  getInvocationCounter(): any;
+  getInvocationCounter(): number;
   /**
    *  Sets the invocation counter of the ciphering to the next value of the received frame counter. This is used for devices that maintain two separate frame counters (one for transmit and one for receive). Usually the current _Management Frame Counter - On-line_ is received in a _CompactFrame_ notification and that value is the one that needs to be passed to this function for that device.
    */
-  initializeNextFrameCounter(currentFrameCounter: any): any;
+  initializeNextFrameCounter(currentFrameCounter: number): any;
   /**
    *  Executes a multi DLMS method (or action) request with the previously specified payload (`addMethod(classId, obisCode, methodId, type, value)`).
    */
-  method(descriptive: any): any;
+  method(descriptive?: boolean): any[];
   /**
    *  Executes a multi DLMS set attribute request with the previously specified payload (`addAttr(classId, obisCode, attrId, type, value)`).
    */
-  set(descriptive: any): any;
+  set(descriptive?: boolean): any[];
   /** Get _dateTime_ object with all its fields set to not specified. */
   undefinedDateTime(): any;
   /** Get _dateTime_ object with all its fields set to not specified. */
@@ -333,11 +389,11 @@ declare const dlms_gas: {
     /**
      *  Collects from received daily profiles with specified source and sourceInfo. Each element of array must be an object with the following fields:
      */
-    collectDailyLoadProfilesArray(loadProfiles: any[], source: string, sourceInfo: any): any;
+    collectDailyLoadProfilesArray(loadProfiles: any[], source?: string, sourceInfo?: any): any;
     /**
      *  Decodes a 16-bit diagnostic value into individual status flags that are collected with specified at, source and sourceInfo.
      */
-    collectDiagnostic(diagnostic: number, at: number, source: string, sourceInfo: any): any;
+    collectDiagnostic(diagnostic: number, at?: number, source?: string, sourceInfo?: any): any;
     /** Collects an array of hourly diagnostics values with at time as reference. */
     collectHourlyDiagnostics(diagnosticsArray: any[], unixTime: any): any;
     /** Collects an array of hourly volume increments with at time as reference. */
@@ -349,11 +405,11 @@ declare const dlms_gas: {
     /**
      *  Decodes an 8-bit network status integer value into individual flags and adds it to the device collection.
      */
-    collectNetworkStatus(networkStatus: number, at: number): any;
+    collectNetworkStatus(networkStatus: number, at?: number): any;
     /**
      *  Transforms and collects received array of two numbers into an array of two bytes hexadecimal string.
      */
-    collectTarifPlan(tariffPlann: any[], at: number): any;
+    collectTarifPlan(tariffPlann: any[], at?: number): any;
     /**
      *  Comms bat status retrieval operation logic. Retrieves battery status and communication statistics from the device and processes the operation response.
      */
@@ -377,7 +433,7 @@ declare const dlms_gas: {
     /**
      *  Decodes a 6-byte array into a descriptive firmware version string including version numbers, build commit (hex), and date.
      */
-    decodeFw(fwBytes: any): any;
+    decodeFw(fwBytes: number[]): any;
     /**
      *  Internal function that executes the actual DLMS `set` operations to apply push event configurations.
      */
@@ -630,15 +686,15 @@ declare const dlms_gas: {
 /** Accessor methods carried by `entity`, intersected into its declaration. */
 interface OGEntityMethods {
   /** Extract from entity specified datastream “at” field value using parameters */
-  _at(datastream: any, index: any): any;
+  _at(datastream: string, index: any): any;
   /** Extract from entity specified datastream date field value using parameters */
-  _date(datastream: any, index: any): any;
+  _date(datastream: string, index: any): any;
   /** Extract from entity specified datastream “source” field value using parameters */
-  _source(datastream: any, index: any): any;
+  _source(datastream: string, index: any): any;
   /** Extract from entity specified datastream “sourceInfo” field value using parameters */
-  _sourceInfo(datastream: any, index: any): any;
+  _sourceInfo(datastream: string, index: any): any;
   /** Extract from entity specified datastream “value” field value using parameters */
-  _value(datastream: any, index: any): any;
+  _value(datastream: string, index: any): any;
 }
 
 declare const http: {
@@ -801,10 +857,10 @@ declare const iec102: {
   /** Parameter used when connection is done with a data call through some caller */
   userName: string;
   /**
-   *  **Returns**: number
+   *  Auxiliary function internally used to calculate carrier value.
    *  @internal — the documentation marks this API as internal; it is not part of the public surface.
    */
-  carrier(): any;
+  carrier(): number;
   /**
    *  There is a `connect` method used to establish the connection with the device. When this method is called, it internally completes several actions:
    */
@@ -833,15 +889,15 @@ declare const iec102: {
    */
   getPeriodFromParams(): any;
   /**
-   *  **Returns**: array
+   *  Auxiliary function internally used get an array with the names of steps to be executed for current operation. It matches operations steps list and defined ASDUs to be executed.
    *  @internal — the documentation marks this API as internal; it is not part of the public surface.
    */
-  getSelectedSteps(): any;
+  getSelectedSteps(): any[];
   /**
-   *  **Returns**: boolean
+   *  Auxiliary function internally used to calculate if some asdu must be executed when defining ASDUs from operation parameters. It will be checked if the collected datastream fits specific conditions.
    *  @internal — the documentation marks this API as internal; it is not part of the public surface.
    */
-  mustExecute(ds: string, periodInitialTime: number, periodFinalTime: number): any;
+  mustExecute(ds: string, periodInitialTime: number, periodFinalTime: number): boolean;
   /**
    *  Calculates, if necessary, load curve incremental values from total values and vice versa.
    *  @internal — the documentation marks this API as internal; it is not part of the public surface.
@@ -855,15 +911,15 @@ declare const iec102: {
    */
   skipAllSelectedSteps(ds: string, stepDescription: string): any;
   /**
-   *  **Returns**: number
+   *  Auxiliary function internally used to calculate connection speed.
    *  @internal — the documentation marks this API as internal; it is not part of the public surface.
    */
-  speed(): any;
+  speed(): number;
   /**
-   *  **Returns**: boolean
+   *  Auxiliary function internally to calculate if reading state to be collected is UNREAD.
    *  @internal — the documentation marks this API as internal; it is not part of the public surface.
    */
-  unreadOperation(): any;
+  unreadOperation(): boolean;
   /**
    *  Parse operation parameters to check if they are valid catalog parameters for ASDUs calculation. This method is used internally to check if it is possible to calculate `period` and `asdusToExec` automatically from operations params.
    *  @internal — the documentation marks this API as internal; it is not part of the public surface.
@@ -942,23 +998,23 @@ declare const logger: {
   /**
    *  Creates DEBUG level logging messages. It concatenates msg parameters to compound message to be logged.
    */
-  debug(...msg: any[]): any;
+  debug(...msg: any[]): void;
   /**
    *  Creates ERROR level logging messages. It concatenates msg parameters to compound message to be logged.
    */
-  error(...msg: any[]): any;
+  error(...msg: any[]): void;
   /**
    *  Creates INFO level logging messages. It concatenates msg parameters to compound message to be logged.
    */
-  info(...msg: any[]): any;
+  info(...msg: any[]): void;
   /**
    *  Creates TRACE level logging messages. It concatenates msg parameters to compound message to be logged.
    */
-  trace(...msg: any[]): any;
+  trace(...msg: any[]): void;
   /**
    *  Creates WARN level logging messages. It concatenates msg parameters to compound message to be logged.
    */
-  warn(...msg: any[]): any;
+  warn(...msg: any[]): void;
 };
 
 declare const mqtt: {
@@ -989,32 +1045,32 @@ declare const operation: {
 
 declare const provision: {
   /** Creates a new entity in the platform. */
-  create(fullBody: any): any;
+  create(fullBody?: any): any;
   /** Retrieves an existing entity from the database with specified identifier. */
-  get(id: any): any;
+  get(id?: string): any;
 };
 
 declare const response: {
   /**
    *  Builds a step result object and adds it to the steps list in the `response` global object.
    */
-  addStep(name: any, result: any, description: any, stepResponseList: any): any;
+  addStep(name?: string, result?: string, description?: string, stepResponseList?: string): void;
   /** This method sets the `ERROR_IN_PARAM` statusCode with the provided description. */
-  errorInParam(statusDescription: any): any;
+  errorInParam(statusDescription: string): void;
   /** This method sets the `ERROR_PROCESSING` statusCode with the provided description. */
-  errorProcessing(statusDescription: any): any;
+  errorProcessing(statusDescription: string): void;
   /** This method sets the `ERROR_TIMEOUT` statusCode with the provided description. */
-  errorTimeout(statusDescription: any): any;
+  errorTimeout(statusDescription: string): void;
   /** This method sets the `NOT_SUPPORTED` statusCode with the provided description. */
-  notSupported(statusDescription: any): any;
+  notSupported(statusDescription: string): void;
   /**
    *  Sends a step response message to the OpenGate's operation messages flow using the steps list in the `response` object, after that this list is cleaned.
    */
-  sendSteps(): any;
+  sendSteps(): void;
   /** This method sets the `SUCCESSFUL` statusCode with the provided description. */
-  successful(statusDescription: any): any;
+  successful(statusDescription: string): void;
   /** This method sets the `UNKNOWN_RESULT` statusCode with the provided description. */
-  unknownResult(statusDescription: any): any;
+  unknownResult(statusDescription: string): void;
 };
 
 declare const snmp: {
@@ -1023,11 +1079,11 @@ declare const snmp: {
   /**
    *  Executes a multi SNMP get attribute request with specified payload. You must have previously given value to the properties `snmp.ip`, `snmp.port` (161 by default), `snmp.community` (in case of snmp version 1), `snmp.version` (3 by default), `snmp.retries` (3 by default), `snmp.timeout` (5000 by default) and security info in case of snmpv3 version (`snmp.securityName`, `snmp.authentication`, `snmp.privacy`, `snmp.authPassphrase` and `snmp.privPassphrase`).
    */
-  get(): any;
+  get(): string;
   /**
    *  Executes a multi SNMP set attribute request with specified payload. You must have previously given value to the properties `snmp.ip`, `snmp.port` (161 by default), `snmp.community` (in case of snmp version 1), `snmp.version` (3 by default), `snmp.retries` (3 by default), `snmp.timeout` (5000 by default) and security info in case of snmpv3 version (`snmp.securityName`, `snmp.authentication`, `snmp.privacy`, `snmp.authPassphrase` and `snmp.privPassphrase`).
    */
-  set(): any;
+  set(): string;
 };
 
 declare const ssh: {
@@ -1097,17 +1153,17 @@ declare const utils: {
     /**
      *  Translates the response got by the 'AT+CSQ' command, which is the GSM signal strength and a numerical value, to its corresponding dBm value.
      */
-    toDBm(value: any): any;
+    toDBm(value: number): number;
   };
   bytes: {
     /** **Kind**: global function */
-    fromHexString(hexString: any): any;
+    fromHexString(hexString: string): Uint8Array;
     /** **Kind**: global function */
-    fromText(str: any): any;
+    fromText(str: string): Uint8Array;
     /** **Kind**: global function */
-    toHexString(array: any): any;
+    toHexString(array: any[]): string;
     /** **Kind**: global function */
-    toText(bytes: any): any;
+    toText(bytes: any[]): string;
   };
   date: {
     period: {
@@ -1116,77 +1172,77 @@ declare const utils: {
       /**
        *  Calculates a period of defined days until reference time. If referenceTimeMillis is not defined, current time will be used as reference
        */
-      lastDays(days: any, referenceTimeMillis: any): any;
+      lastDays(days: number, referenceTimeMillis: number): any;
       /**
        *  Calculates a period of defined hours until reference time. If referenceTimeMillis is not defined, current time will be used as reference
        */
-      lastHours(hours: any, referenceTimeMillis: any): any;
+      lastHours(hours: number, referenceTimeMillis: number): any;
       /**
        *  Calculates a period of defined minutes until reference time. If referenceTimeMillis is not defined, current time will be used as reference
        */
-      lastMinutes(minutes: any, referenceTimeMillis: any): any;
+      lastMinutes(minutes: number, referenceTimeMillis: number): any;
       /** Calculates previous day from specified time in milliseconds. */
-      previousDay(referenceTimeMillis: any): any;
+      previousDay(referenceTimeMillis: number): any;
       /** Calculates previous month from specified time in milliseconds. */
-      previousMonth(referenceTimeMillis: any): any;
+      previousMonth(referenceTimeMillis: number): any;
       /** Calculates previous quarter from specified time in milliseconds. */
-      previousQuarter(referenceTimeMillis: any): any;
+      previousQuarter(referenceTimeMillis: number): any;
       /** Calculates previous week from specified time in milliseconds. */
-      previousWeek(referenceTimeMillis: any): any;
+      previousWeek(referenceTimeMillis: number): any;
     };
   };
   endesa: {
     /** Depending on the command value, specific translation will be returned. */
-    commandFrom(command: any): any;
+    commandFrom(command: string): string;
     /** If msisdn starts with "34", then returns the value without "34". */
-    prepareMsisdn(msisdn: any): any;
+    prepareMsisdn(msisdn: string): string;
     /** Example of use: */
-    toDbmPlusQuality(value: any): any;
+    toDbmPlusQuality(value: string): any;
     /** Example of use: */
-    torscp(value: any): any;
+    torscp(value: string): any;
   };
   odm: {
     /**
      *  It can be used to add datastream in the Identification section of the OdmMessage, to relate the collected data with the subEntity; it is used with entities that have more than one CommunicationsCommsModule.
      *  @internal — the documentation marks this API as internal; it is not part of the public surface.
      */
-    addCollectionHint(key: any, value: any, structured: any): any;
+    addCollectionHint(key: string, value: string, structured: boolean): void;
     /**
      *  It can be used to add datastream in the Identification section of the OdmMessage, to identify the entity in Mongo Data Base.
      *  @internal — the documentation marks this API as internal; it is not part of the public surface.
      */
-    addIdentificationHint(key: any, value: any, structured: any): any;
+    addIdentificationHint(key: string, value: string, structured: boolean): void;
     /** **Kind**: global function */
-    addValueToContext(key: any, value: any): any;
+    addValueToContext(key: string, value: string): any;
     /**
      *  Decrypt an encrypted string with the configuration established by the datastream of the organization
      */
-    decryptString(encryptedValue: any, datastreamConfiguration: any, organizationName: any): any;
+    decryptString(encryptedValue: string, datastreamConfiguration: string, organizationName: string): string;
     /**
      *  Encrypt an original string with the configuration established by the datastream of the organization
      */
-    encryptString(originalValue: any, datastreamConfiguration: any, organizationName: any): any;
+    encryptString(originalValue: string, datastreamConfiguration: string, organizationName: string): string;
     /** Extract from the first entity of entities array specified datastream "value" field value. */
-    entitiesValue(entities: any, datastream: any, index: any): any;
+    entitiesValue(entities: any[], datastream: string, index?: number): any;
     /** Calculates the address type from a given address */
-    getAddressTypeFromAddress(address: any): any;
+    getAddressTypeFromAddress(address: string): any;
     /** Executes specified request with specified payload. */
-    httpRequest(request: any, payload: any): any;
+    httpRequest(request: any, payload?: any): any;
     /** Sleeps for specified time */
-    sleep(time: any): any;
+    sleep(time: number): any;
     db: {
       /**
        *  **The use of this function is discouraged.**
        *  @internal — the documentation marks this API as internal; it is not part of the public surface.
        */
-      getEntity(identifier: any): any;
+      getEntity(identifier: string): any;
     };
   };
 };
 
 declare const websocket: {
   /** Device identifier with the opened websocket */
-  deviceId: any;
+  deviceId: string;
   /** Data to be published. It will be converted to string. */
   payload: any;
   /** Executes specified request using the properties of the `websocket object` */

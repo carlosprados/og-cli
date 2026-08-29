@@ -430,6 +430,12 @@ Examples:
 	},
 })
 
+var connectorsShowCmd = newShowCmd(unwrap.ConnectorFunctionDescriptor(),
+	func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetConnectorFunction(ctx, org, connectorsChannel, id)
+	},
+	"show <cf-id>", "Print a connector function's remote code files")
+
 var connectorsValidateCmd = newValidateCmd(unwrap.ConnectorFunctionDescriptor(), "validate <cf-dir>", "Check a local connector function directory before deploying it")
 
 var connectorsWatchCmd = newWatchCmd(watchSpec{
@@ -452,6 +458,8 @@ func init() {
 	addValidateFlags(connectorsValidateCmd)
 	connectorsCmd.AddCommand(connectorsDiffCmd)
 	addDiffFlags(connectorsDiffCmd)
+	connectorsCmd.AddCommand(connectorsShowCmd)
+	addShowFlags(connectorsShowCmd)
 	connectorsCmd.PersistentFlags().StringVar(&connectorsChannel, "channel", defaultChannel, "channel the connector function belongs to")
 
 	connectorsCreateCmd.Flags().StringVarP(&cfCreateFile, "file", "f", "", "path to JSON file with connector function definition")

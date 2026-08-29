@@ -28,21 +28,24 @@ import (
 // contextForDocType maps a documentation `type` to the artifact execution
 // context whose declarations it belongs in.
 //
-// The names are the documentation's own, and one is misleading: the nine
-// `alarms-js-api` pages are the ADVANCED rules API, not an alarms API.
+// The names are the documentation's own. The rules pages used to be typed
+// `alarms-js-api`, which was misleading — only one of the nine is about alarms.
+// The documentation renamed them to `rules-js-api` with no alias, and the old
+// names stopped being emitted; a generator keyed on the old ones simply stops
+// seeing the whole rules family. See checkCoverage.
 var contextForDocType = map[string]string{
-	"cf-js-api":              "connector-function",
-	"cf-internal-js-api":     "connector-function",
-	"alarms-js-api":          "rule-advanced",
-	"alarms-js-internal-api": "rule-advanced",
-	"pf-js-api":              "provision-function",
-	"tsf-js-api":             "timeseries-function",
+	"cf-js-api":             "connector-function",
+	"cf-internal-js-api":    "connector-function",
+	"rules-js-api":          "rule-advanced",
+	"rules-js-internal-api": "rule-advanced",
+	"pf-js-api":             "provision-function",
+	"tsf-js-api":            "timeseries-function",
 }
 
 // internalDocTypes are the pages the documentation itself marks as internal.
 var internalDocTypes = map[string]bool{
-	"cf-internal-js-api":     true,
-	"alarms-js-internal-api": true,
+	"cf-internal-js-api":    true,
+	"rules-js-internal-api": true,
 }
 
 // outputFile is the declaration file each context is written to.
@@ -71,6 +74,7 @@ func main() {
 	}
 
 	bundles := map[string]*Bundle{}
+	seenTypes := map[string]int{}
 	var pages int
 	var skipped []string
 
@@ -104,6 +108,7 @@ func main() {
 			return nil
 		}
 		pages++
+		seenTypes[doc.Type]++
 
 		b := bundles[context]
 		if b == nil {
@@ -131,8 +136,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  skipped %s\n", s)
 	}
 
-	if len(bundles) == 0 {
-		fmt.Fprintln(os.Stderr, "no JavaScript API pages found — has the documentation's `type` front matter changed?")
+	if missing := checkCoverage(seenTypes); len(missing) > 0 {
+		fmt.Fprintln(os.Stderr, "the documentation no longer has pages for every JavaScript API family:")
+		for _, m := range missing {
+			fmt.Fprintf(os.Stderr, "  no page carries type %q — expected the %s declarations\n", m, contextForDocType[m])
+		}
+		fmt.Fprintln(os.Stderr, "\nEither the front matter was renamed again, or those pages were removed.")
+		fmt.Fprintln(os.Stderr, "Refusing to write: a partial regeneration leaves a stale declaration file in place,")
+		fmt.Fprintln(os.Stderr, "which is worse than no regeneration at all — it looks current and is not.")
 		os.Exit(1)
 	}
 
@@ -190,4 +201,23 @@ func header(b *Bundle) string {
 	}
 	s.WriteString("//\n// Regenerate: go run ./tools/ogdocgen -docs <odm-documentation-hugo> -out internal/typegen/templates\n\n")
 	return s.String()
+}
+
+// checkCoverage reports which known documentation types produced no page.
+//
+// This exists because of a real near-miss. The documentation renamed the rules
+// front matter from `alarms-js-api` to `rules-js-api` with no alias. The
+// generator kept running, reported three contexts instead of four, exited zero,
+// and left the previous rule-advanced.generated.d.ts untouched on disk — a
+// stale file with a header claiming it was generated from the documentation.
+// Silence is the wrong answer to a family disappearing.
+func checkCoverage(seen map[string]int) []string {
+	var missing []string
+	for docType := range contextForDocType {
+		if seen[docType] == 0 {
+			missing = append(missing, docType)
+		}
+	}
+	sort.Strings(missing)
+	return missing
 }

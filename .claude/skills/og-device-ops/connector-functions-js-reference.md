@@ -368,9 +368,15 @@ These are allowed cases:
 
 Other invocations will be ignored (for example, invoke RESPONSE CF from COLLECTION CF).
 
-There are two help functions for this:
-* responseCF
-* collectionCF
+Use the `cf` object:
+
+* `cf.response(responseFunctionCriteria, responsePayload)`
+* `cf.collection(collectionFunctionCriteria, collectionPayload)`
+
+The deprecated globals `responseCF(data, criteria)` and `collectCF(data, criteria)` still work and
+are what most existing scripts call. **They take their arguments in the opposite order** — payload
+first, criteria second — so migrating a call is not a rename: the arguments have to be swapped.
+There is no `collectionCF`; an earlier copy of this guide invented it.
 
 
 

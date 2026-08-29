@@ -2,7 +2,7 @@
 
 **Status:** analysis and design. No implementation.
 **Date:** 2026-08-25
-**Input:** `og-cli-dx-handoff.md`
+**Input:** `docs/og-cli-dx-handoff.md`
 **Method:** source audit of the current checkout, plus diagnostic probes executed against
 `internal/unwrap` (written, run, and removed — findings marked `verified-probe`).
 
@@ -31,7 +31,7 @@ this first, because it changes the plan's shape and its cost.
 | "Locate the SHA256 config comparison used to assert wrap is lossless" | **No SHA256 exists anywhere in the repo.** Losslessness is asserted by `reflect.DeepEqual` over decoded trees in tests only. **Source of the confusion found** (2026-08-25): the `og-workspaces` skill claimed *"wrap reproduces identical widget configs (same SHA256)"* — a documentation overstatement, now corrected there                                                      | `grep sha256` → no Go matches, `verified-code`                      |
 | Three divergent `pull`/`wrap`/`deploy` implementations                | One shared core (`ExtractJSFields`/`ReinjectJSFields`/`Slugify`) plus **three byte-identical adapters** and one genuinely different nested pipeline (workspace→dashboard→widget) | `internal/unwrap/{rules,connectors,provisions}.go`, `verified-code` |
 | Connector functions have `REQUEST` and `RESPONSE` variants            | Three types: `REQUEST`, `RESPONSE`, **`COLLECTION`**                                                                                                                             | `pkg/opengate/connectors.go`, `verified-live`                       |
-| Helper is `collectCF()` | **The handoff was right and this row was wrong.** The official documentation says `collectCF` in six places, including a worked SNMP example; the vendored copy of the guide says `collectionCF` once, and that is what this row was based on. Reported for correction in `docs/opengate-documentation-handoff.md` §2 | `from-docs`, corrected 2026-08-26 |
+| Helper is `cf.collection()`; `collectCF()` is its deprecated form | **Settled by the platform team.** `collectionCF` does not exist and never did — it comes from the vendored copy of the guide, which this row was based on. `collectCF(data, criteria)` exists and is deprecated in favour of `cf.collection(criteria, payload)`, **arguments reversed**. See `docs/opengate-documentation-handoff-response.md` §4 | `from-docs`, settled 2026-08-26 |
 | "South criteria are the routing key"                                  | Only for `RESPONSE`/`COLLECTION`. `REQUEST` matches on `operationName` + `northCriterias`                                                                                        | `cmd/connectors.go` long help, `verified-live`                      |
 | `og pf test <slug> --input sample.csv`                                | The input is an **Excel spreadsheet**, not CSV                                                                                                                                   | `configurationParams.spreadsheet`, `verified-live`                  |
 
@@ -265,13 +265,17 @@ API inconsistencies already absorbed by the client, worth preserving in any refa
 Concatenation is a typed, restricted graph:
 
 ```
-REQUEST  → RESPONSE, COLLECTION      (via responseCF / collectionCF)
-RESPONSE → COLLECTION                (via collectionCF)
+REQUEST  → RESPONSE, COLLECTION      (via cf.response / cf.collection)
+RESPONSE → COLLECTION                (via cf.collection)
 COLLECTION → nothing                 (any call is silently ignored)
 ```
 
-This makes `og cf graph` implementable by static analysis of `responseCF(…)`/`collectionCF(…)`
-call sites, and — more valuable — makes **illegal concatenation a lintable error** rather than a
+The deprecated globals `responseCF(data, criteria)` and `collectCF(data, criteria)` do the same,
+with the arguments the other way round. `collectionCF` does not exist and never did — that name came
+from a stale vendored copy of the guide.
+
+This makes `og cf graph` implementable by static analysis of the four call sites
+(`cf.response`/`cf.collection` and their deprecated globals), and — more valuable — makes **illegal concatenation a lintable error** rather than a
 silent no-op at runtime. That is a better payoff than the graph rendering itself.
 
 ### 3.4 Provision function contract
@@ -308,7 +312,7 @@ edit, will lose the other's changes wholesale. Not caused by this roadmap; worth
 | 3   | Connector functions per channel or per org?   | **Per channel**, like rules. Provision functions are **per org**. `verified-live`                                                                                                                                                |
 | 4   | Real input contract for provision functions?  | Excel spreadsheet + `normalizeRawObject`/`actionsPlanning`; server-side `plan` already exists (§3.4).                                                                                                                            |
 | 5   | Should `og cf test` stub protocol execution?  | **Recommendation: no.** Ship static validation instead (§6.2).                                                                                                                                                                   |
-| 6   | Governance: community tool or Amplía product? | **Decided 2026-08-25: community tool, for now.** Charlie has yet to discuss it with others at Amplía, so treat it as provisional — revisit before the extension ships (§9). Interacts with `docs/premium-open-core-analysis.md`. |
+| 6   | Governance: community tool or Amplía product? | **Settled 2026-08-28: community tool, and we publish the extension ourselves.** The Amplía conversation happened. og stays a community tool, and the VS Code extension ships from us carrying an explicit "unofficial, community product" disclaimer rather than as an Amplía product. No longer provisional; Phase 11 is no longer gated. Interacts with `docs/premium-open-core-analysis.md`. |
 
 ---
 
@@ -584,14 +588,16 @@ Phases 2 and 3 of the handoff are struck: already shipped.
 
 ## 9. Consequences of the decisions
 
-### 9.1 Community tool (provisional)
+### 9.1 Community tool (settled 2026-08-28)
 
 - The unofficial/no-warranty framing in `README.md` stands; nothing needs softening yet.
 - `watch` still ships the `production: true` profile guard and `--allow-production` (§5.6). A
   community tool writing to a customer's production platform is *more* reason for the guard, not
   less — the tool carries no support channel to catch the fallout.
-- Phase 11 (VS Code extension) stays gated: publishing to a marketplace under a community banner
-  is a distribution decision, not a technical one. Revisit when the Amplía conversation happens.
+- Phase 11 (VS Code extension) is **no longer gated** (settled 2026-08-28). Publishing to a
+  marketplace under a community banner was a distribution decision rather than a technical one, and
+  it has been taken: we publish it, with the unofficial/community disclaimer carried into the
+  marketplace listing and the extension's own README, not only into this repository's.
 - No change to the roadmap's technical content.
 
 ### 9.2 B1–B3 as a patch release — with one correction
@@ -1244,10 +1250,26 @@ page's example — and the live function in sensehat — use `normalizeRawObject
 
 That exercise also corrected **this document**: §1 claimed the original handoff was wrong about
 `collectCF`. It was right; the vendored copy of the guide I checked against says `collectionCF` once,
-the official documentation says `collectCF` six times with a worked example.
+the official documentation says `collectCF` six times with a worked example. The platform team then
+settled it: `collectionCF` never existed, and `collectCF` is deprecated in favour of `cf.collection`
+with the arguments reversed.
+
+### Answered — see `docs/opengate-documentation-handoff-response.md`
+
+All four items landed in the documentation. Two changed what ogdocgen does:
+
+- The rules front matter is now `rules-js-api` / `rules-js-internal-api`, with no alias. The
+  generator was keyed on `alarms-js-api` and silently produced three families instead of four; it
+  now refuses to write when a known family yields no page.
+- 22 connector-function globals (and 3 more in rules) name their replacement, so the generator emits
+  `@deprecated` with the documentation's own wording — including the warning that `cf.collection`
+  and `cf.response` take their arguments in the opposite order.
 
 ### Still open
 
-`libs/ogapi-docs/JS Reference/` — 92 pages of the `$api` (opengate-js) surface used in **widget**
-code — has no `type` in its front matter, so it is not machine-readable. That is the one context
-where og still cannot offer completion, and it is the request in the handoff with real leverage.
+The widget `$api` surface. **Do not parse `libs/ogapi-docs`**: those pages were generated from an
+unmerged branch and document 15 classes release 14.15.0 does not have while missing 18 it does.
+`opengate-js` now publishes its own `.d.ts` (PR #140, `types` in `package.json`, 234 declaration
+files emitted from the JSDoc by tsc), which an editor consumes natively — so there is no generator
+to write for this surface, only a decision about how og points an artifact directory at the
+declarations for the pinned library version.

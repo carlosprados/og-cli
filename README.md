@@ -478,6 +478,15 @@ og rules diff rules/env-anomaly --exit-code -o json    # CI drift gate
 # 1 for differences, 0 for none, 2 on error. The -o json shape is a versioned
 # contract: see docs/json-output.md.
 
+# Read one remote code file, raw — no envelope, no table, nothing around it
+og rules show <rule-id> --org sensehat                       # list the files it carries
+og rules show <rule-id> --org sensehat --path javascript.js  # print that one to stdout
+#
+# The names are the ones `pull` writes on disk, so a path from the local tree
+# addresses the same file remotely. This is what an editor plugin uses for the
+# remote side of a native diff view — the same command serves connectors and
+# provision functions.
+
 # Check an artifact before deploying it — local only, no credentials needed
 og rules validate rules/env-anomaly
 og connectors validate connectors/weather
@@ -535,6 +544,21 @@ alarm.open({ severity: 'HIGH' })   // 'HIGH' is not assignable to OGSeverity
                                     // ('INFORMATIVE' | 'URGENT' | 'CRITICAL')
 ```
 
+The platform half is generated from the official OpenGate documentation, so it
+carries what the documentation says about each symbol — including deprecation.
+The 41 globals the platform has superseded are struck through in the editor with
+their replacement on hover, in the documentation's own words:
+
+```js
+responseCF(payload, criteria)   // @deprecated Use `cf.response` instead. Note the
+                                // arguments are in the opposite order: `cf.response`
+                                // takes the criteria first and the payload second.
+```
+
+That warning is worth reading before a bulk rename: `cf.collection` and
+`cf.response` swap payload and criteria, so a naive substitution produces code
+that runs and sends the payload where the criteria belongs.
+
 Every datamodel in the organization contributes its datastreams (sensehat has 27,
 holding 664 between them), plus two sources specific to the artifact: the rule's
 own trigger, and the identifiers its code already reads. That last part matters —
@@ -566,6 +590,106 @@ og connectors pull <cf-id> --dir cfs/ --org sensehat --no-typings
 Both generated files are safe to keep in the artifact directory: `wrap` and
 `deploy` ignore everything they do not declare as a code path, so they never
 reach the platform. Commit them or gitignore them, as you prefer.
+
+**Widgets are typed too, and from a different source.** A widget's data API is
+`$api` — the `opengate-js` package — which publishes its own declarations from
+version 16.0.0. og generates nothing for that surface: it writes the globals the
+platform injects (`$api`, `$user`, `$moment`, `http`, the navigation helpers) and
+the parameters of the async function the platform wraps the code in
+(`entityData`, `filters`, `callback`, and for a customTable `page` and
+`pageElements`), then points `$api` at the library's own `OpenGateAPI` class.
+
+```bash
+og workspace pull <workspace-id> --dir ws/ --org sensehat
+cd ws/<workspace>/<dashboard>/<NN>__customchart__<wid>/
+npm install          # og wrote a package.json declaring opengate-js
+# $api now completes, navigates and documents itself from the library's JSDoc:
+#   $api.datapointsSearchBuildr()
+#   → Property 'datapointsSearchBuildr' does not exist on type 'OpenGateAPI'.
+#     Did you mean 'datapointsSearchBuilder'?
+```
+
+Only `customChart` and `customTable` carry a script; every other widget kind is
+configured rather than programmed, and `og typegen` says so instead of writing
+declarations that would not apply.
+
+In the editor a widget gets completion but not diagnostics: a widget returns its
+result at the top level — its contract with the platform — and TypeScript reports
+that as an error on a plain file, so checking is turned off. `og widget check`
+gets the diagnostics back by rebuilding the wrapper the platform puts around the
+code and checking inside it, where the return and the `await` are ordinary:
+
+```bash
+og widget check                 # in the widget directory
+og widget check <dir> --exit-code   # 1 when there are diagnostics — a CI gate
+og widget check --strict        # also show what is normally set aside
+```
+
+Positions point at your file; the wrapper's own lines are subtracted. Two idioms
+are set aside by default because they are correct JavaScript that TypeScript
+rejects on principle — subtracting two `Date`s, and reading a property from a
+variable initialised to `null` — and both occur in production widgets. Everything
+else is reported, including the one that motivated the command:
+
+```
+_widgetConfigCode.js:17:15  TS2551  Property 'datapointsSearchBuildr' does not
+exist on type 'OpenGateAPI'. Did you mean 'datapointsSearchBuilder'?
+```
+
+which otherwise surfaces as "Data not found" at render time.
+
+### workspace diff
+
+A workspace is a tree — dashboards holding widgets — so its diff is rendered as
+one, rather than as the flat key paths the other families use. Dashboards and
+widgets are matched by identity, so moving a widget is a move and not two
+rewrites, and unchanged branches are pruned to leave the path to what differs:
+
+```bash
+og workspace diff ws/multisensor-demo
+```
+
+```
+~ workspace Multisensor Demo  (_multisensor_demo_ws)
+  metadata:
+    + color: #ff0000
+  ~ dashboard Multisensor Overview (staging)  (multisensor-overview)
+    metadata:
+      ~ title: Multisensor Overview → Multisensor Overview (staging)
+    ~ widget 02__customChart__demo-temp-chart  (demo-temp-chart)
+      _widgetConfigCode.js  +1 −1
+        - var devices = ['multisensor-001', …];
+        + var devices = ['multisensor-999', …];
+```
+
+Read remote → local, so it is what deploying would do: `+` would be created,
+`−` deleted, `~` changed. Widget JavaScript is compared as a textual diff of the
+extracted files — the ones the editor works on — and everything else as a
+structural diff of the metadata. `--name-only`, `--against <profile>`,
+`--exit-code` and `--context` work as they do for the flat families.
+
+### workspace watch
+
+Deploys on save, with the dashboard as the unit: editing a widget's JavaScript
+deploys the dashboard that widget belongs to, not the whole workspace. Edits to
+`workspace.json` are reported and skipped — `og workspace deploy` is for those.
+
+```bash
+og workspace watch ws/ --dry-run
+og workspace watch ws/
+```
+
+```
+15:34:09  refused  00__multisensor-overview  [conflict]  the remote changed since
+you pulled — deploying would discard it. Run `og workspace diff`, then pull or
+resolve by hand.
+```
+
+The conflict guard needs the snapshot `og workspace pull` records under `.og/`.
+A dashboard pulled before that existed, or unwrapped from an export file rather
+than fetched, has no snapshot and is reported as unknown rather than silently
+overwritten. Same flags as the other families, including the `production: true`
+profile guard and `--allow-production`.
 
 ### connectors (alias: cf)
 

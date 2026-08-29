@@ -167,9 +167,17 @@ og rules pull <rule-id> --dir rules/ --org <org>   # → rules/<slug>/rule.json 
 # their schema. entity['sensro.temperature'] and severity:'HIGH' become editor
 # errors instead of silent runtime undefined. Both files are ignored by wrap and
 # deploy — they never reach the platform.
+# The declarations also carry the platform's deprecations: 41 superseded globals
+# are marked @deprecated with their replacement. Two of them REVERSE their
+# arguments — collectCF(data, criteria) → cf.collection(criteria, payload), and
+# responseCF likewise — so migrating a call means swapping them, not renaming.
 og typegen --context rule/ADVANCED --org <org> --out rules/<slug>/   # regenerate after a datamodel change
 og rules pull <rule-id> --dir rules/ --org <org> --no-typings        # skip them
 # edit javascript.js in the IDE
+og rules show <rule-id> --org <org>                 # list the remote code files
+og rules show <rule-id> --org <org> --path javascript.js  # print one, raw, to stdout
+#   the names are the ones pull writes on disk. This is the remote side of a diff
+#   view in an editor; same command for connectors and provision functions.
 og rules diff rules/<slug> --org <org>             # before deploying: what would change?
 #   metadata as a structural diff, code as a textual one; both read remote → local,
 #   so it shows what the deploy would DO. Volatile/requester-derived fields ignored.

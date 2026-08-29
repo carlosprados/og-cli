@@ -450,6 +450,12 @@ Examples:
 	},
 })
 
+var rulesShowCmd = newShowCmd(unwrap.RuleDescriptor(),
+	func(ctx context.Context, c *opengate.Client, org, id string) (json.RawMessage, error) {
+		return c.GetRule(ctx, org, rulesChannel, id)
+	},
+	"show <rule-id>", "Print a rule's remote code files")
+
 var rulesValidateCmd = newValidateCmd(unwrap.RuleDescriptor(), "validate <rule-dir>", "Check a local rule directory before deploying it")
 
 var rulesWatchCmd = newWatchCmd(watchSpec{
@@ -472,6 +478,8 @@ func init() {
 	addValidateFlags(rulesValidateCmd)
 	rulesCmd.AddCommand(rulesDiffCmd)
 	addDiffFlags(rulesDiffCmd)
+	rulesCmd.AddCommand(rulesShowCmd)
+	addShowFlags(rulesShowCmd)
 	rulesCmd.PersistentFlags().StringVar(&rulesChannel, "channel", defaultChannel, "channel the rule belongs to")
 
 	rulesSearchCmd.Flags().StringArrayVarP(&rulesSearchWhere, "where", "w", nil, `filter condition: "field op value" (repeatable)`)

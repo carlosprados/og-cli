@@ -2,8 +2,16 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
+)
+
+var (
+	// Only the inline tags the pages actually use. A general `<[a-z]…>` pattern
+	// eats the type argument of Array.<String> and leaves "Array".
+	htmlTag      = regexp.MustCompile(`(?i)</?(?:code|tt|b|i|em|strong|p|br|span)\b[^>]*>`)
+	jsdocGeneric = regexp.MustCompile(`^([a-z]+)\.?<([^>]*)>$`)
 )
 
 // tsType maps a type as written in the documentation to a TypeScript one.
@@ -23,8 +31,21 @@ func paramType(p Param) string {
 }
 
 func tsType(docType string) string {
-	t := strings.ToLower(strings.Trim(docType, "`*_ "))
+	// The pages mix notations for the same thing: `Object`, <code>Object</code>,
+	// Array.<String>. Normalise before matching, or two thirds of the documented
+	// return types fall through to `any` on punctuation alone.
+	t := htmlTag.ReplaceAllString(docType, "")
+	t = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(t), "\u21d2")) // heading form: `foo(x) ⇒ String`
+	t = strings.ToLower(strings.Trim(t, "`*_\\. "))
 	t = strings.TrimSuffix(t, "()")
+
+	// JSDoc generics: Array.<String>, Array<String>.
+	if m := jsdocGeneric.FindStringSubmatch(t); m != nil {
+		if m[1] == "array" {
+			return tsType(m[2]) + "[]"
+		}
+		return "any"
+	}
 
 	switch t {
 	case "string", "str", "text":
@@ -35,11 +56,13 @@ func tsType(docType string) string {
 		return "boolean"
 	case "date":
 		return "Date"
+	case "uint8array":
+		return "Uint8Array"
 	case "array", "list":
 		return "any[]"
 	case "void", "none", "-":
 		return "void"
-	case "", "*", "any", "object", "json", "json object", "map", "mixed":
+	case "", "*", "any", "object", "json", "json object", "map", "mixed", "entity":
 		return "any"
 	}
 
@@ -194,7 +217,7 @@ func (b *Bundle) Emit() string {
 				continue
 			}
 			seen[d.Name] = true
-			out.WriteString(docComment("", d.Summary, internalNote(d), sourceNote(d)))
+			out.WriteString(docComment("", d.Summary, deprecatedNote(d), internalNote(d), sourceNote(d)))
 			fmt.Fprintf(&out, "declare function %s(%s): %s;\n\n",
 				sanitiseIdent(d.Name), emitParams(d.Params), returnType(d))
 		}
@@ -279,7 +302,7 @@ func (b *Bundle) emitObjectBody(path, indent string, allNames []string) string {
 			continue
 		}
 		seen[d.Name] = true
-		out.WriteString(docComment(inner, d.Summary, internalNote(d)))
+		out.WriteString(docComment(inner, d.Summary, deprecatedNote(d), internalNote(d)))
 		fmt.Fprintf(&out, "%s%s(%s): %s;\n", inner, sanitiseIdent(d.Name), emitParams(d.Params), returnType(d))
 	}
 
@@ -339,6 +362,26 @@ func returnType(d Decl) string {
 		return "any"
 	}
 	return tsType(d.Returns)
+}
+
+// deprecatedNote renders the documentation's own deprecation notice as a JSDoc
+// `@deprecated` tag, which an editor shows struck through with the replacement
+// on hover.
+//
+// The text is the documentation's, verbatim, and that is the point. Two of
+// these replacements — `collectCF` → `cf.collection` and `responseCF` →
+// `cf.response` — take their arguments in the opposite order, and the notice
+// says so; a rename driven by a table of names alone produces code that
+// compiles, runs, and sends the payload where the criteria belongs. The other
+// group (`ogCollection*`, `ogResponse`, `ogStep*`, `httpRequest`,
+// `webSocketMsg`, `publishOnTopic`) is deliberately not a function-for-function
+// mapping — the objects that replace them absorb the calls — so nothing here
+// invents an equivalence the documentation does not state.
+func deprecatedNote(d Decl) string {
+	if d.Deprecated == "" {
+		return ""
+	}
+	return "@deprecated " + d.Deprecated
 }
 
 func internalNote(d Decl) string {

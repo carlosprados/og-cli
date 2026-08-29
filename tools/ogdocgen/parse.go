@@ -26,6 +26,9 @@ type Decl struct {
 	// Returns is the documented return type, when the page states one.
 	Returns string
 	Summary string
+	// Deprecated is the replacement the documentation names, verbatim. Empty
+	// when the declaration is current.
+	Deprecated string
 	// Internal marks a declaration from a page the documentation itself flags
 	// as internal API.
 	Internal bool
@@ -79,6 +82,42 @@ var (
 	anyHeading = regexp.MustCompile(`^#+\s+`)
 
 	tableRow = regexp.MustCompile(`^\s*\|(.+)\|\s*$`)
+
+	// A deprecation notice, which the documentation writes as a blockquote
+	// immediately under the signature heading:
+	//
+	//	> **Deprecated:** Use [`cf.collection`](…) instead. Note the arguments
+	//	> are in the opposite order: …
+	//
+	// Reading it is what turns "the documentation says this is deprecated" into
+	// a symbol the editor strikes through, with the replacement on hover.
+	deprecatedNotice = regexp.MustCompile(`^>\s*\*\*Deprecated:?\*\*\s*(.*)$`)
+	// A continuation line of that blockquote.
+	blockquoteLine = regexp.MustCompile(`^>\s?(.*)$`)
+
+	// The canonical way a page states a return type, on its own line under the
+	// signature:
+	//
+	//	**Returns**: String - Returns deviceId field. If operationObj is not …
+	//
+	// 224 entries across the pages we read state one this way. Reading only the
+	// heading form caught 3 of them.
+	returnsLine = regexp.MustCompile(`^\*\*Returns?\*\*:?\s*(.*)$`)
+
+	// How the pages say a parameter may be left out. There is no optional marker
+	// in the signatures and no Default column in most tables: the fact lives in
+	// the description, phrased half a dozen ways.
+	//
+	// Reading it matters because the alternative is asserting an arity the
+	// documentation never states. Four live artifacts call openAlarm with 6 of
+	// its 7 documented parameters and executeOperation with 10 of 11, and they
+	// work.
+	optionalHint = regexp.MustCompile(`(?i)\*\*default\*\*|\bdefault:|\boptional\b|\bif (?:it )?is undefined\b|\bif not (?:provided|defined|set)\b|\bif provided\b|\bcan be null\b|\bit is not mandatory\b`)
+
+	// An inline markdown link: keep the text, drop the URL. The replacement
+	// names are inside the links, so a naive strip loses exactly the useful
+	// half.
+	markdownLink = regexp.MustCompile(`\[([^\]]*)\]\([^)]*\)`)
 )
 
 // ParseFile reads one documentation page.
@@ -98,6 +137,7 @@ func ParseFile(path, relPath string) (*APIDoc, []Property, error) {
 		pendingDecl   *Decl
 		propsObject   string
 		tableHeader   []string
+		inDeprecated  bool
 	)
 
 	scanner := bufio.NewScanner(f)
@@ -105,9 +145,11 @@ func ParseFile(path, relPath string) (*APIDoc, []Property, error) {
 
 	flush := func() {
 		if pendingDecl != nil {
+			pendingDecl.Deprecated = plainText(pendingDecl.Deprecated)
 			doc.Decls = append(doc.Decls, *pendingDecl)
 			pendingDecl = nil
 		}
+		inDeprecated = false
 	}
 
 	for scanner.Scan() {
@@ -151,6 +193,34 @@ func ParseFile(path, relPath string) (*APIDoc, []Property, error) {
 			}
 			continue
 		}
+		// ── deprecation notice ──
+		//
+		// A blockquote under the signature, before its prose. Read before the
+		// summary rule below, which would otherwise take the notice for the
+		// description of the function.
+		if pendingDecl != nil {
+			if m := deprecatedNotice.FindStringSubmatch(trimmed); m != nil {
+				pendingDecl.Deprecated = strings.TrimSpace(m[1])
+				inDeprecated = true
+				continue
+			}
+			if inDeprecated {
+				if m := blockquoteLine.FindStringSubmatch(trimmed); m != nil {
+					pendingDecl.Deprecated = collapseSpaces(pendingDecl.Deprecated + " " + m[1])
+					continue
+				}
+				inDeprecated = false
+			}
+		}
+
+		// ── documented return type ──
+		if pendingDecl != nil && pendingDecl.Returns == "" {
+			if m := returnsLine.FindStringSubmatch(trimmed); m != nil {
+				pendingDecl.Returns = returnTypeText(m[1])
+				continue
+			}
+		}
+
 		if m := propsHeading.FindStringSubmatch(line); m != nil {
 			flush()
 			propsObject = strings.ToLower(unescapeMarkdown(m[1]))
@@ -186,8 +256,10 @@ func ParseFile(path, relPath string) (*APIDoc, []Property, error) {
 			continue
 		}
 
-		// The first prose line after a signature is its summary.
-		if pendingDecl != nil && pendingDecl.Summary == "" && trimmed != "" && !strings.HasPrefix(trimmed, "```") {
+		// The first prose line after a signature is its summary. A blockquote is
+		// not prose: it is the deprecation notice, handled above.
+		if pendingDecl != nil && pendingDecl.Summary == "" && trimmed != "" &&
+			!strings.HasPrefix(trimmed, "```") && !strings.HasPrefix(trimmed, ">") {
 			pendingDecl.Summary = collapseSpaces(trimmed)
 		}
 	}
@@ -257,7 +329,10 @@ func enrichParam(d *Decl, header, cells []string) {
 		return ""
 	}
 
-	name := unescapeMarkdown(strings.Trim(get("property", "parameter", "name", "field"), "`*_ "))
+	// "Param" is the most common heading by a distance — 206 tables against 99
+	// for "Parameter" — and leaving it out of this list meant every one of them
+	// contributed nothing, so their parameters silently stayed `any`.
+	name := unescapeMarkdown(strings.Trim(get("param", "parameter", "property", "name", "field"), "`*_ "))
 	if name == "" {
 		return
 	}
@@ -270,7 +345,7 @@ func enrichParam(d *Decl, header, cells []string) {
 			d.Params[i].Type = typ
 			d.Params[i].Default = def
 			d.Params[i].Comment = collapseSpaces(comment)
-			if def != "" {
+			if def != "" || optionalHint.MatchString(comment) {
 				d.Params[i].Optional = true
 			}
 			return
@@ -291,7 +366,7 @@ func propertyFromRow(header, cells []string) Property {
 		return ""
 	}
 	return Property{
-		Name:    unescapeMarkdown(strings.Trim(get("property", "name", "field"), "`*_ ")),
+		Name:    unescapeMarkdown(strings.Trim(get("property", "param", "name", "field"), "`*_ ")),
 		Type:    get("type"),
 		Default: get("default", "default value"),
 		Comment: collapseSpaces(get("description", "comment")),
@@ -331,6 +406,32 @@ func lowerAll(in []string) []string {
 // e.g. `V8\_Utils`.
 func unescapeMarkdown(s string) string {
 	return strings.NewReplacer(`\_`, "_", `\*`, "*", "`", "").Replace(s)
+}
+
+// returnTypeText isolates the type from a **Returns** line.
+//
+// The line is `Type - prose describing it`, but plenty of entries write prose
+// alone ("returns msisdn parameter without format"). Those are left to fall
+// through to `any` in tsType rather than guessed at: a wrong return type is
+// worse than none, because it rejects correct code.
+func returnTypeText(raw string) string {
+	if idx := strings.Index(raw, " - "); idx >= 0 {
+		raw = raw[:idx]
+	}
+	return strings.TrimSpace(raw)
+}
+
+// plainText renders a fragment of documentation markdown as the one line a
+// JSDoc tag can carry: links become their text, escapes are undone. Backticks
+// stay, because an editor renders them and the replacement names read better
+// as code.
+func plainText(s string) string {
+	if s == "" {
+		return ""
+	}
+	s = markdownLink.ReplaceAllString(s, "$1")
+	s = strings.NewReplacer(`\_`, "_", `\*`, "*").Replace(s)
+	return collapseSpaces(s)
 }
 
 func collapseSpaces(s string) string {

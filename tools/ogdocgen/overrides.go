@@ -18,13 +18,21 @@ package main
 // logger.debug('a: ', b) an arity error on working code. That was a parser bug,
 // not a documentation one.
 
-// extraOptionalArg are declarations documented as taking no arguments that
-// production code calls with one.
-var extraOptionalArg = map[string][]string{
-	// A live rule calls isInsertAction(entity) and isUpdateAction(entity),
-	// which the documentation shows as taking nothing.
-	"": {"isInsertAction", "isUpdateAction", "isPatchAction"},
-}
+// `entity` is an ambient global, not a parameter — which is why nothing here
+// widens the is*Action signatures any more.
+//
+// An earlier version of this file gave isInsertAction, isUpdateAction and
+// isPatchAction an optional `entity` parameter, because the live PROVISION_RULE
+// in sensehat calls isInsertAction(entity) while the documentation shows
+// isInsertAction(). That override treated the documentation as wrong. It was
+// not: the platform team confirmed that `entity` is a global of the rule
+// function, so these helpers already see the current entity and take no
+// argument. `gateway` has the same shape.
+//
+// typegen already models both as ambient globals — writeEntity emits
+// `declare const entity` and `declare const gateway` into every context — so
+// the argument in the live rule is vestigial, and the diagnostic on it is
+// correct rather than a false positive.
 
 // paramTypes refine a documented parameter to a named TypeScript type.
 //
@@ -48,6 +56,12 @@ var paramTypes = map[string]string{
 	".entitiesValue.datastream":             "OGDatastreamID",
 	".getDatastreamFromEntity.datastreamId": "OGDatastreamID",
 	".getDatastreamByIdFromDB.datastreamId": "OGDatastreamID",
+
+	// The parameter table says String; the page's own example passes 2 and its
+	// prose says "This function returns the same value". A live rule reads a
+	// numeric rule parameter through it. The table is wrong, so this widens back
+	// to `any` rather than reject working code.
+	".getVariableValue.variable": "any",
 
 	// Alarm severity and priority are three-value enumerations; as plain
 	// strings, severity: 'HIGH' — a real mistake — would pass.
@@ -92,29 +106,4 @@ func applyOverrides(b *Bundle) {
 		b.Objects[object] = refine(list)
 	}
 
-	for object, names := range extraOptionalArg {
-		if object == "" {
-			for i := range b.Plain {
-				if contains(names, b.Plain[i].Name) && len(b.Plain[i].Params) == 0 {
-					b.Plain[i].Params = []Param{{Name: "entity", Type: "*", Optional: true}}
-				}
-			}
-			continue
-		}
-		list := b.Objects[object]
-		for i := range list {
-			if contains(names, list[i].Name) && len(list[i].Params) == 0 {
-				list[i].Params = []Param{{Name: "arg", Type: "*", Optional: true}}
-			}
-		}
-	}
-}
-
-func contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }

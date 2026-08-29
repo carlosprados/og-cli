@@ -407,7 +407,8 @@ func runWorkspaceUnwrap(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return unwrapOneWorkspace(cmd.Context(), c, w, wsDir, p, workspaceUnwrapForceOwner)
+	return unwrapOneWorkspace(cmd.Context(), c, w, wsDir, p, workspaceUnwrapForceOwner,
+		workspaceUnwrapDir, orgForSync(p))
 }
 
 // unwrapOneWorkspace performs the full unwrap including fetching each
@@ -420,7 +421,7 @@ func runWorkspaceUnwrap(cmd *cobra.Command, args []string) error {
 // skipped with a warning — see the ownership filter for the rationale. When
 // forceOwner is true the ownership check is bypassed, matching the top-level
 // workspace override.
-func unwrapOneWorkspace(ctx context.Context, c *opengate.Client, w *opengate.Workspace, wsDir string, p *config.Profile, forceOwner bool) error {
+func unwrapOneWorkspace(ctx context.Context, c *opengate.Client, w *opengate.Workspace, wsDir string, p *config.Profile, forceOwner bool, root, orgName string) error {
 	if _, err := unwrap.Unwrap(w, wsDir); err != nil {
 		return err
 	}
@@ -451,6 +452,15 @@ func unwrapOneWorkspace(ctx context.Context, c *opengate.Client, w *opengate.Wor
 			fmt.Fprintf(os.Stderr, "    ✗ dashboard %s: %v\n", wd.Dashboard.ID, err)
 			continue
 		}
+		// Record the snapshot so a later diff can tell a local edit from a remote
+		// one, and so `og workspace watch` has a base to detect a conflict
+		// against. Without it every classification is Unknown, which turns the
+		// watch loop's conflict guard into a blind overwrite.
+		if raw, mErr := json.Marshal(fullDash); mErr == nil {
+			recordBase(unwrap.KindDashboard, fullDash.ID, fullDash.Title, dashDir, root, raw,
+				syncTarget(p, orgName, ""))
+		}
+
 		fmt.Printf("    ✓ dashboard %s (%d widgets) → %s\n", wd.Dashboard.ID, len(fullDash.Grid), dashDir)
 	}
 	return nil
@@ -512,7 +522,8 @@ func runWorkspaceUnwrapAll(cmd *cobra.Command, args []string) error {
 			failed++
 			continue
 		}
-		if err := unwrapOneWorkspace(cmd.Context(), c, w, wsDir, p, false); err != nil {
+		if err := unwrapOneWorkspace(cmd.Context(), c, w, wsDir, p, false,
+			workspaceUnwrapAllDir, orgForSync(p)); err != nil {
 			fmt.Fprintf(os.Stderr, "  ✗ workspace %s: %v\n", w.ID, err)
 			failed++
 			continue
@@ -600,6 +611,10 @@ func runWorkspaceUnwrapFile(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(os.Stderr, "    ✗ dashboard %s: %v\n", wd.Dashboard.ID, err)
 			continue
 		}
+		// No sync snapshot here, deliberately. This dashboard came out of an
+		// export file, not a GET, so it is not what the platform would return,
+		// and recording it as the base would make the next diff report
+		// differences that are an artefact of the source. A pull records one.
 		fmt.Printf("    ✓ dashboard %s (%d widgets) → %s\n", wd.Dashboard.ID, len(fullDash.Grid), dashDir)
 	}
 	return nil
@@ -901,4 +916,15 @@ func init() {
 	workspaceCmd.AddCommand(workspaceDeleteCmd)
 
 	rootCmd.AddCommand(workspaceCmd)
+}
+
+// orgForSync resolves the organization for a sync-state record, tolerating a
+// profile that has none: workspaces are a Web API family and not org-scoped in
+// the path, so an absent org is normal and must not fail a pull.
+func orgForSync(p *config.Profile) string {
+	name, err := resolveOrg(p)
+	if err != nil {
+		return ""
+	}
+	return name
 }

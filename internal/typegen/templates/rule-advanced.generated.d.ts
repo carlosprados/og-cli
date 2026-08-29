@@ -17,67 +17,95 @@
 
 // ── Plain functions ─────────────────────────────────────────────────────────
 
-/** > **Deprecated:** Use `notification` object functions instead. */
-declare function addEmailNotification(recipients: any, notificationName: any, notificationBody: any, ruleName: any, mailParameters: any): any;
+/**
+ *  Sends email notification to defined recipients.
+ *  @deprecated Use `notification` object functions instead.
+ */
+declare function addEmailNotification(recipients: any[], notificationName: string, notificationBody: string, ruleName: string, mailParameters: any): void;
 
-/** > **Deprecated:** Use `notification` object functions instead. */
-declare function addTrapNotification(recipients: any, variables: any, notificationName: any, trapOID: any, enterpriseOID: any, ruleName: any): any;
+/**
+ *  Sends trap notification to defined recipients.
+ *  @deprecated Use `notification` object functions instead.
+ */
+declare function addTrapNotification(recipients: any[], variables: any, notificationName: string, trapOID: string, enterpriseOID: string, ruleName: string): void;
 
 /**
  *  Check if 2 arrays are equals
  *  @internal — the documentation marks this API as internal; it is not part of the public surface.
  */
-declare function arrayEquals(array1: any[], array2: any[]): any;
-
-/** > **Deprecated:** Use `utils` object functions instead. */
-declare function cancelDelay(ruleName: any): any;
+declare function arrayEquals(array1: any[], array2: any[]): boolean;
 
 /**
- *  > **Deprecated:** Use `utils` object functions instead.
+ *  Cancels active delayed action produced by another rule activation.
+ *  @deprecated Use `utils` object functions instead.
+ */
+declare function cancelDelay(ruleName: string): void;
+
+/**
+ *  Cancels an active delayed action produced by another rule activation.
+ *  @deprecated Use `utils` object functions instead.
  *  @internal — the documentation marks this API as internal; it is not part of the public surface.
  */
 declare function cancelJobGroup(ruleName: any): any;
 
-/** > **Deprecated:** Use `alarm` object functions instead. */
-declare function closeAlarmByAlarmName(entityIdDatastream: any, alarmName: any): any;
-
-/** > **Deprecated:** Use `alarm` object functions instead. */
-declare function closeAlarmByRuleName(entityIdDatastream: any, ruleName: any): any;
+/**
+ *  Closes an alarm for the selected entity using alarm name.
+ *  @deprecated Use `alarm` object functions instead.
+ */
+declare function closeAlarmByAlarmName(entityIdDatastream: string, alarmName: string): void;
 
 /**
- *  > **Deprecated:** Use `collect` object functions instead.
+ *  Closes an alarm for the selected entity using rule name.
+ *  @deprecated Use `alarm` object functions instead.
+ */
+declare function closeAlarmByRuleName(entityIdDatastream: string, ruleName: string): void;
+
+/**
+ *  Collect datapoints in received entity
+ *  @deprecated Use `collect` object functions instead.
  *  @internal — the documentation marks this API as internal; it is not part of the public surface.
  */
 declare function collectDataPoints(resourceType: any, identifier: any, mapValues: any, commsValues: any, ttl: any): any;
 
 /**
- *  > **Deprecated:** Use `collect` object functions instead.
+ *  Collect values in received entity
+ *  @deprecated Use `collect` object functions instead.
  *  @internal — the documentation marks this API as internal; it is not part of the public surface.
  */
 declare function collectDatastreams(jsMapValues: any, jsCommsValues: any, directMode: any, reinject: any): any;
 
-/** > **Deprecated:** Use `utils` object functions instead. */
-declare function decryptString(encryptedValue: any, datastreamId: any, organization: any): any;
-
-/** > **Deprecated:** Use `utils` object functions instead. */
-declare function encryptString(originalValue: any, datastreamId: any, organization: any): any;
-
-/** > **Deprecated:** Use `operation` object functions instead. */
-declare function executeOperation(subEntityIdentifier: any, operationType: any, operationTimeout: any, jobUser: any, retries: any, ackTimeout: any, retriesDelay: any, stopValue: any, stopMode: any, parameters: any, callback: any): any;
+/**
+ *  Decrypt an encrypted string with the configuration established by the datastream of the organization
+ *  @deprecated Use `utils` object functions instead.
+ */
+declare function decryptString(encryptedValue: string, datastreamId: string, organization: string): string;
 
 /**
- *  > **Deprecated:** Use `location` object functions instead.
+ *  Encrypt an original string with the configuration established by the datastream of the organization
+ *  @deprecated Use `utils` object functions instead.
+ */
+declare function encryptString(originalValue: string, datastreamId: string, organization: string): string;
+
+/**
+ *  Executes selected operation to received identifier.
+ *  @deprecated Use `operation` object functions instead.
+ */
+declare function executeOperation(subEntityIdentifier: string, operationType: string, operationTimeout?: number, jobUser?: string, retries?: number, ackTimeout?: number, retriesDelay?: number, stopValue?: number, stopMode?: string, parameters?: any, callback?: string): void;
+
+/**
+ *  Get provisioned areas in OpenGate to selected coordinate.
+ *  @deprecated Use `location` object functions instead.
  *  @internal — the documentation marks this API as internal; it is not part of the public surface.
  */
 declare function getAreas(coordinates: any[]): any;
 
 /** Returns complete datastream in selected communication module of received entity. */
-declare function getCommsDatastreamFromEntity(datastreamId: any, commsId: any): any;
+declare function getCommsDatastreamFromEntity(datastreamId: string, commsId: string): any;
 
 /**
  *  Obtains `incValue` if `datastreamValue` date is before than `resetDate` or increments received value in datastream to `incValue` if the date is after.
  */
-declare function getCounterValue(datastreamValue: any, incValue: any, resetDate: any): any;
+declare function getCounterValue(datastreamValue: any, incValue: number, resetDate: Date): number;
 
 /**
  *  Same as getCounterValue, but returns an object with the counter value, a flag indicating whether the reset was activated, and the previous value
@@ -110,13 +138,14 @@ declare function getDailyCounterValueFromMessage(datastream: any, incValue: numb
 declare function getDailyCounterValueFromMessageWithReset(datastream: any, incValue: number): any;
 
 /** Obtains date to reset daily counters. */
-declare function getDailyResetDate(): any;
+declare function getDailyResetDate(): Date;
 
 /** Obtains date to reset daily counters with defined hour in gmt+0. */
-declare function getDailyResetDateWithZuluHour(hour: any): any;
+declare function getDailyResetDateWithZuluHour(hour: string): Date;
 
 /**
- *  > **Deprecated:** Use `utils` object functions instead.
+ *  Get datastream reading from DB.
+ *  @deprecated Use `utils` object functions instead.
  *  @internal — the documentation marks this API as internal; it is not part of the public surface.
  */
 declare function getDatastreamByIdFromDB(datastreamId: OGDatastreamID, subEntityIdentifier: string): any;
@@ -134,7 +163,8 @@ declare function getDatastreamValueCmmsModuleFromEntity(datastreamObject: any, p
 declare function getDatastreamValueFromEntity(datastreamObject: any): any;
 
 /**
- *  > **Deprecated:** Use `location` object functions instead.
+ *  Get distance between 2 coordinates in meters.
+ *  @deprecated Use `location` object functions instead.
  *  @internal — the documentation marks this API as internal; it is not part of the public surface.
  */
 declare function getDistance(lat1: number, long1: number, lat2: number, long2: number): any;
@@ -164,16 +194,17 @@ declare function getMonthlyCounterValueFromMessage(datastream: any, incValue: nu
 declare function getMonthlyCounterValueFromMessageWithReset(datastream: any, incValue: number): any;
 
 /** Obtains date to reset monthly counters. */
-declare function getMonthlyResetDate(): any;
+declare function getMonthlyResetDate(): Date;
 
 /** Obtains date to reset monthly counters with defined hour in gmt+0. */
-declare function getMonthlyResetDateWithZuluHour(hour: any): any;
+declare function getMonthlyResetDateWithZuluHour(hour: string): Date;
 
 /** Obtains date to reset monthly counters with defined hour in gmt+0. */
-declare function getMonthlyResetDateWithZuluHourAndDayOfMonth(hour: any, dayOfMonth: any): any;
+declare function getMonthlyResetDateWithZuluHourAndDayOfMonth(hour: string, dayOfMonth: number): Date;
 
 /**
- *  > **Deprecated:** Use `location` object functions instead.
+ *  Same as getAreas but is possible get sorted by ordered field.
+ *  @deprecated Use `location` object functions instead.
  *  @internal — the documentation marks this API as internal; it is not part of the public surface.
  */
 declare function getSortedAreas(coordinates: any[], sorted: boolean): any;
@@ -182,53 +213,61 @@ declare function getSortedAreas(coordinates: any[], sorted: boolean): any;
 declare function getVariableValue(variable: any): any;
 
 /**
- *  Obtains if message is from insert provision action
+ *  Obtains if message is from insert provision action.
  *  @internal — the documentation marks this API as internal; it is not part of the public surface.
  */
-declare function isInsertAction(entity?: any): any;
+declare function isInsertAction(): boolean;
 
 /**
- *  Obtains if message is from patch provision action
+ *  Obtains if message is from patch provision action.
  *  @internal — the documentation marks this API as internal; it is not part of the public surface.
  */
-declare function isPatchAction(entity?: any): any;
+declare function isPatchAction(): boolean;
 
 /**
- *  Obtains if message is from update provision action
+ *  Obtains if message is from update provision action.
  *  @internal — the documentation marks this API as internal; it is not part of the public surface.
  */
-declare function isUpdateAction(entity?: any): any;
-
-/** > **Deprecated:** Use `alarm` object functions instead. */
-declare function openAlarm(subEntityIdentifier: any, alarmName: any, ruleName: any, severity: OGSeverity, priority: OGPriority, alarmDescription: any, extraInfo: any): any;
+declare function isUpdateAction(): boolean;
 
 /**
- *  > **Deprecated:** Use `alarm` object functions instead.
+ *  Opens an alarm for the selected entity.
+ *  @deprecated Use `alarm.open` instead, which takes a single configuration object. **This function takes no extra information**: a seventh argument is ignored by the platform. The `alarm.open` object carries an `extraInfo` field, which is where that data belongs now.
+ */
+declare function openAlarm(subEntityIdentifier: string, alarmName: string, ruleName: string, severity: OGSeverity, priority: OGPriority, alarmDescription: string): void;
+
+/**
+ *  Same as _openAlarm_ adding extraInfo parameter.
+ *  @deprecated Use `alarm` object functions instead.
  *  @internal — the documentation marks this API as internal; it is not part of the public surface.
  */
 declare function openAlarmWithExtraInfo(subEntityIdentifier: any, alarmName: any, ruleName: any, severity: OGSeverity, priority: OGPriority, alarmDescription: any, extra_info: any): any;
 
 /**
- *  > **Deprecated:** Use `logger` object functions instead.
+ *  Show in traces log object
+ *  @deprecated Use `logger` object functions instead.
  *  @internal — the documentation marks this API as internal; it is not part of the public surface.
  */
 declare function printLog(log: any): any;
 
-/** > **Deprecated:** Use `notification` object functions instead. */
-declare function sendHttp(httpJson: any): any;
+/**
+ *  Sends http notification to defined recipients.
+ *  @deprecated Use `notification` object functions instead.
+ */
+declare function sendHttp(httpJson: any): void;
 
 /** Obtain date type from string date representation with format YYYY-MM-DDThh:mm:ssTZD. */
-declare function toDate(localDateTime: any): any;
+declare function toDate(localDateTime: string): Date;
 
 // ── Objects ─────────────────────────────────────────────────────────────────
 
 declare const alarm: {
   /** Closes alarm by alarm name. */
-  closeByAlarmName(closeByNameConfig: any): any;
+  closeByAlarmName(closeByNameConfig: any): void;
   /** Closes alarm by rule name. */
-  closeByRuleName(closeByRuleConfig: any): any;
+  closeByRuleName(closeByRuleConfig: any): void;
   /** Opens an alarm. */
-  open(alarmConfig: OGAlarmConfig): any;
+  open(alarmConfig: OGAlarmConfig): void;
 };
 
 declare const collect: {
@@ -299,30 +338,30 @@ declare const location: {
 
 declare const notification: {
   /** Sends an email notification to defined recipients. */
-  addEmailNotification(emailConfig: any): any;
+  addEmailNotification(emailConfig: any): void;
   /** Sends an SNMP trap notification to defined recipients. */
   addTrapNotification(trapConfig: any): any;
   /** Sends an HTTP request notification to a specified URL. */
-  sendHttp(httpConfig: any): any;
+  sendHttp(httpConfig: any): void;
 };
 
 declare const operation: {
   /** Execute selected operation to received identifier. */
-  execute(operationConfig: any): any;
+  execute(operationConfig: any): void;
 };
 
 declare const provision: {
-  /** **Returns**: void */
-  datastreams(provisionConfig: any): any;
+  /** This function takes as parameter an object with the following fields: */
+  datastreams(provisionConfig: any): void;
 };
 
 declare const utils: {
   /** Cancels an active delayed action produced by another rule activation. */
-  cancelDelay(ruleName: string): any;
+  cancelDelay(ruleName: string): void;
   /** Decrypt a value. */
-  decryptString(decryptConfig: any): any;
+  decryptString(decryptConfig: any): string;
   /** Encrypt a value. */
-  encryptString(encryptConfig: any): any;
+  encryptString(encryptConfig: any): string;
   /**
    *  Get datastream reading from DB.
    *  @internal — the documentation marks this API as internal; it is not part of the public surface.

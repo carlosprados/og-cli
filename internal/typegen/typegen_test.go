@@ -449,3 +449,108 @@ func TestJSConfigAdaptsToTheCode(t *testing.T) {
 		}
 	}
 }
+
+// ── widget context ───────────────────────────────────────────────────────────
+
+func TestWidgetContextDeclaresTheApiAndTheWrapper(t *testing.T) {
+	for _, ctx := range []Context{ContextWidgetChart, ContextWidgetTable} {
+		out, err := Generate(Options{Context: ctx})
+		if err != nil {
+			t.Fatalf("Generate(%s): %v", ctx, err)
+		}
+
+		// $api is the library's own type, imported rather than redeclared here.
+		for _, want := range []string{
+			`import OpenGateAPI from 'opengate-js'`,
+			"const $api: OpenGateAPI;",
+			"const $user:",
+			"const $moment: any;",
+			"const entityData: any;",
+			"const filters: any;",
+		} {
+			if !strings.Contains(out, want) {
+				t.Errorf("%s: missing %q", ctx, want)
+			}
+		}
+
+		// A widget has no entity and no artifact payload: declaring either would
+		// be a global that does not exist at runtime.
+		for _, unwanted := range []string{
+			"declare const entity:",
+			"declare const payload:",
+			"declare const ruleName:",
+			"type OGDatastreamID",
+		} {
+			if strings.Contains(out, unwanted) {
+				t.Errorf("%s: declares %q, which is not in a widget's scope", ctx, unwanted)
+			}
+		}
+	}
+}
+
+func TestWidgetTableGetsItsOwnWrapperParameters(t *testing.T) {
+	table, err := Generate(Options{Context: ContextWidgetTable})
+	if err != nil {
+		t.Fatal(err)
+	}
+	chart, err := Generate(Options{Context: ContextWidgetChart})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A customTable is paged and delivers rows through callback; a customChart
+	// returns its option object and is not paged.
+	for _, want := range []string{"const page: number;", "const pageElements: number;", "function callback(rows: any[]): void;"} {
+		if !strings.Contains(table, want) {
+			t.Errorf("customTable missing %q", want)
+		}
+	}
+	if strings.Contains(chart, "const page: number;") {
+		t.Error("customChart declares the table's paging parameters")
+	}
+}
+
+func TestContextForWidget(t *testing.T) {
+	for in, want := range map[string]Context{"customChart": ContextWidgetChart, "customTable": ContextWidgetTable} {
+		got, ok := ContextForWidget(in)
+		if !ok || got != want {
+			t.Errorf("ContextForWidget(%q) = %v,%v; want %v,true", in, got, ok, want)
+		}
+	}
+	// Every other widget kind is configured, not programmed.
+	if _, ok := ContextForWidget("FullDevicesList"); ok {
+		t.Error("FullDevicesList reported as scriptable")
+	}
+}
+
+// A widget's jsconfig must resolve opengate-js from node_modules, and must scope
+// itself to one file: sibling widgets' top-level `var`s collide otherwise.
+func TestJSConfigForWidget(t *testing.T) {
+	conf := JSConfigForWidget("_widgetConfigCode.js", "var x = 1;")
+	for _, want := range []string{
+		`"moduleResolution": "bundler"`,
+		`"moduleDetection": "force"`,
+		`"target": "es2017"`,
+		`"checkJs": true`,
+		`"include": ["_widgetConfigCode.js", "og-globals.d.ts"]`,
+	} {
+		if !strings.Contains(conf, want) {
+			t.Errorf("checkable widget config missing %q\n%s", want, conf)
+		}
+	}
+
+	// The three idioms that make a widget uncheckable, each on its own.
+	for name, code := range map[string]string{
+		"top-level return": "var a = 1;\nreturn { series: [] };",
+		"date arithmetic":  "pts.sort(function (a, b) { return new Date(a[0]) - new Date(b[0]); });",
+		"null then member": "var latest = null;\nif (latest.value) { doThing(); }",
+	} {
+		if !strings.Contains(JSConfigForWidget("w.js", code), `"checkJs": false`) {
+			t.Errorf("%s: expected completion-only, got a checking config", name)
+		}
+	}
+
+	// A null initialisation that is never read for a property is harmless.
+	if !strings.Contains(JSConfigForWidget("w.js", "var seen = null;\nseen = 3;"), `"checkJs": true`) {
+		t.Error("a null init with no member read should stay checkable")
+	}
+}

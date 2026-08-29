@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -76,7 +77,30 @@ Examples:
 			}
 			opts.Protocols = typegen.ProtocolsFromCriteria(raw)
 		}
-		opts.ExtraDatastreams = append(opts.ExtraDatastreams, datastreamsInCode(dirOrDot(typegenOut))...)
+		// A widget directory: its definition.type decides the context. Widget code
+		// has no datamodel half at all — it reads the platform through $api — so
+		// anything resolved above is dropped rather than emitted meaninglessly.
+		if raw, err := os.ReadFile(filepath.Join(dirOrDot(typegenOut), "widget.json")); err == nil {
+			wType := widgetTypeOf(raw)
+			ctx, scriptable := typegen.ContextForWidget(wType)
+			switch {
+			case scriptable && !cmd.Flags().Changed("context"):
+				opts.Context = ctx
+			case !scriptable && !cmd.Flags().Changed("context"):
+				// A widget directory whose kind takes no script. Falling through
+				// would write rule globals — an `entity`, a datastream map — into a
+				// directory where none of it is in scope, which is worse than
+				// writing nothing.
+				return fmt.Errorf("widget type %q takes no JavaScript, so there is nothing to type here\n"+
+					"  only customChart and customTable carry a script; other widgets are configured, not programmed\n"+
+					"  pass --context explicitly to override", wType)
+			}
+		}
+		if typegen.IsWidgetContext(opts.Context) {
+			opts.Datamodels, opts.Parameters, opts.ExtraDatastreams, opts.Protocols = nil, nil, nil, nil
+		} else {
+			opts.ExtraDatastreams = append(opts.ExtraDatastreams, datastreamsInCode(dirOrDot(typegenOut))...)
+		}
 
 		out, err := typegen.Generate(opts)
 		if err != nil {
@@ -95,10 +119,30 @@ Examples:
 
 		if !typegenNoJSConf {
 			jsPath := filepath.Join(dir, "jsconfig.json")
-			if err := os.WriteFile(jsPath, []byte(typegen.JSConfigFor(codeInDir(dir))), 0o644); err != nil {
+			var conf string
+			if typegen.IsWidgetContext(opts.Context) {
+				file, code := widgetCodeInDir(dir)
+				conf = typegen.JSConfigForWidget(file, code)
+			} else {
+				conf = typegen.JSConfigFor(codeInDir(dir))
+			}
+			if err := os.WriteFile(jsPath, []byte(conf), 0o644); err != nil {
 				return err
 			}
 			fmt.Printf("Wrote %s\n", jsPath)
+		}
+
+		// $api is the opengate-js package, so the editor needs it installed to
+		// resolve the import in og-globals.d.ts. Declaring the dependency is the
+		// whole of it: `npm install` in the directory and completion works.
+		if typegen.IsWidgetContext(opts.Context) {
+			pkgPath := filepath.Join(dir, "package.json")
+			if _, err := os.Stat(pkgPath); os.IsNotExist(err) {
+				if err := os.WriteFile(pkgPath, []byte(widgetPackageJSON), 0o644); err != nil {
+					return err
+				}
+				fmt.Printf("Wrote %s  (run `npm install` here so $api resolves)\n", pkgPath)
+			}
 		}
 		return nil
 	},
@@ -234,4 +278,66 @@ func codeInDir(dir string) string {
 		}
 	}
 	return b.String()
+}
+
+// widgetPackageJSON declares the one dependency a widget directory needs.
+//
+// opengate-js publishes its own TypeScript declarations from 16.0.0 — 246 of
+// them, generated from its JSDoc by tsc on `prepack` — so nothing about the
+// $api surface is generated here. The version is a caret range because the
+// declarations track the library, and typing against an older minor than the
+// platform serves would report methods as missing that exist.
+//
+// TypeScript itself is a devDependency so that `og widget check` has a compiler
+// to run without downloading one: one `npm install` in the directory sets up
+// both the editor and the check.
+const widgetPackageJSON = `{
+  "name": "og-widget",
+  "private": true,
+  "description": "Type declarations for OpenGate widget JavaScript. Run npm install so $api resolves.",
+  "dependencies": {
+    "opengate-js": "^16.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}
+`
+
+// widgetTypeOf reads definition.type out of a widget.json.
+func widgetTypeOf(raw []byte) string {
+	var w struct {
+		Definition struct {
+			Type string `json:"type"`
+		} `json:"definition"`
+	}
+	if err := json.Unmarshal(raw, &w); err != nil {
+		return ""
+	}
+	return w.Definition.Type
+}
+
+// widgetCodeInDir returns the widget's code file and its contents.
+//
+// A widget directory holds exactly one script under the name the extractor gave
+// it — `_widgetConfigCode.js` for the custom kinds — and the config is scoped to
+// that single file rather than to *.js, because sibling widgets unwrapped into
+// neighbouring directories share the global scope when they are checked
+// together and their top-level `var`s collide.
+func widgetCodeInDir(dir string) (string, string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", ""
+	}
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".js" {
+			continue
+		}
+		code, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			continue
+		}
+		return e.Name(), string(code)
+	}
+	return "", ""
 }
