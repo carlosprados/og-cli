@@ -2,7 +2,7 @@
 
 **Status:** analysis and design. No implementation.
 **Date:** 2026-08-25
-**Input:** `og-cli-dx-handoff.md`
+**Input:** `docs/og-cli-dx-handoff.md`
 **Method:** source audit of the current checkout, plus diagnostic probes executed against
 `internal/unwrap` (written, run, and removed — findings marked `verified-probe`).
 
