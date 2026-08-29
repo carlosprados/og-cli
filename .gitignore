@@ -41,11 +41,3 @@ test1.json
 datamodels/
 devices/
 local_workspaces/
-
-# Commercial strategy — how parts of og could be monetised. Deliberately never
-# committed: no secrets in it, but not something a public community tool ships.
-#
-# NOTE: ignoring it does not protect it. `git clean -xd` deletes ignored files,
-# and this one sits inside docs/, which is otherwise entirely versioned. The
-# durable fix is to keep it outside the repository, not to list it here.
-/docs/premium-open-core-analysis.md
