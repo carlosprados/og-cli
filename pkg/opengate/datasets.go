@@ -21,6 +21,12 @@ type Dataset struct {
 	OrganizationID   string     `json:"organizationId,omitempty"`
 	IdentifierColumn string     `json:"identifierColumn,omitempty"`
 	Columns          []DSColumn `json:"columns,omitempty"`
+
+	// Sorts are the dataset's named sort definitions. The platform derives most
+	// of them from the sortable columns and returns them on every GET; they were
+	// missing here, which made a dataset read through this struct lose its whole
+	// sort catalogue.
+	Sorts []DatasetSort `json:"sorts,omitempty"`
 }
 
 // DSColumn represents a column in a dataset.
@@ -28,8 +34,29 @@ type DSColumn struct {
 	Path   string `json:"path"`
 	Name   string `json:"name"`
 	Filter string `json:"filter,omitempty"`
-	Sort   bool   `json:"sort,omitempty"`
-	Type   string `json:"type,omitempty"`
+	// Sort keeps omitempty deliberately. The platform sends it explicitly on
+	// some datasets and omits it on others, and only a *bool could reproduce
+	// both — which would break this package's published API for a field whose
+	// absence already means exactly false. Use `--raw` when the bytes have to
+	// match. Contrast Sorts below, which was real information being lost.
+	Sort bool   `json:"sort,omitempty"`
+	Type string `json:"type,omitempty"`
+}
+
+// DatasetSort is a named ordering over a dataset's columns.
+type DatasetSort struct {
+	Identifier  string           `json:"identifier"`
+	Description string           `json:"description,omitempty"`
+	Columns     []DatasetSortCol `json:"columns,omitempty"`
+	// Derived marks the sorts the platform generated itself (typically the
+	// reverse of a declared one) rather than ones the user defined.
+	Derived bool `json:"derived"`
+}
+
+// DatasetSortCol is one column within a sort definition.
+type DatasetSortCol struct {
+	Name      string `json:"name"`
+	Direction string `json:"direction,omitempty"`
 }
 
 // DatasetListResponse is the response from the list endpoint.
@@ -83,6 +110,23 @@ func (c *Client) GetDataset(ctx context.Context, orgName, id string) (*Dataset, 
 		return nil, fmt.Errorf("parsing dataset: %w", err)
 	}
 	return &ds, nil
+}
+
+// GetDatasetRaw retrieves a dataset as the exact bytes the platform returned.
+//
+// GetDataset decodes into Dataset; use this when the caller needs every field
+// the platform sent, including any this package does not model yet.
+func (c *Client) GetDatasetRaw(ctx context.Context, orgName, id string) (json.RawMessage, error) {
+	path := fmt.Sprintf(datasetPath, orgName, id)
+
+	data, statusCode, err := c.Get(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("get dataset: %w", err)
+	}
+	if err := CheckResponse(data, statusCode); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // CreateDataset creates a new dataset.

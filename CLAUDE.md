@@ -50,6 +50,13 @@ Punto de Luz), so its API is a contract. `internal/` is CLI-private.
   client. Never hardcode a version segment.
 - A misconfigured client is not a panic and not a second constructor: `New`
   records the error, and `Err()` plus every request return it.
+- **A typed getter is lossy by construction.** Most families return
+  `json.RawMessage` and pass the platform's bytes through; `datamodels`,
+  `datasets` and `workspaces` decode into structs, so any field the struct does
+  not name is dropped without a word. Where a struct exists, ship a `…Raw`
+  sibling (`GetDatamodelRaw`, `GetDatasetRaw`, `GetWorkspaceRaw`) so callers who
+  need fidelity are not hostage to this package being current — and surface it
+  as `--raw` on the CLI `get`.
 
 ### Three interfaces — og has three execution modes:
 
@@ -174,6 +181,13 @@ All data commands support `--output json|table` (default: `table`). Use the `int
   When adding a filterable field, probe it against a live instance AND check it
   really filters (a bogus value must return nothing): an accepted-but-ignored field
   is worse than a 400.
+- **The OpenAPI spec under `ogdoc/` is incomplete, so it is not a coverage
+  criterion.** Verified live 2026-09-07: every datastream comes back with
+  `indexed`, some with `notFilterable`, and every dataset with a `sorts` array
+  of named orderings — none of the three appears in the YAML. All three were
+  missing from their structs and were being dropped on every read. When adding
+  or reviewing a typed struct, diff it against a live response
+  (`curl … | jq -S .` vs `og … -o json | jq -S .`), not against the spec.
 - **Closed work leaves the "current" views.** A FINISHED job was observed absent from
   `search/jobs` and its `operation/jobs/{id}/operations` returned HTTP 204, while
   `search/entities/operations/history` returned the operation with its steps. Never

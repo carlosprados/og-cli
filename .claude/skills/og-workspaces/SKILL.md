@@ -166,6 +166,7 @@ Widget JS runs sandboxed with globals `$api`, `$user`, `$moment`, `http` — see
 # Discover
 og workspace list [--full]              # --full embeds dashboards
 og workspace get <ws-id> [--full]
+og workspace get <ws-id> --raw          # exact platform bytes (see note below)
 og dashboard list [--workspace <ws-id>]
 og dashboard get <dash-id>
 
@@ -238,6 +239,12 @@ og dashboard delete <dash-id>            # idem
 > dashboards → deploy WITHOUT `--update`. Running `deploy --update` when a
 > dashboard doesn't exist yet fails to link it and it shows up empty/missing.
 > Use `--update` ONLY for edits to existing workspaces/dashboards.
+
+> **`get` is typed, `pull` and `export` are not.** `og workspace get` decodes into a
+> Go struct, so any field og does not model is dropped from `-o json` silently. For a
+> faithful copy use `og workspace export` (the platform's own re-importable payload),
+> `og workspace pull` (passes JSON through untouched), or `og workspace get --raw`
+> (exact response bytes, `-o` ignored). Plain `get` is for reading, not for backups.
 
 ## Multi-phase import (why import isn't one POST)
 

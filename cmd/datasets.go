@@ -61,6 +61,8 @@ var dsGetCmd = &cobra.Command{
 	RunE:  runDSGet,
 }
 
+var dsGetRaw bool
+
 func runDSGet(cmd *cobra.Command, args []string) error {
 	p, err := activeProfile()
 	if err != nil {
@@ -71,6 +73,14 @@ func runDSGet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
+
+	if dsGetRaw {
+		raw, err := c.GetDatasetRaw(cmd.Context(), orgName, args[0])
+		if err != nil {
+			return err
+		}
+		return printRaw(raw)
+	}
 
 	ds, err := c.GetDataset(cmd.Context(), orgName, args[0])
 	if err != nil {
@@ -274,6 +284,7 @@ func init() {
 	dsUpdateCmd.MarkFlagRequired("file")
 
 	datasetsCmd.AddCommand(dsListCmd)
+	dsGetCmd.Flags().BoolVar(&dsGetRaw, "raw", false, rawFlagUsage)
 	datasetsCmd.AddCommand(dsGetCmd)
 	datasetsCmd.AddCommand(dsCreateCmd)
 	datasetsCmd.AddCommand(dsUpdateCmd)

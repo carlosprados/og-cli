@@ -1,0 +1,133 @@
+{
+  "columns": [
+    {
+      "filter": "YES",
+      "name": "Temperature Valor actual",
+      "path": "device.temperature.value._current.value",
+      "type": "number"
+    },
+    {
+      "filter": "YES",
+      "name": "Temperature Fecha",
+      "path": "device.temperature.value._current.date",
+      "type": "date-time"
+    }
+  ],
+  "description": "Test Data Set",
+  "identifierColumn": "EntityID",
+  "name": "TestDataSet",
+  "sorts": [
+    {
+      "columns": [
+        {
+          "direction": "ASC",
+          "name": "EntityID"
+        }
+      ],
+      "derived": false,
+      "description": "Default sort by identifier",
+      "identifier": "defaultSort"
+    },
+    {
+      "columns": [
+        {
+          "direction": "ASC",
+          "name": "Temperature Valor actual"
+        },
+        {
+          "direction": "ASC",
+          "name": "EntityID"
+        }
+      ],
+      "derived": false,
+      "description": "Sort by Temperature Valor actual(ASC) and EntityID(ASC)",
+      "identifier": "Temperature_Valor_actual_asc__EntityID_asc"
+    },
+    {
+      "columns": [
+        {
+          "direction": "ASC",
+          "name": "Temperature Valor actual"
+        },
+        {
+          "direction": "ASC",
+          "name": "Temperature Fecha"
+        }
+      ],
+      "derived": false,
+      "description": "Sort by Temperature Valor actual(ASC) and Temperature Fecha(ASC)",
+      "identifier": "Temperature_Valor_actual_asc__Temperature_Fecha_asc"
+    },
+    {
+      "columns": [
+        {
+          "direction": "ASC",
+          "name": "Temperature Fecha"
+        },
+        {
+          "direction": "ASC",
+          "name": "EntityID"
+        }
+      ],
+      "derived": false,
+      "description": "Sort by Temperature Fecha(ASC) and EntityID(ASC)",
+      "identifier": "Temperature_Fecha_asc__EntityID_asc"
+    },
+    {
+      "columns": [
+        {
+          "direction": "DESC",
+          "name": "EntityID"
+        }
+      ],
+      "derived": true,
+      "description": "Default sort by identifier (reverse)",
+      "identifier": "defaultSort_inverse"
+    },
+    {
+      "columns": [
+        {
+          "direction": "DESC",
+          "name": "Temperature Valor actual"
+        },
+        {
+          "direction": "DESC",
+          "name": "EntityID"
+        }
+      ],
+      "derived": true,
+      "description": "Sort by Temperature Valor actual(DESC) and EntityID(DESC)",
+      "identifier": "Temperature_Valor_actual_desc__EntityID_desc"
+    },
+    {
+      "columns": [
+        {
+          "direction": "DESC",
+          "name": "Temperature Valor actual"
+        },
+        {
+          "direction": "DESC",
+          "name": "Temperature Fecha"
+        }
+      ],
+      "derived": true,
+      "description": "Sort by Temperature Valor actual(DESC) and Temperature Fecha(DESC)",
+      "identifier": "Temperature_Valor_actual_desc__Temperature_Fecha_desc"
+    },
+    {
+      "columns": [
+        {
+          "direction": "DESC",
+          "name": "Temperature Fecha"
+        },
+        {
+          "direction": "DESC",
+          "name": "EntityID"
+        }
+      ],
+      "derived": true,
+      "description": "Sort by Temperature Fecha(DESC) and EntityID(DESC)",
+      "identifier": "Temperature_Fecha_desc__EntityID_desc"
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "identifier": "collectionDevice",
+  "organizationName": "sensehat",
+  "name": "collectionDevice",
+  "version": "8.0.0.0",
+  "categories": [
+    {
+      "identifier": "deviceIdentificationUndeterminedInfo",
+      "datastreams": [
+        {
+          "access": "READ",
+          "calculated": false,
+          "identifier": "device.identification.unknown",
+          "indexed": false,
+          "modifiable": true,
+          "name": "Identification unknown",
+          "notFilterable": true,
+          "period": "PULSE",
+          "required": false,
+          "schema": {
+            "$ref": "og_basic_types.json#/definitions/text"
+          },
+          "storage": {
+            "period": "DAYS",
+            "total": 30
+          },
+          "tags": [
+            "device",
+            "identification",
+            "unknown"
+          ],
+          "unit": {
+            "label": "",
+            "symbol": "",
+            "type": "basicSI"
+          },
+          "views": {
+            "edit": [],
+            "show": []
+          }
+        },
+        {
+          "access": "READ",
+          "calculated": false,
+          "identifier": "device.identification.conflict",
+          "indexed": false,
+          "modifiable": true,
+          "name": "Identification conflict",
+          "notFilterable": true,
+          "period": "PULSE",
+          "required": false,
+          "schema": {
+            "$ref": "og_basic_types.json#/definitions/text"
+          },
+          "storage": {
+            "period": "DAYS",
+            "total": 30
+          },
+          "tags": [
+            "device",
+            "identification",
+            "conflict"
+          ],
+          "unit": {
+            "label": "",
+            "symbol": "",
+            "type": "basicSI"
+          },
+          "views": {
+            "edit": [],
+            "show": []
+          }
+        }
+      ]
+    }
+  ]
+}

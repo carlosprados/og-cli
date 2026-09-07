@@ -75,7 +75,10 @@ var workspaceGetCmd = &cobra.Command{
 	RunE:  runWorkspaceGet,
 }
 
-var workspaceGetFull bool
+var (
+	workspaceGetFull bool
+	workspaceGetRaw  bool
+)
 
 func runWorkspaceGet(cmd *cobra.Command, args []string) error {
 	p, err := activeProfile()
@@ -83,6 +86,14 @@ func runWorkspaceGet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	c := newWebClient(p)
+
+	if workspaceGetRaw {
+		raw, err := c.GetWorkspaceRaw(cmd.Context(), args[0], workspaceGetFull)
+		if err != nil {
+			return err
+		}
+		return printRaw(raw)
+	}
 
 	w, err := c.GetWorkspace(cmd.Context(), args[0], workspaceGetFull)
 	if err != nil {
@@ -868,6 +879,7 @@ func runWorkspaceDelete(cmd *cobra.Command, args []string) error {
 func init() {
 	workspaceListCmd.Flags().BoolVar(&workspaceListFull, "full", false, "include embedded dashboards in each workspace")
 	workspaceGetCmd.Flags().BoolVar(&workspaceGetFull, "full", false, "include embedded dashboards")
+	workspaceGetCmd.Flags().BoolVar(&workspaceGetRaw, "raw", false, rawFlagUsage)
 
 	workspaceExportCmd.Flags().StringVar(&workspaceExportOut, "out", "", "write export JSON to this file (default: stdout)")
 	workspaceExportCmd.Flags().StringVar(&workspaceExportDir, "dir", "", "write export to <dir>/<workspace-id>.json (auto-naming)")

@@ -1,0 +1,172 @@
+{
+  "allowedResourceTypes": [
+    "entity.asset"
+  ],
+  "categories": [
+    {
+      "datastreams": [
+        {
+          "access": "READ",
+          "calculated": false,
+          "identifier": "provision.bts_operator",
+          "indexed": false,
+          "modifiable": true,
+          "name": "bts_operator",
+          "period": "PULSE",
+          "required": false,
+          "schema": {
+            "type": "string"
+          },
+          "storage": {
+            "period": "DAYS",
+            "total": 30
+          },
+          "tags": [
+            "dmm",
+            "provision"
+          ],
+          "unit": {
+            "label": "",
+            "symbol": "%",
+            "type": "basicSI"
+          },
+          "views": {
+            "edit": [],
+            "show": []
+          }
+        }
+      ],
+      "identifier": "btsProvisionedInfo"
+    },
+    {
+      "datastreams": [
+        {
+          "access": "READ",
+          "calculated": false,
+          "identifier": "bts_ip_percentage",
+          "indexed": false,
+          "modifiable": true,
+          "name": "bts_ip_percentage",
+          "period": "PULSE",
+          "required": false,
+          "schema": {
+            "$ref": "og_basic_types.json#/definitions/percentage"
+          },
+          "storage": {
+            "period": "DAYS",
+            "total": 30
+          },
+          "tags": [
+            "analytics",
+            "bts"
+          ],
+          "unit": {
+            "label": "",
+            "symbol": "%",
+            "type": "basicSI"
+          },
+          "views": {
+            "edit": [],
+            "show": []
+          }
+        },
+        {
+          "access": "READ",
+          "calculated": false,
+          "identifier": "bts_data_context_percentage",
+          "indexed": false,
+          "modifiable": true,
+          "name": "bts_data_context_percentage",
+          "period": "PULSE",
+          "required": false,
+          "schema": {
+            "$ref": "og_basic_types.json#/definitions/percentage"
+          },
+          "storage": {
+            "period": "DAYS",
+            "total": 30
+          },
+          "tags": [
+            "analytics",
+            "collection"
+          ],
+          "unit": {
+            "label": "",
+            "symbol": "%",
+            "type": "basicSI"
+          },
+          "views": {
+            "edit": [],
+            "show": []
+          }
+        },
+        {
+          "access": "READ",
+          "calculated": false,
+          "identifier": "bts_unknown_percentage",
+          "indexed": false,
+          "modifiable": true,
+          "name": "bts_unknown_percentage",
+          "period": "PULSE",
+          "required": false,
+          "schema": {
+            "$ref": "og_basic_types.json#/definitions/percentage"
+          },
+          "storage": {
+            "period": "DAYS",
+            "total": 30
+          },
+          "tags": [
+            "analytics",
+            "collection"
+          ],
+          "unit": {
+            "label": "",
+            "symbol": "%",
+            "type": "basicSI"
+          },
+          "views": {
+            "edit": [],
+            "show": []
+          }
+        },
+        {
+          "access": "READ",
+          "calculated": false,
+          "identifier": "bts_gsm_percentage",
+          "indexed": false,
+          "modifiable": true,
+          "name": "bts_gsm_percentage",
+          "period": "PULSE",
+          "required": false,
+          "schema": {
+            "$ref": "og_basic_types.json#/definitions/percentage"
+          },
+          "storage": {
+            "period": "DAYS",
+            "total": 30
+          },
+          "tags": [
+            "analytics",
+            "collection"
+          ],
+          "unit": {
+            "label": "",
+            "symbol": "%",
+            "type": "basicSI"
+          },
+          "views": {
+            "edit": [],
+            "show": []
+          }
+        }
+      ],
+      "identifier": "btsCollectedInfo"
+    }
+  ],
+  "description": "BTS Datamodel",
+  "identifier": "bts",
+  "name": "bts",
+  "organizationName": "sensehat",
+  "version": "8.0.32.0"
+}
