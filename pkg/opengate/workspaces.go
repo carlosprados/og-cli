@@ -136,6 +136,29 @@ func (c *Client) GetWorkspace(ctx context.Context, id string, full bool) (*Works
 	return &w, nil
 }
 
+// GetWorkspaceRaw retrieves a workspace as the exact bytes the Web API
+// returned, with no struct in the way.
+//
+// GetWorkspace decodes into Workspace, which drops any field this package does
+// not model. Note this is the plain GET, not the platform's export payload —
+// for a backup meant to be re-imported, ExportWorkspace is still the right
+// call; this is for reading a workspace exactly as it is stored.
+func (c *Client) GetWorkspaceRaw(ctx context.Context, id string, full bool) (json.RawMessage, error) {
+	path := fmt.Sprintf(workspacePath, id)
+	if full {
+		path += "?full=1"
+	}
+
+	data, statusCode, err := c.WebGet(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("get workspace: %w", err)
+	}
+	if err := CheckResponse(data, statusCode); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 // ExportWorkspace fetches the export payload for a workspace as raw JSON.
 // Use this for backups or migrations; the returned bytes can be passed back
 // to ImportWorkspace on a different tenant.

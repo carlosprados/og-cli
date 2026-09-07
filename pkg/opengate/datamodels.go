@@ -45,10 +45,18 @@ type Datastream struct {
 	Modifiable  *bool           `json:"modifiable,omitempty"`
 	Calculated  *bool           `json:"calculated,omitempty"`
 	Required    *bool           `json:"required,omitempty"`
-	QRating     json.RawMessage `json:"qrating,omitempty"`
-	Encryption  json.RawMessage `json:"encryption,omitempty"`
-	Views       json.RawMessage `json:"views,omitempty"`
-	Icon        json.RawMessage `json:"icon,omitempty"`
+
+	// Indexed and NotFilterable are returned by the platform on every
+	// datastream but are absent from the published OpenAPI spec, so they were
+	// missing here and silently dropped on every round-trip. Pointers, so an
+	// absent field stays absent rather than being invented as false.
+	Indexed       *bool `json:"indexed,omitempty"`
+	NotFilterable *bool `json:"notFilterable,omitempty"`
+
+	QRating    json.RawMessage `json:"qrating,omitempty"`
+	Encryption json.RawMessage `json:"encryption,omitempty"`
+	Views      json.RawMessage `json:"views,omitempty"`
+	Icon       json.RawMessage `json:"icon,omitempty"`
 }
 
 // Storage defines the data retention policy.
@@ -115,6 +123,26 @@ func (c *Client) GetDatamodel(ctx context.Context, orgName, id string) (*Datamod
 		return nil, fmt.Errorf("parsing datamodel: %w", err)
 	}
 	return &dm, nil
+}
+
+// GetDatamodelRaw retrieves a single datamodel as the exact bytes the platform
+// returned, with no struct in the way.
+//
+// GetDatamodel decodes into Datamodel, so any field the platform adds and this
+// package does not yet know about is dropped on the way out. That is fine for
+// display and for editing, and wrong for a backup: use this when the caller
+// needs fidelity rather than typed access.
+func (c *Client) GetDatamodelRaw(ctx context.Context, orgName, id string) (json.RawMessage, error) {
+	path := fmt.Sprintf(datamodelPath, orgName, id)
+
+	data, statusCode, err := c.Get(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("get datamodel: %w", err)
+	}
+	if err := CheckResponse(data, statusCode); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // CreateDatamodel creates a new datamodel in the given organization.
