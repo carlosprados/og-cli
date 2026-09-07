@@ -75,6 +75,8 @@ var datamodelsGetCmd = &cobra.Command{
 	RunE:  runDatamodelsGet,
 }
 
+var datamodelsGetRaw bool
+
 func runDatamodelsGet(cmd *cobra.Command, args []string) error {
 	p, err := activeProfile()
 	if err != nil {
@@ -85,6 +87,14 @@ func runDatamodelsGet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
+
+	if datamodelsGetRaw {
+		raw, err := c.GetDatamodelRaw(cmd.Context(), orgName, args[0])
+		if err != nil {
+			return err
+		}
+		return printRaw(raw)
+	}
 
 	dm, err := c.GetDatamodel(cmd.Context(), orgName, args[0])
 	if err != nil {
@@ -245,6 +255,7 @@ func init() {
 	datamodelsUpdateCmd.MarkFlagRequired("file")
 
 	datamodelsCmd.AddCommand(datamodelsSearchCmd)
+	datamodelsGetCmd.Flags().BoolVar(&datamodelsGetRaw, "raw", false, rawFlagUsage)
 	datamodelsCmd.AddCommand(datamodelsGetCmd)
 	datamodelsCmd.AddCommand(datamodelsCreateCmd)
 	datamodelsCmd.AddCommand(datamodelsUpdateCmd)
