@@ -163,6 +163,26 @@ og dev search --view power -s wt              # combinable; explicit -s wins
 - Do not confuse `-o` (output FORMAT) with `--out` (output FILE in export commands).
 - Table column names come from field aliases (last path segment, or `<alias>_at`).
 
+### `--raw` — when the bytes have to match the platform
+
+`og dm get`, `og ds get` and `og workspace get` decode into typed structs, so a field
+this project does not model is dropped from `-o json` without a word. Harmless for
+reading, wrong for a backup. Add `--raw` to those three and you get the platform's
+response verbatim (`-o` is ignored; pipe through `jq` to read it):
+
+```bash
+og dm get <model> --org <org> --raw > model.json
+og ds get <id> --raw | jq .
+```
+
+Every other family — rules, connectors, provision functions, dashboards, optypes,
+devices — already passes the JSON through untouched, as does `pull`/`wrap`/`deploy`.
+No flag needed there.
+
+Reach for `--raw` when backing up, migrating, or diffing against the platform. Use
+plain `-o json` for everything else. And note `--raw` gives you the stored shape,
+which is **not** a `create` payload: OpenGate's GET and POST bodies differ by design.
+
 ## OpenGate API quirks worth knowing
 
 | Quirk | Implication |
@@ -174,6 +194,7 @@ og dev search --view power -s wt              # combinable; explicit -s wins
 | `at`/`date` are filterable | path `<datastream>._current.{at,date}`, ISO-8601 value, via `-w` or raw `--filter` |
 | Datastream names are dynamic (defined per-org in datamodels) | discover with `og dm get` or the MCP resource `datamodel-fields` |
 | Timeseries/datasets filter by COLUMN names, not device paths | run `og ts get <id>` / `og ds get <id>` first to learn columns |
+| The published spec under `ogdoc/` does not list every field the server returns | `indexed` and `notFilterable` (datastreams) and a dataset's `sorts` are all real and all undocumented; probe a live instance before assuming a field does not exist |
 
 ## MCP
 

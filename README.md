@@ -215,6 +215,40 @@ The new view is immediately available everywhere: `og dev search --view water`, 
 TUI picker, and `devices_search(view: "water")` in MCP. Unknown view names fail loudly
 with a suggestion (`unknown view "sumary" (did you mean "summary"?)`).
 
+## Fidelity — when the output must match the platform byte for byte
+
+Most families pass the platform's JSON straight through: rules, connectors, provision
+functions, dashboards, operation types and devices are never decoded into a Go struct
+on the way out, and neither is the `pull` / `wrap` / `deploy` lifecycle. What you read
+is what the server sent.
+
+Three families are different. `datamodels`, `datasets` and `workspace` decode into
+typed structs, and a struct only carries the fields this project knows about — anything
+else is dropped silently. That is invisible when you are reading or editing, and wrong
+when you are taking a backup. It bit us for real: a datamodel lost `indexed` and
+`notFilterable`, and a dataset lost its entire `sorts` catalogue, none of which appear
+in the published OpenAPI spec under `ogdoc/`.
+
+Those fields are modelled now, but the next undocumented one the platform adds would go
+the same way. So the three `get` commands take `--raw`, which prints the response bytes
+verbatim — no envelope, no re-indentation, and `-o` is ignored:
+
+```bash
+og dm get weather --org sensehat --raw > weather.json      # byte-identical to the API
+og ds get <id> --raw | jq .
+og workspace get <ws-id> --raw
+```
+
+Rules of thumb:
+
+- **Backup, migration, or a diff against the platform** → `--raw` (or, for a workspace
+  you intend to re-import, `og workspace export`, which is the platform's own payload).
+- **Reading, scripting against known fields, feeding a table** → plain `-o json`.
+
+Note that `--raw` returns what the platform stores, which is not the same shape as a
+`create` payload — OpenGate's GET and POST bodies differ by design. Converting one into
+the other is a transformation you still have to do yourself.
+
 ## CLI commands
 
 ### Global flags
@@ -309,6 +343,7 @@ og dm search -w "datamodels.organizationName eq sensehat" --limit 5
 # Get (shows categories and datastreams)
 og dm get weather --org sensehat
 og dm get weather --org sensehat -o json
+og dm get weather --org sensehat --raw | jq .   # exact platform bytes, for backups
 
 # CRUD
 og dm create --org sensehat -f datamodel.json
@@ -862,6 +897,7 @@ Manage OpenGate datasets — columnar snapshots of device data.
 og ds list
 og ds get <id>
 og ds get <id> -o json
+og ds get <id> --raw | jq .        # exact platform bytes, for backups
 
 # Query data
 og ds data <id>
@@ -969,6 +1005,7 @@ og workspace list
 og workspace list --full          # include embedded dashboards
 og workspace get <workspace-id>
 og workspace get <workspace-id> --full
+og workspace get <workspace-id> --raw     # exact platform bytes
 
 # Export (cross-tenant migration / backups)
 og workspace export <workspace-id> --out ws.json
