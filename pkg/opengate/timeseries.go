@@ -16,19 +16,23 @@ const (
 
 // TimeSeries represents a time series definition.
 type TimeSeries struct {
-	Identifier       string     `json:"identifier,omitempty"`
-	Name             string     `json:"name"`
-	Description      string     `json:"description,omitempty"`
-	OrganizationID   string     `json:"organizationId,omitempty"`
-	TimeBucket       int        `json:"timeBucket,omitempty"`
-	Retention        int        `json:"retention,omitempty"`
-	Origin           string     `json:"origin,omitempty"`
-	BucketColumn     string     `json:"bucketColumn,omitempty"`
-	BucketInitColumn string     `json:"bucketInitColumn,omitempty"`
-	IdentifierColumn string     `json:"identifierColumn,omitempty"`
-	Context          []TSColumn `json:"context,omitempty"`
-	Columns          []TSColumn `json:"columns,omitempty"`
-	Sorts            []TSSort   `json:"sorts,omitempty"`
+	Identifier       string `json:"identifier,omitempty"`
+	Name             string `json:"name"`
+	Description      string `json:"description,omitempty"`
+	OrganizationID   string `json:"organizationId,omitempty"`
+	TimeBucket       int    `json:"timeBucket,omitempty"`
+	Retention        int    `json:"retention,omitempty"`
+	Origin           string `json:"origin,omitempty"`
+	BucketColumn     string `json:"bucketColumn,omitempty"`
+	BucketInitColumn string `json:"bucketInitColumn,omitempty"`
+	IdentifierColumn string `json:"identifierColumn,omitempty"`
+	// Context keeps omitempty, so a time series with no context columns comes
+	// back without the key rather than as `"context": []`. Dropping omitempty
+	// would emit `null` whenever the field is genuinely absent, which is worse;
+	// use --raw when the bytes have to match the platform exactly.
+	Context []TSColumn `json:"context,omitempty"`
+	Columns []TSColumn `json:"columns,omitempty"`
+	Sorts   []TSSort   `json:"sorts,omitempty"`
 }
 
 // TSColumn represents a context or data column in a time series.
@@ -42,8 +46,14 @@ type TSColumn struct {
 
 // TSSort represents a sort definition.
 type TSSort struct {
-	Identifier string         `json:"identifier"`
-	Columns    []TSSortColumn `json:"columns"`
+	Identifier  string         `json:"identifier"`
+	Description string         `json:"description,omitempty"`
+	Columns     []TSSortColumn `json:"columns"`
+	// Derived marks the sorts the platform generated itself (typically the
+	// reverse of a declared one) rather than ones the user defined. It has no
+	// omitempty: the platform states it on every sort, and dropping the false
+	// half would turn an answered question into an unanswered one.
+	Derived bool `json:"derived"`
 }
 
 // TSSortColumn is a column reference within a sort.
@@ -66,7 +76,10 @@ type TimeSeriesDataResponse struct {
 
 // ListTimeSeries returns all time series in an organization.
 func (c *Client) ListTimeSeries(ctx context.Context, orgName string) (*TimeSeriesListResponse, error) {
-	path := fmt.Sprintf(timeseriesBasePath, orgName) + "?expand=columns,context"
+	// Without sorts in the expand list the server answers with none at all —
+	// eight named orderings went missing on the one time series in sensehat.
+	// The single-item GET returns everything unasked; only the list is opt-in.
+	path := fmt.Sprintf(timeseriesBasePath, orgName) + "?expand=columns,context,sorts"
 
 	data, statusCode, err := c.Get(ctx, path)
 	if err != nil {
@@ -103,6 +116,39 @@ func (c *Client) GetTimeSeries(ctx context.Context, orgName, id string) (*TimeSe
 		return nil, fmt.Errorf("parsing timeseries: %w", err)
 	}
 	return &ts, nil
+}
+
+// ListTimeSeriesRaw returns the time series list as the exact bytes the
+// platform sent, expansions included.
+func (c *Client) ListTimeSeriesRaw(ctx context.Context, orgName string) (json.RawMessage, error) {
+	path := fmt.Sprintf(timeseriesBasePath, orgName) + "?expand=columns,context,sorts"
+
+	data, statusCode, err := c.Get(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("list timeseries: %w", err)
+	}
+	if err := CheckResponse(data, statusCode); err != nil {
+		return nil, err
+	}
+	if IsEmptyResponse(data, statusCode) {
+		return json.RawMessage("{}"), nil
+	}
+	return data, nil
+}
+
+// GetTimeSeriesRaw retrieves a time series as the exact bytes the platform
+// returned.
+func (c *Client) GetTimeSeriesRaw(ctx context.Context, orgName, id string) (json.RawMessage, error) {
+	path := fmt.Sprintf(timeseriesPath, orgName, id)
+
+	data, statusCode, err := c.Get(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("get timeseries: %w", err)
+	}
+	if err := CheckResponse(data, statusCode); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // CreateTimeSeries creates a new time series.

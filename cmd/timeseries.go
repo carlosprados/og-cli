@@ -24,6 +24,8 @@ var tsListCmd = &cobra.Command{
 	RunE:  runTSList,
 }
 
+var tsListRaw bool
+
 func runTSList(cmd *cobra.Command, args []string) error {
 	p, err := activeProfile()
 	if err != nil {
@@ -34,6 +36,14 @@ func runTSList(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
+
+	if tsListRaw {
+		raw, err := c.ListTimeSeriesRaw(cmd.Context(), orgName)
+		if err != nil {
+			return err
+		}
+		return printRaw(raw)
+	}
 
 	resp, err := c.ListTimeSeries(cmd.Context(), orgName)
 	if err != nil {
@@ -68,6 +78,8 @@ var tsGetCmd = &cobra.Command{
 	RunE:  runTSGet,
 }
 
+var tsGetRaw bool
+
 func runTSGet(cmd *cobra.Command, args []string) error {
 	p, err := activeProfile()
 	if err != nil {
@@ -78,6 +90,14 @@ func runTSGet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	c := opengate.New(p.Host, p.Token, p.ClientOptions()...)
+
+	if tsGetRaw {
+		raw, err := c.GetTimeSeriesRaw(cmd.Context(), orgName, args[0])
+		if err != nil {
+			return err
+		}
+		return printRaw(raw)
+	}
 
 	ts, err := c.GetTimeSeries(cmd.Context(), orgName, args[0])
 	if err != nil {
@@ -354,6 +374,8 @@ func init() {
 	tsUpdateCmd.Flags().StringVarP(&tsUpdateFile, "file", "f", "", "path to JSON file with time series definition")
 	tsUpdateCmd.MarkFlagRequired("file")
 
+	tsListCmd.Flags().BoolVar(&tsListRaw, "raw", false, rawFlagUsage)
+	tsGetCmd.Flags().BoolVar(&tsGetRaw, "raw", false, rawFlagUsage)
 	timeseriesCmd.AddCommand(tsListCmd)
 	timeseriesCmd.AddCommand(tsGetCmd)
 	timeseriesCmd.AddCommand(tsCreateCmd)

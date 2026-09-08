@@ -163,3 +163,53 @@ func countKey(t *testing.T, data []byte, key string) int {
 	}
 	return walk(v)
 }
+
+// TestTimeSeriesKeepsSortMetadata pins the two fields a sort carries beyond its
+// columns. They were missing from TSSort, so every `og ts get` came back with
+// eight sorts stripped of their descriptions and of the flag saying which ones
+// the platform generated itself.
+func TestTimeSeriesKeepsSortMetadata(t *testing.T) {
+	fixture := loadFixture(t, "timeseries_get.json")
+
+	var ts TimeSeries
+	if err := json.Unmarshal(fixture, &ts); err != nil {
+		t.Fatalf("unmarshal timeseries: %v", err)
+	}
+	if len(ts.Sorts) == 0 {
+		t.Fatal("sorts was dropped on decode")
+	}
+
+	var sawDerived, sawDeclared bool
+	for _, srt := range ts.Sorts {
+		if srt.Identifier == "" {
+			t.Error("sort decoded without an identifier")
+		}
+		if srt.Description == "" {
+			t.Errorf("sort %s: description was dropped", srt.Identifier)
+		}
+		if len(srt.Columns) == 0 {
+			t.Errorf("sort %s: columns were dropped", srt.Identifier)
+		}
+		if srt.Derived {
+			sawDerived = true
+		} else {
+			sawDeclared = true
+		}
+	}
+	if !sawDerived || !sawDeclared {
+		t.Error("fixture should cover both derived and declared sorts")
+	}
+
+	// derived:false must survive re-encoding — omitempty on a plain bool is
+	// exactly how it went missing before.
+	out, err := json.Marshal(&ts)
+	if err != nil {
+		t.Fatalf("marshal timeseries: %v", err)
+	}
+	if got, want := countKey(t, out, "derived"), len(ts.Sorts); got != want {
+		t.Errorf("derived survived decode but not encode: %d of %d sorts kept it", got, want)
+	}
+	if got, want := countKey(t, out, "description"), countKey(t, fixture, "description"); got != want {
+		t.Errorf("description count changed across round-trip: got %d, want %d", got, want)
+	}
+}

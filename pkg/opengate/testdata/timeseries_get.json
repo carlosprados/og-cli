@@ -1,0 +1,142 @@
+{
+  "bucketColumn": "Period",
+  "columns": [
+    {
+      "aggregationFunction": "AVG",
+      "filter": "YES",
+      "name": "Temperature Valor actual",
+      "path": "device.temperature.value._current.value",
+      "type": "number"
+    }
+  ],
+  "context": [],
+  "description": "Test",
+  "identifier": "6344026d640bc94d49ede593",
+  "identifierColumn": "EntityID",
+  "name": "TestTimeSeries",
+  "origin": "2022-10-10T00:00:00Z",
+  "retention": 2592000,
+  "sorts": [
+    {
+      "columns": [
+        {
+          "direction": "ASC",
+          "name": "EntityID"
+        },
+        {
+          "direction": "ASC",
+          "name": "Period"
+        }
+      ],
+      "derived": false,
+      "description": "Sort by EntityID(ASC) and Period(ASC)",
+      "identifier": "EntityID_asc__Period_asc"
+    },
+    {
+      "columns": [
+        {
+          "direction": "ASC",
+          "name": "EntityID"
+        },
+        {
+          "direction": "DESC",
+          "name": "Period"
+        }
+      ],
+      "derived": false,
+      "description": "Default sort by identifier and bucket date",
+      "identifier": "defaultSort"
+    },
+    {
+      "columns": [
+        {
+          "direction": "ASC",
+          "name": "Temperature Valor actual"
+        },
+        {
+          "direction": "ASC",
+          "name": "Period"
+        }
+      ],
+      "derived": false,
+      "description": "Sort by Temperature Valor actual(ASC) and Period(ASC)",
+      "identifier": "Temperature_Valor_actual_asc__Period_asc"
+    },
+    {
+      "columns": [
+        {
+          "direction": "ASC",
+          "name": "Temperature Valor actual"
+        },
+        {
+          "direction": "ASC",
+          "name": "EntityID"
+        }
+      ],
+      "derived": false,
+      "description": "Sort by Temperature Valor actual(ASC) and EntityID(ASC)",
+      "identifier": "Temperature_Valor_actual_asc__EntityID_asc"
+    },
+    {
+      "columns": [
+        {
+          "direction": "DESC",
+          "name": "EntityID"
+        },
+        {
+          "direction": "DESC",
+          "name": "Period"
+        }
+      ],
+      "derived": true,
+      "description": "Sort by EntityID(DESC) and Period(DESC)",
+      "identifier": "EntityID_desc__Period_desc"
+    },
+    {
+      "columns": [
+        {
+          "direction": "DESC",
+          "name": "EntityID"
+        },
+        {
+          "direction": "ASC",
+          "name": "Period"
+        }
+      ],
+      "derived": true,
+      "description": "Default sort by identifier and bucket date (reverse)",
+      "identifier": "defaultSort_inverse"
+    },
+    {
+      "columns": [
+        {
+          "direction": "DESC",
+          "name": "Temperature Valor actual"
+        },
+        {
+          "direction": "DESC",
+          "name": "Period"
+        }
+      ],
+      "derived": true,
+      "description": "Sort by Temperature Valor actual(DESC) and Period(DESC)",
+      "identifier": "Temperature_Valor_actual_desc__Period_desc"
+    },
+    {
+      "columns": [
+        {
+          "direction": "DESC",
+          "name": "Temperature Valor actual"
+        },
+        {
+          "direction": "DESC",
+          "name": "EntityID"
+        }
+      ],
+      "derived": true,
+      "description": "Sort by Temperature Valor actual(DESC) and EntityID(DESC)",
+      "identifier": "Temperature_Valor_actual_desc__EntityID_desc"
+    }
+  ],
+  "timeBucket": 30
+}
