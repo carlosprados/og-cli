@@ -165,15 +165,19 @@ og dev search --view power -s wt              # combinable; explicit -s wins
 
 ### `--raw` — when the bytes have to match the platform
 
-`og dm get`, `og ds get` and `og workspace get` decode into typed structs, so a field
-this project does not model is dropped from `-o json` without a word. Harmless for
-reading, wrong for a backup. Add `--raw` to those three and you get the platform's
-response verbatim (`-o` is ignored; pipe through `jq` to read it):
+`og dm get`, `og ds get`, `og ts get`/`og ts list` and `og workspace get` decode into
+typed structs, so a field this project does not model is dropped from `-o json` without
+a word. Harmless for reading, wrong for a backup. Add `--raw` to those and you get the
+platform's response verbatim (`-o` is ignored; pipe through `jq` to read it):
 
 ```bash
 og dm get <model> --org <org> --raw > model.json
 og ds get <id> --raw | jq .
+og ts get <id> --raw
 ```
+
+For workspaces the backup command is `og workspace export` (the platform's complete
+bundle). Do NOT use `og workspace pull` to archive: it reads through the typed struct.
 
 Every other family — rules, connectors, provision functions, dashboards, optypes,
 devices — already passes the JSON through untouched, as does `pull`/`wrap`/`deploy`.
@@ -194,6 +198,8 @@ which is **not** a `create` payload: OpenGate's GET and POST bodies differ by de
 | `at`/`date` are filterable | path `<datastream>._current.{at,date}`, ISO-8601 value, via `-w` or raw `--filter` |
 | Datastream names are dynamic (defined per-org in datamodels) | discover with `og dm get` or the MCP resource `datamodel-fields` |
 | Timeseries/datasets filter by COLUMN names, not device paths | run `og ts get <id>` / `og ds get <id>` first to learn columns |
+| Some list endpoints return only what you `expand` | `timeseries` list needs `expand=columns,context,sorts`; asking for less silently returns fewer fields, not an error. The single-item GET returns everything unasked |
+| `/api/workspaces/export/{id}` needs query params to mean anything | without `?dashboard=1&template=1&wiwi=1&view=1` it answers with the workspace shell alone — dashboards: 0, no views, no bundles |
 | The published spec under `ogdoc/` does not list every field the server returns | `indexed` and `notFilterable` (datastreams) and a dataset's `sorts` are all real and all undocumented; probe a live instance before assuming a field does not exist |
 
 ## MCP

@@ -52,11 +52,13 @@ Punto de Luz), so its API is a contract. `internal/` is CLI-private.
   records the error, and `Err()` plus every request return it.
 - **A typed getter is lossy by construction.** Most families return
   `json.RawMessage` and pass the platform's bytes through; `datamodels`,
-  `datasets` and `workspaces` decode into structs, so any field the struct does
-  not name is dropped without a word. Where a struct exists, ship a `…Raw`
-  sibling (`GetDatamodelRaw`, `GetDatasetRaw`, `GetWorkspaceRaw`) so callers who
-  need fidelity are not hostage to this package being current — and surface it
-  as `--raw` on the CLI `get`.
+  `datasets`, `timeseries` and `workspaces` decode into structs, so any field
+  the struct does not name is dropped without a word. Where a struct exists,
+  ship a `…Raw` sibling (`GetDatamodelRaw`, `GetDatasetRaw`, `GetTimeSeriesRaw`,
+  `ListTimeSeriesRaw`, `GetWorkspaceRaw`) so callers who need fidelity are not
+  hostage to this package being current — and surface it as `--raw` on the CLI
+  `get`. Note `og workspace pull` reads through the struct too, so workspaces
+  are the one family whose pull is not a passthrough.
 
 ### Three interfaces — og has three execution modes:
 
@@ -181,6 +183,15 @@ All data commands support `--output json|table` (default: `table`). Use the `int
   When adding a filterable field, probe it against a live instance AND check it
   really filters (a bogus value must return nothing): an accepted-but-ignored field
   is worse than a 400.
+- **An endpoint can answer "successfully" with a fraction of the document.**
+  `/api/workspaces/export/{id}` returns the workspace shell — dashboards: 0, no
+  views, no bundles — unless asked with
+  `?dashboard=1&template=1&wiwi=1&view=1` (2.8 KB vs 15 KB, verified live
+  2026-09-08). The `timeseries` list behaves the same way through `expand`:
+  `expand=columns,context` silently omits every sort. Neither returns an error,
+  so a command can look like it works and quietly produce a useless backup.
+  When wiring a read that is meant to be complete, compare it against the same
+  endpoint with every option turned on.
 - **The OpenAPI spec under `ogdoc/` is incomplete, so it is not a coverage
   criterion.** Verified live 2026-09-07: every datastream comes back with
   `indexed`, some with `notFilterable`, and every dataset with a `sorts` array
