@@ -11,7 +11,11 @@ const (
 	workspacesPath      = "/api/workspaces"
 	workspacesListPath  = "/api/workspaces/"
 	workspacePath       = "/api/workspaces/%s"
-	workspaceExportPath = "/api/workspaces/export/%s"
+	// The export endpoint returns a stub unless it is asked for the pieces:
+	// without these the server answers with the workspace shell alone —
+	// dashboards: 0, and no views or bundles — which is not a backup. Verified
+	// live 2026-09-08: 2.8 KB and zero dashboards without them, 15 KB with.
+	workspaceExportPath = "/api/workspaces/export/%s?dashboard=1&template=1&wiwi=1&view=1"
 )
 
 // Workspace represents an OpenGate Web API workspace. A workspace groups
@@ -159,7 +163,8 @@ func (c *Client) GetWorkspaceRaw(ctx context.Context, id string, full bool) (jso
 	return data, nil
 }
 
-// ExportWorkspace fetches the export payload for a workspace as raw JSON.
+// ExportWorkspace fetches the export payload for a workspace as raw JSON:
+// the complete bundle, with the workspace's dashboards, views and bundles.
 // Use this for backups or migrations; the returned bytes can be passed back
 // to ImportWorkspace on a different tenant.
 func (c *Client) ExportWorkspace(ctx context.Context, id string) ([]byte, error) {
