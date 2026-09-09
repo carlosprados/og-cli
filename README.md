@@ -222,22 +222,34 @@ functions, dashboards, operation types and devices are never decoded into a Go s
 on the way out, and neither is the `pull` / `wrap` / `deploy` lifecycle. What you read
 is what the server sent.
 
-Three families are different. `datamodels`, `datasets` and `workspace` decode into
-typed structs, and a struct only carries the fields this project knows about — anything
-else is dropped silently. That is invisible when you are reading or editing, and wrong
-when you are taking a backup. It bit us for real: a datamodel lost `indexed` and
-`notFilterable`, and a dataset lost its entire `sorts` catalogue, none of which appear
+Four families are different. `datamodels`, `datasets`, `timeseries` and `workspace`
+decode into typed structs, and a struct only carries the fields this project knows
+about — anything else is dropped silently. That is invisible when you are reading or
+editing, and wrong when you are taking a backup. It bit us for real: a datamodel lost
+`indexed` and `notFilterable`, a dataset lost its entire `sorts` catalogue, and a time
+series lost the `description` and `derived` flags on every sort. None of them appears
 in the published OpenAPI spec under `ogdoc/`.
 
 Those fields are modelled now, but the next undocumented one the platform adds would go
-the same way. So the three `get` commands take `--raw`, which prints the response bytes
+the same way. So those `get` commands take `--raw`, which prints the response bytes
 verbatim — no envelope, no re-indentation, and `-o` is ignored:
 
 ```bash
 og dm get weather --org sensehat --raw > weather.json      # byte-identical to the API
 og ds get <id> --raw | jq .
+og ts get <id> --raw
+og ts list --raw
 og workspace get <ws-id> --raw
 ```
+
+**Workspaces have a second trap**, and it is not about structs. `og workspace export`
+writes the platform's complete bundle — `{bundles, views, workspaces}`, dashboards
+included — because it asks the export endpoint for the pieces. Its sibling
+`og workspace export --full` writes something else: the workspace *document*, `_id`
+included. Use `export` for a backup or another tenant, and `--full` for the og
+export → import round-trip, since the bundle carries no `_id` and `import` addresses a
+workspace by id. Note also that `og workspace pull` reads through the typed struct, so
+it is for editing, not for archiving.
 
 Rules of thumb:
 
@@ -873,6 +885,7 @@ Manage OpenGate time series — aggregated temporal data.
 og ts list
 og ts get <id>
 og ts get <id> -o json
+og ts get <id> --raw | jq .        # exact platform bytes, for backups
 
 # Query data
 og ts data <id>

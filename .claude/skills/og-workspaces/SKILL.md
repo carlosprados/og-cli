@@ -240,11 +240,19 @@ og dashboard delete <dash-id>            # idem
 > dashboard doesn't exist yet fails to link it and it shows up empty/missing.
 > Use `--update` ONLY for edits to existing workspaces/dashboards.
 
-> **`get` is typed, `pull` and `export` are not.** `og workspace get` decodes into a
-> Go struct, so any field og does not model is dropped from `-o json` silently. For a
-> faithful copy use `og workspace export` (the platform's own re-importable payload),
-> `og workspace pull` (passes JSON through untouched), or `og workspace get --raw`
-> (exact response bytes, `-o` ignored). Plain `get` is for reading, not for backups.
+> **Only `export` and `get --raw` are faithful.** `og workspace get` AND `og workspace
+> pull` both go through the typed `Workspace` struct (`pull` calls `GetWorkspace`), so
+> any field og does not model is dropped silently — unlike the other families, whose
+> pull is a pure JSON passthrough. For a faithful copy use `og workspace export` (the
+> platform's complete bundle: dashboards, views and templates) or `og workspace get
+> --raw` (exact response bytes, `-o` ignored).
+>
+> **`export` and `export --full` are different documents, not two sizes of one.**
+> `export` writes the platform bundle `{bundles, views, workspaces}` — what the web UI
+> downloads, and what you want for a backup or another tenant. It carries **no `_id`**
+> by design, so `og workspace import` cannot take it back. `export --full` writes the
+> workspace document, `_id` included, which is the one that closes the og
+> export → import round-trip.
 
 ## Multi-phase import (why import isn't one POST)
 

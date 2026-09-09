@@ -750,32 +750,68 @@ func runWorkspaceImport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading file: %w", err)
 	}
 
-	var w opengate.Workspace
-	if err := json.Unmarshal(body, &w); err != nil {
-		return fmt.Errorf("parsing workspace JSON: %w", err)
-	}
-	if w.ID == "" {
-		return fmt.Errorf("workspace JSON has no _id")
+	w, err := parseWorkspaceForImport(body)
+	if err != nil {
+		return err
 	}
 
 	c := newWebClient(p)
 
 	if workspaceImportUpdate {
-		if err := c.UpdateWorkspaceDeep(cmd.Context(), &w); err != nil {
+		if err := c.UpdateWorkspaceDeep(cmd.Context(), w); err != nil {
 			return err
 		}
-		fmt.Printf("Workspace %s updated successfully (workspace + %d dashboard(s)).\n", w.ID, countEmbeddedDashboards(&w))
+		fmt.Printf("Workspace %s updated successfully (workspace + %d dashboard(s)).\n", w.ID, countEmbeddedDashboards(w))
 		return nil
 	}
 
-	if err := c.ImportWorkspaceDeep(cmd.Context(), &w); err != nil {
+	if err := c.ImportWorkspaceDeep(cmd.Context(), w); err != nil {
 		if isDuplicateKeyError(err) {
 			return fmt.Errorf("%w\n\nThe workspace _id already exists. Re-run with --update to overwrite it (and its dashboards) via PUT", err)
 		}
 		return err
 	}
-	fmt.Printf("Workspace %s imported successfully (workspace + %d dashboard(s)).\n", w.ID, countEmbeddedDashboards(&w))
+	fmt.Printf("Workspace %s imported successfully (workspace + %d dashboard(s)).\n", w.ID, countEmbeddedDashboards(w))
 	return nil
+}
+
+// parseWorkspaceForImport accepts the bare workspace document that
+// `export --full` writes, and recognises the platform's export bundle
+// (`{bundles, views, workspaces}`) well enough to explain itself.
+//
+// The bundle is a deployment payload: the platform strips `_id` from it on
+// purpose, so it is meant to be imported through the web UI or into another
+// tenant, not fed back to `og workspace import`, which addresses an existing
+// workspace by id. Feeding it here used to fail with a bare "workspace JSON
+// has no _id", which said nothing about which of the two files you were
+// holding or what to do instead.
+func parseWorkspaceForImport(body []byte) (*opengate.Workspace, error) {
+	var bundle struct {
+		Workspaces []opengate.Workspace `json:"workspaces"`
+	}
+	if json.Unmarshal(body, &bundle) == nil && len(bundle.Workspaces) > 0 {
+		w := bundle.Workspaces[0]
+		if w.ID == "" {
+			return nil, fmt.Errorf(
+				"this is a platform export bundle (%d workspace(s) plus views and templates) and it carries no _id.\n\n"+
+					"Import it through the OpenGate web UI, or for the og export-import round-trip re-export with --full\n"+
+					"(`og workspace export <id> --full --out ws.json`), which writes the workspace document this command expects",
+				len(bundle.Workspaces))
+		}
+		if len(bundle.Workspaces) > 1 {
+			fmt.Fprintf(os.Stderr, "warning: file holds %d workspaces; importing the first (%s)\n", len(bundle.Workspaces), w.ID)
+		}
+		return &w, nil
+	}
+
+	var w opengate.Workspace
+	if err := json.Unmarshal(body, &w); err != nil {
+		return nil, fmt.Errorf("parsing workspace JSON: %w", err)
+	}
+	if w.ID == "" {
+		return nil, fmt.Errorf("workspace JSON has no _id")
+	}
+	return &w, nil
 }
 
 func countEmbeddedDashboards(w *opengate.Workspace) int {
