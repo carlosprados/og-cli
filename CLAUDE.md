@@ -183,6 +183,13 @@ All data commands support `--output json|table` (default: `table`). Use the `int
   When adding a filterable field, probe it against a live instance AND check it
   really filters (a bogus value must return nothing): an accepted-but-ignored field
   is worse than a 400.
+- **The Web API's delete keys are the platform's, typos included.** Deleting a
+  dashboard is `DELETE /api/dashboards/` (trailing slash required) with
+  `{"dasboardsDelete":["<id>"]}` — note the missing "h". Every reasonable guess
+  (`{"_id":…}`, `{"ids":[…]}`, the document itself, even `{}`) returns 400 with
+  an empty message, and so does a nonexistent id, so the error tells you
+  nothing. Found by reading the web client's bundle: when a Web API call fails
+  this way, fetch the front-end JS and search it rather than guessing.
 - **The Web API's PUT merges, it does not replace.** A dashboard field this
   package does not model survives a `pull` → `deploy` cycle rather than being
   erased by the write (verified live 2026-09-09 with `extraConfig.showBanner`).

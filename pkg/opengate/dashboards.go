@@ -8,9 +8,11 @@ import (
 )
 
 const (
-	dashboardsPath      = "/api/dashboards"
-	dashboardPath       = "/api/dashboards/%s"
-	dashboardExportPath = "/api/dashboards/export/%s"
+	dashboardsPath = "/api/dashboards"
+	// The delete endpoint answers 400 without the trailing slash.
+	dashboardsDeletePath = "/api/dashboards/"
+	dashboardPath        = "/api/dashboards/%s"
+	dashboardExportPath  = "/api/dashboards/export/%s"
 )
 
 // Dashboard represents a full OpenGate Web API dashboard. Every dashboard
@@ -176,12 +178,24 @@ func (c *Client) UpdateDashboard(ctx context.Context, id string, body json.RawMe
 	return CheckResponse(data, statusCode)
 }
 
-// DeleteDashboard deletes a dashboard by ID. The Web API exposes DELETE
-// /dashboards with the id in the body, so we send a minimal payload.
+// DeleteDashboard deletes a dashboard by ID.
+//
+// The endpoint takes a list under the key "dasboardsDelete" — the platform's
+// own spelling, missing the "h", which is why every reasonable guess at this
+// body ({"_id":…}, {"ids":[…]}, the document itself) came back 400 with an
+// empty message. Confirmed by reading the web client's bundle, which calls
+// delete("/api/dashboards/", {data:{dasboardsDelete:[…]}}) with dashboard ids.
+//
+// Two details the 400s hid: the trailing slash on the path is required, and the
+// ids are the dashboard's "id", not its "_id" (they hold the same value on
+// every dashboard seen so far, but the field the UI reads is "id").
 func (c *Client) DeleteDashboard(ctx context.Context, id string) error {
-	body := fmt.Sprintf(`{"_id":%q}`, id)
+	payload, err := json.Marshal(map[string][]string{"dasboardsDelete": {id}})
+	if err != nil {
+		return fmt.Errorf("delete dashboard: %w", err)
+	}
 
-	data, statusCode, err := c.webDoRequest(ctx, "DELETE", dashboardsPath, strings.NewReader(body))
+	data, statusCode, err := c.webDoRequest(ctx, "DELETE", dashboardsDeletePath, strings.NewReader(string(payload)))
 	if err != nil {
 		return fmt.Errorf("delete dashboard: %w", err)
 	}
