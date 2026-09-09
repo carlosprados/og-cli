@@ -183,6 +183,12 @@ All data commands support `--output json|table` (default: `table`). Use the `int
   When adding a filterable field, probe it against a live instance AND check it
   really filters (a bogus value must return nothing): an accepted-but-ignored field
   is worse than a 400.
+- **The Web API's PUT merges, it does not replace.** A dashboard field this
+  package does not model survives a `pull` → `deploy` cycle rather than being
+  erased by the write (verified live 2026-09-09 with `extraConfig.showBanner`).
+  Two consequences: an unmodelled field is a fidelity bug, not a destructive
+  one, and `backgroundColor`/`backgroundImageSize` cannot be set through this
+  API at all — the platform keeps returning null whatever you PUT.
 - **An endpoint can answer "successfully" with a fraction of the document.**
   `/api/workspaces/export/{id}` returns the workspace shell — dashboards: 0, no
   views, no bundles — unless asked with

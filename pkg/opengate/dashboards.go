@@ -16,52 +16,62 @@ const (
 // Dashboard represents a full OpenGate Web API dashboard. Every dashboard
 // belongs to exactly one workspace, referenced by the Workspaces field.
 type Dashboard struct {
-	ID              string                `json:"_id,omitempty"`
-	AltID           string                `json:"id,omitempty"`
-	Title           string                `json:"title"`
-	Description     *string               `json:"description,omitempty"`
-	Icon            string                `json:"icon,omitempty"`
-	IconType        string                `json:"iconType,omitempty"`
-	Owner           string                `json:"owner,omitempty"`
-	Workspaces      string                `json:"workspaces,omitempty"`
-	Users           []string              `json:"users,omitempty"`
-	Workgroups      []string              `json:"workgroups,omitempty"`
-	AllowedProfiles []string              `json:"allowedProfiles,omitempty"`
-	Domains         []string              `json:"domains,omitempty"`
-	LastAccess      string                `json:"lastAccess,omitempty"`
-	Editable        *bool                 `json:"editable,omitempty"`
-	BackgroundImage *string               `json:"backgroundImage,omitempty"`
-	BannerImage     *string               `json:"bannerImage,omitempty"`
-	Version         int                   `json:"__v,omitempty"`
-	ExtraConfig     *DashboardExtraConfig `json:"extraConfig,omitempty"`
-	Grid            []GridItem            `json:"grid,omitempty"`
-	TemplateConfig  json.RawMessage       `json:"templateConfig,omitempty"`
+	ID              string   `json:"_id,omitempty"`
+	AltID           string   `json:"id,omitempty"`
+	Title           string   `json:"title"`
+	Description     *string  `json:"description,omitempty"`
+	Icon            string   `json:"icon,omitempty"`
+	IconType        string   `json:"iconType,omitempty"`
+	Owner           string   `json:"owner,omitempty"`
+	Workspaces      string   `json:"workspaces,omitempty"`
+	Users           []string `json:"users,omitempty"`
+	Workgroups      []string `json:"workgroups,omitempty"`
+	AllowedProfiles []string `json:"allowedProfiles,omitempty"`
+	Domains         []string `json:"domains,omitempty"`
+	LastAccess      string   `json:"lastAccess,omitempty"`
+	Editable        *bool    `json:"editable,omitempty"`
+	BackgroundImage *string  `json:"backgroundImage,omitempty"`
+	// BackgroundColor and BackgroundImageSize sit next to BackgroundImage in
+	// the platform's document and were the two the struct did not name, so a
+	// dashboard read through it came back without them. Pointers, so an empty
+	// string stays an empty string rather than collapsing into "absent".
+	BackgroundColor     *string               `json:"backgroundColor,omitempty"`
+	BackgroundImageSize *string               `json:"backgroundImageSize,omitempty"`
+	BannerImage         *string               `json:"bannerImage,omitempty"`
+	Version             int                   `json:"__v,omitempty"`
+	ExtraConfig         *DashboardExtraConfig `json:"extraConfig,omitempty"`
+	Grid                []GridItem            `json:"grid,omitempty"`
+	TemplateConfig      json.RawMessage       `json:"templateConfig,omitempty"`
 }
 
 // DashboardSimplified is the dashboard payload returned inside a workspace's
 // embedded dashboards array. Some endpoints omit the grid (workspaces?full=1),
 // others include it (workspaces/export/{id}). Grid is therefore optional.
 type DashboardSimplified struct {
-	ID              string                `json:"_id,omitempty"`
-	AltID           string                `json:"id,omitempty"`
-	Title           string                `json:"title"`
-	Description     *string               `json:"description,omitempty"`
-	Icon            string                `json:"icon,omitempty"`
-	IconType        string                `json:"iconType,omitempty"`
-	Owner           string                `json:"owner,omitempty"`
-	Workspaces      string                `json:"workspaces,omitempty"`
-	Users           []string              `json:"users,omitempty"`
-	Workgroups      []string              `json:"workgroups,omitempty"`
-	AllowedProfiles []string              `json:"allowedProfiles,omitempty"`
-	Domains         []string              `json:"domains,omitempty"`
-	LastAccess      string                `json:"lastAccess,omitempty"`
-	Editable        *bool                 `json:"editable,omitempty"`
-	BackgroundImage *string               `json:"backgroundImage,omitempty"`
-	BannerImage     *string               `json:"bannerImage,omitempty"`
-	Version         int                   `json:"__v,omitempty"`
-	ExtraConfig     *DashboardExtraConfig `json:"extraConfig,omitempty"`
-	Grid            []GridItem            `json:"grid,omitempty"`
-	TemplateConfig  json.RawMessage       `json:"templateConfig,omitempty"`
+	ID              string   `json:"_id,omitempty"`
+	AltID           string   `json:"id,omitempty"`
+	Title           string   `json:"title"`
+	Description     *string  `json:"description,omitempty"`
+	Icon            string   `json:"icon,omitempty"`
+	IconType        string   `json:"iconType,omitempty"`
+	Owner           string   `json:"owner,omitempty"`
+	Workspaces      string   `json:"workspaces,omitempty"`
+	Users           []string `json:"users,omitempty"`
+	Workgroups      []string `json:"workgroups,omitempty"`
+	AllowedProfiles []string `json:"allowedProfiles,omitempty"`
+	Domains         []string `json:"domains,omitempty"`
+	LastAccess      string   `json:"lastAccess,omitempty"`
+	Editable        *bool    `json:"editable,omitempty"`
+	BackgroundImage *string  `json:"backgroundImage,omitempty"`
+	// Same two fields as on Dashboard: the platform sends them on the embedded
+	// dashboard too, and this struct is what a workspace read decodes into.
+	BackgroundColor     *string               `json:"backgroundColor,omitempty"`
+	BackgroundImageSize *string               `json:"backgroundImageSize,omitempty"`
+	BannerImage         *string               `json:"bannerImage,omitempty"`
+	Version             int                   `json:"__v,omitempty"`
+	ExtraConfig         *DashboardExtraConfig `json:"extraConfig,omitempty"`
+	Grid                []GridItem            `json:"grid,omitempty"`
+	TemplateConfig      json.RawMessage       `json:"templateConfig,omitempty"`
 }
 
 // DashboardExtraConfig holds display options for a dashboard.
@@ -69,8 +79,11 @@ type DashboardExtraConfig struct {
 	CellsWidth               string `json:"cellsWidth,omitempty"`
 	CellHeight               int    `json:"cellHeight,omitempty"`
 	DashboardRefreshInterval string `json:"dashboardRefreshInterval,omitempty"`
-	ShowBanner               bool   `json:"showBanner,omitempty"`
-	Favourite                bool   `json:"favourite,omitempty"`
+	// ShowBanner and Favourite carry no omitempty. The platform states both on
+	// every extraConfig it sends (3 of 3 in sensehat), so omitting the false
+	// half turned "banner off" into "unset" on every read.
+	ShowBanner bool `json:"showBanner"`
+	Favourite  bool `json:"favourite"`
 }
 
 // GridItem is a single cell in the dashboard grid, holding one widget.

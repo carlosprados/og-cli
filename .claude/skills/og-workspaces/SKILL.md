@@ -240,6 +240,13 @@ og dashboard delete <dash-id>            # idem
 > dashboard doesn't exist yet fails to link it and it shows up empty/missing.
 > Use `--update` ONLY for edits to existing workspaces/dashboards.
 
+> **`pull` is for editing, not for archiving — but it no longer loses chrome.**
+> The fields a workspace read used to drop (`area`, the dashboard's
+> `backgroundColor` / `backgroundImageSize`, and `extraConfig.showBanner` /
+> `favourite` when false) are modelled as of v2.7.0, so they reach the local
+> tree. Deploying does not erase unmodelled fields either: the platform's PUT
+> merges rather than replaces (verified live).
+>
 > **Only `export` and `get --raw` are faithful.** `og workspace get` AND `og workspace
 > pull` both go through the typed `Workspace` struct (`pull` calls `GetWorkspace`), so
 > any field og does not model is dropped silently — unlike the other families, whose

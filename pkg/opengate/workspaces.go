@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	workspacesPath      = "/api/workspaces"
-	workspacesListPath  = "/api/workspaces/"
-	workspacePath       = "/api/workspaces/%s"
+	workspacesPath     = "/api/workspaces"
+	workspacesListPath = "/api/workspaces/"
+	workspacePath      = "/api/workspaces/%s"
 	// The export endpoint returns a stub unless it is asked for the pieces:
 	// without these the server answers with the workspace shell alone —
 	// dashboards: 0, and no views or bundles — which is not a backup. Verified
@@ -22,29 +22,33 @@ const (
 // dashboards together and is the top-level container in the UI configuration
 // hierarchy (workspace 1 → N dashboards).
 type Workspace struct {
-	ID              string                           `json:"_id,omitempty"`
-	Name            string                           `json:"name"`
-	Description     *string                          `json:"description,omitempty"`
-	Owner           string                           `json:"owner,omitempty"`
-	Image           *string                          `json:"image,omitempty"`
-	Icon            string                           `json:"icon,omitempty"`
-	Users           []string                         `json:"users,omitempty"`
-	Domains         []string                         `json:"domains,omitempty"`
-	Workgroups      []string                         `json:"workgroups,omitempty"`
-	Actions         []string                         `json:"actions,omitempty"`
-	Widgets         []string                         `json:"widgets,omitempty"`
-	WidgetAction    map[string]string                `json:"widget_action,omitempty"`
-	AllowedProfiles []string                         `json:"allowedProfiles,omitempty"`
-	Dashboards      []WorkspaceDashboard             `json:"dashboards,omitempty"`
-	Priority        int                              `json:"priority,omitempty"`
-	Color           string                           `json:"color,omitempty"`
-	LastAccess      string                           `json:"lastAccess,omitempty"`
-	Editable        *bool                            `json:"editable,omitempty"`
-	Version         int                              `json:"__v,omitempty"`
-	EditMode        *bool                            `json:"_editMode,omitempty"`
-	Others          *WorkspaceOthers                 `json:"others,omitempty"`
-	Menu            []WorkspaceMenuItem              `json:"menu,omitempty"`
-	MenuTree        map[string]WorkspaceMenuCategory `json:"menu_tree,omitempty"`
+	ID              string               `json:"_id,omitempty"`
+	Name            string               `json:"name"`
+	Description     *string              `json:"description,omitempty"`
+	Owner           string               `json:"owner,omitempty"`
+	Image           *string              `json:"image,omitempty"`
+	Icon            string               `json:"icon,omitempty"`
+	Users           []string             `json:"users,omitempty"`
+	Domains         []string             `json:"domains,omitempty"`
+	Workgroups      []string             `json:"workgroups,omitempty"`
+	Actions         []string             `json:"actions,omitempty"`
+	Widgets         []string             `json:"widgets,omitempty"`
+	WidgetAction    map[string]string    `json:"widget_action,omitempty"`
+	AllowedProfiles []string             `json:"allowedProfiles,omitempty"`
+	Dashboards      []WorkspaceDashboard `json:"dashboards,omitempty"`
+	// Area and DefaultDashboard are part of the platform's workspace document
+	// and were missing here, so they were dropped on every read.
+	Area             string                           `json:"area,omitempty"`
+	DefaultDashboard *string                          `json:"defaultDashboard,omitempty"`
+	Priority         int                              `json:"priority,omitempty"`
+	Color            string                           `json:"color,omitempty"`
+	LastAccess       string                           `json:"lastAccess,omitempty"`
+	Editable         *bool                            `json:"editable,omitempty"`
+	Version          int                              `json:"__v,omitempty"`
+	EditMode         *bool                            `json:"_editMode,omitempty"`
+	Others           *WorkspaceOthers                 `json:"others,omitempty"`
+	Menu             []WorkspaceMenuItem              `json:"menu,omitempty"`
+	MenuTree         map[string]WorkspaceMenuCategory `json:"menu_tree,omitempty"`
 }
 
 // WorkspaceOthers holds workspace display options.
