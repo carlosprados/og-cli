@@ -213,3 +213,71 @@ func TestTimeSeriesKeepsSortMetadata(t *testing.T) {
 		t.Errorf("description count changed across round-trip: got %d, want %d", got, want)
 	}
 }
+
+// TestWorkspaceKeepsDashboardChrome covers the fields a workspace read used to
+// drop. Unlike the other cases here, this one is not about a backup file: the
+// same struct backs `og workspace pull`, so a field missing from it never
+// reaches the local tree an editor works on.
+//
+// The two background fields live on the embedded dashboard, which decodes into
+// DashboardSimplified — a different struct from Dashboard, and the one that was
+// missed first time round.
+func TestWorkspaceKeepsDashboardChrome(t *testing.T) {
+	fixture := loadFixture(t, "workspace_get_full.json")
+
+	var w Workspace
+	if err := json.Unmarshal(fixture, &w); err != nil {
+		t.Fatalf("unmarshal workspace: %v", err)
+	}
+	if len(w.Dashboards) == 0 || w.Dashboards[0].Dashboard == nil {
+		t.Fatal("fixture carries no embedded dashboard")
+	}
+
+	d := w.Dashboards[0].Dashboard
+	if d.BackgroundImageSize == nil {
+		t.Error("backgroundImageSize was dropped on decode")
+	} else if *d.BackgroundImageSize == "" {
+		t.Error("backgroundImageSize decoded empty; fixture has a value")
+	}
+	// A pointer, so that the platform's empty string survives as an empty
+	// string rather than becoming indistinguishable from "not sent".
+	if d.BackgroundColor == nil {
+		t.Error("backgroundColor was dropped on decode")
+	}
+
+	if d.ExtraConfig == nil {
+		t.Fatal("extraConfig was dropped on decode")
+	}
+
+	// showBanner and favourite are false in this fixture, which is exactly the
+	// case omitempty used to erase.
+	out, err := json.Marshal(&w)
+	if err != nil {
+		t.Fatalf("marshal workspace: %v", err)
+	}
+	for _, key := range []string{"showBanner", "favourite", "backgroundImageSize", "backgroundColor"} {
+		if countKey(t, out, key) == 0 {
+			t.Errorf("%s did not survive re-encoding", key)
+		}
+	}
+}
+
+// TestWorkspaceKeepsArea uses the shared workspace, the only one in the tenant
+// that carries `area`. A fixture without the field would pass whether or not
+// the struct models it.
+func TestWorkspaceKeepsArea(t *testing.T) {
+	var w Workspace
+	if err := json.Unmarshal(loadFixture(t, "workspace_shared.json"), &w); err != nil {
+		t.Fatalf("unmarshal workspace: %v", err)
+	}
+	if w.Area == "" {
+		t.Fatal("area was dropped on decode")
+	}
+	out, err := json.Marshal(&w)
+	if err != nil {
+		t.Fatalf("marshal workspace: %v", err)
+	}
+	if countKey(t, out, "area") == 0 {
+		t.Error("area did not survive re-encoding")
+	}
+}
