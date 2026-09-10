@@ -117,6 +117,9 @@ func (c *Client) GetDatamodel(ctx context.Context, orgName, id string) (*Datamod
 	if err := CheckResponse(data, statusCode); err != nil {
 		return nil, err
 	}
+	if err := notFoundIfEmpty(data, statusCode, "datamodel", id); err != nil {
+		return nil, err
+	}
 
 	var dm Datamodel
 	if err := json.Unmarshal(data, &dm); err != nil {
@@ -140,6 +143,9 @@ func (c *Client) GetDatamodelRaw(ctx context.Context, orgName, id string) (json.
 		return nil, fmt.Errorf("get datamodel: %w", err)
 	}
 	if err := CheckResponse(data, statusCode); err != nil {
+		return nil, err
+	}
+	if err := notFoundIfEmpty(data, statusCode, "datamodel", id); err != nil {
 		return nil, err
 	}
 	return data, nil

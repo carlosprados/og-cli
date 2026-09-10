@@ -205,6 +205,25 @@ All data commands support `--output json|table` (default: `table`). Use the `int
   so a command can look like it works and quietly produce a useless backup.
   When wiring a read that is meant to be complete, compare it against the same
   endpoint with every option turned on.
+- **A query parameter's accepted values are per-build, and a rejected one
+  fails the whole request.** The `timeseries` list validates `expand` against a
+  whitelist: `api.opengate.es` accepts `sorts`, an on-premises instance on the
+  same `v80` does not and answers HTTP 400 "Invalid query parameters" for the
+  entire call — not a response without sorts (reported live from an MRG staging
+  tenant, 2026-09-10; regression shipped in v2.6.0, fixed by degrading in
+  `listTimeSeries`). Two lessons: the API version segment does **not** tell you
+  what an instance supports, so feature-detect on the rejection rather than on
+  `--api-version`; and asking for an optional expansion unconditionally trades
+  "returns less" for "returns nothing" on any instance that has not caught up.
+  When a read must be complete AND must work everywhere, ask for everything and
+  degrade on the 400 that names the parameter.
+- **An error's `context` carries the offending value, not just the field
+  name.** `{"context":[{"value":"sorts","name":"expand"}]}` is the difference
+  between "(fields: expand)", which sends the reader hunting, and
+  "(fields: expand=sorts)", which names the culprit. `APIError.Context` keeps
+  both; `APIError.Fields` is the older names-only view, kept because `pkg/` is a
+  published contract. A diagnosis built on the names-only message is how a
+  rejected `expand` value got misread as og targeting the wrong API version.
 - **The OpenAPI spec under `ogdoc/` is incomplete, so it is not a coverage
   criterion.** Verified live 2026-09-07: every datastream comes back with
   `indexed`, some with `notFilterable`, and every dataset with a `sorts` array
@@ -212,6 +231,36 @@ All data commands support `--output json|table` (default: `table`). Use the `int
   missing from their structs and were being dropped on every read. When adding
   or reviewing a typed struct, diff it against a live response
   (`curl … | jq -S .` vs `og … -o json | jq -S .`), not against the spec.
+- **"Not found" has no single shape, so no caller can key on the status
+  code.** Handing a family's `get` a name instead of an identifier was probed
+  across seven families live (2026-09-10): `timeseries` answers HTTP 404 with
+  `fields: identifier`, connector and provision functions 404 with
+  `connectorFunctionId` / `provisionProcessorId`, `datasets` HTTP **400**
+  "Element not found.", `rules` HTTP **400** "No rule has been found with this
+  id" — and `workspaces`, `dashboards`, `datamodels` and `devices` answer
+  **HTTP 204 with an empty body**, which is not an error status at all.
+  Anything that has to recognise "no such artifact" must look at the context's
+  id field, the message text, AND the empty body.
+
+  That last shape was reporting a missing artifact as anything but: a typed
+  getter unmarshalled the empty body and failed with `unexpected end of JSON
+  input`, and a `…Raw` one returned zero bytes, so `og dev get <missing>`
+  printed an empty table and **exited 0**. Every single-artifact read now goes
+  through `notFoundIfEmpty` and returns a `*NotFoundError` (`IsNotFound`).
+  Lists and catalogs must NOT use it: there an empty body means "none yet",
+  which is an answer. `og jobs get <missing>` is still open — it answers 200
+  with `{}`, so no transport-level check can see it.
+- **A hint about an identifier belongs at the one place errors pass through.**
+  43 subcommands across 7 families take a generated identifier (UUID, 24-char
+  hex, or in workspaces no fixed shape at all), and half of them mutate. So the
+  fix for "the 404 does not say how to get an identifier" is `explainNotFound`
+  in `cmd/hints.go`, hooked into `Execute` via cobra's `ExecuteContextC` —
+  which hands back the command that ran, so the hint can name that family's own
+  `list`. Resolving a name to an identifier automatically was considered and
+  rejected: it would touch those 43 entry points, and doing it for a `delete`
+  or `update` would act on a guess. Note the shape check in `looksLikeIdentifier`
+  only picks the wording — never behaviour — precisely because workspace ids
+  like `shared` make shape undecidable.
 - **Closed work leaves the "current" views.** A FINISHED job was observed absent from
   `search/jobs` and its `operation/jobs/{id}/operations` returned HTTP 204, while
   `search/entities/operations/history` returned the operation with its steps. Never

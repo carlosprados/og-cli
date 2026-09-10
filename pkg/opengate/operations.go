@@ -211,6 +211,9 @@ func (c *Client) GetTask(ctx context.Context, taskID string) (json.RawMessage, e
 	if err := CheckResponse(data, statusCode); err != nil {
 		return nil, err
 	}
+	if err := notFoundIfEmpty(data, statusCode, "task", taskID); err != nil {
+		return nil, err
+	}
 	return data, nil
 }
 

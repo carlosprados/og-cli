@@ -75,6 +75,9 @@ func (c *Client) GetOpType(ctx context.Context, org, name string) (json.RawMessa
 	if err := CheckResponse(data, statusCode); err != nil {
 		return nil, err
 	}
+	if err := notFoundIfEmpty(data, statusCode, "operation type", name); err != nil {
+		return nil, err
+	}
 	return data, nil
 }
 

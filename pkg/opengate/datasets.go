@@ -104,6 +104,9 @@ func (c *Client) GetDataset(ctx context.Context, orgName, id string) (*Dataset, 
 	if err := CheckResponse(data, statusCode); err != nil {
 		return nil, err
 	}
+	if err := notFoundIfEmpty(data, statusCode, "dataset", id); err != nil {
+		return nil, err
+	}
 
 	var ds Dataset
 	if err := json.Unmarshal(data, &ds); err != nil {
@@ -124,6 +127,9 @@ func (c *Client) GetDatasetRaw(ctx context.Context, orgName, id string) (json.Ra
 		return nil, fmt.Errorf("get dataset: %w", err)
 	}
 	if err := CheckResponse(data, statusCode); err != nil {
+		return nil, err
+	}
+	if err := notFoundIfEmpty(data, statusCode, "dataset", id); err != nil {
 		return nil, err
 	}
 	return data, nil

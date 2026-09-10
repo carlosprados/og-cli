@@ -136,6 +136,9 @@ func (c *Client) GetWorkspace(ctx context.Context, id string, full bool) (*Works
 	if err := CheckResponse(data, statusCode); err != nil {
 		return nil, err
 	}
+	if err := notFoundIfEmpty(data, statusCode, "workspace", id); err != nil {
+		return nil, err
+	}
 
 	var w Workspace
 	if err := json.Unmarshal(data, &w); err != nil {
@@ -162,6 +165,9 @@ func (c *Client) GetWorkspaceRaw(ctx context.Context, id string, full bool) (jso
 		return nil, fmt.Errorf("get workspace: %w", err)
 	}
 	if err := CheckResponse(data, statusCode); err != nil {
+		return nil, err
+	}
+	if err := notFoundIfEmpty(data, statusCode, "workspace", id); err != nil {
 		return nil, err
 	}
 	return data, nil

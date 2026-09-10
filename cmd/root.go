@@ -114,7 +114,10 @@ func Execute() error {
 	defer stop()
 
 	enableRecursiveHelp(rootCmd)
-	return rootCmd.ExecuteContext(ctx)
+	// ExecuteContextC hands back the command that ran, which is what lets a
+	// 404 name the right listing command for its own family.
+	c, err := rootCmd.ExecuteContextC(ctx)
+	return explainNotFound(c, err)
 }
 
 // enableRecursiveHelp walks the command tree and installs a 'help [subcmd]'

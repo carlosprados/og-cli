@@ -170,6 +170,9 @@ func (c *Client) GetDevice(ctx context.Context, orgName, id string) (json.RawMes
 	if err := CheckResponse(data, statusCode); err != nil {
 		return nil, err
 	}
+	if err := notFoundIfEmpty(data, statusCode, "device", id); err != nil {
+		return nil, err
+	}
 
 	return data, nil
 }
