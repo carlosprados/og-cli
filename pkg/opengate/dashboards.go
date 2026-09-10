@@ -126,6 +126,9 @@ func (c *Client) GetDashboard(ctx context.Context, id string) (*Dashboard, error
 	if err := CheckResponse(data, statusCode); err != nil {
 		return nil, err
 	}
+	if err := notFoundIfEmpty(data, statusCode, "dashboard", id); err != nil {
+		return nil, err
+	}
 
 	var d Dashboard
 	if err := json.Unmarshal(data, &d); err != nil {

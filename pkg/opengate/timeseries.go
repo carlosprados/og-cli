@@ -156,6 +156,9 @@ func (c *Client) GetTimeSeries(ctx context.Context, orgName, id string) (*TimeSe
 	if err := CheckResponse(data, statusCode); err != nil {
 		return nil, err
 	}
+	if err := notFoundIfEmpty(data, statusCode, "time series", id); err != nil {
+		return nil, err
+	}
 
 	var ts TimeSeries
 	if err := json.Unmarshal(data, &ts); err != nil {
@@ -190,6 +193,9 @@ func (c *Client) GetTimeSeriesRaw(ctx context.Context, orgName, id string) (json
 		return nil, fmt.Errorf("get timeseries: %w", err)
 	}
 	if err := CheckResponse(data, statusCode); err != nil {
+		return nil, err
+	}
+	if err := notFoundIfEmpty(data, statusCode, "time series", id); err != nil {
 		return nil, err
 	}
 	return data, nil

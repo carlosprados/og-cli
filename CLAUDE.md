@@ -237,12 +237,19 @@ All data commands support `--output json|table` (default: `table`). Use the `int
   `fields: identifier`, connector and provision functions 404 with
   `connectorFunctionId` / `provisionProcessorId`, `datasets` HTTP **400**
   "Element not found.", `rules` HTTP **400** "No rule has been found with this
-  id" — and `workspaces`, `dashboards` and `datamodels` answer with an **empty
-  body**, which surfaces as `parsing <x>: unexpected end of JSON input` because
-  those getters unmarshal without an `IsEmptyResponse` check first. That last
-  group is a real bug and the reason `explainNotFound` cannot reach them.
+  id" — and `workspaces`, `dashboards`, `datamodels` and `devices` answer
+  **HTTP 204 with an empty body**, which is not an error status at all.
   Anything that has to recognise "no such artifact" must look at the context's
   id field, the message text, AND the empty body.
+
+  That last shape was reporting a missing artifact as anything but: a typed
+  getter unmarshalled the empty body and failed with `unexpected end of JSON
+  input`, and a `…Raw` one returned zero bytes, so `og dev get <missing>`
+  printed an empty table and **exited 0**. Every single-artifact read now goes
+  through `notFoundIfEmpty` and returns a `*NotFoundError` (`IsNotFound`).
+  Lists and catalogs must NOT use it: there an empty body means "none yet",
+  which is an answer. `og jobs get <missing>` is still open — it answers 200
+  with `{}`, so no transport-level check can see it.
 - **A hint about an identifier belongs at the one place errors pass through.**
   43 subcommands across 7 families take a generated identifier (UUID, 24-char
   hex, or in workspaces no fixed shape at all), and half of them mutate. So the

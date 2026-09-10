@@ -94,6 +94,9 @@ func (c *Client) GetConnectorFunction(ctx context.Context, org, channel, id stri
 	if err := CheckResponse(data, statusCode); err != nil {
 		return nil, err
 	}
+	if err := notFoundIfEmpty(data, statusCode, "connector function", id); err != nil {
+		return nil, err
+	}
 	return data, nil
 }
 

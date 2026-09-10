@@ -101,6 +101,9 @@ func (c *Client) GetRule(ctx context.Context, org, channel, id string) (json.Raw
 	if err := CheckResponse(data, statusCode); err != nil {
 		return nil, err
 	}
+	if err := notFoundIfEmpty(data, statusCode, "rule", id); err != nil {
+		return nil, err
+	}
 	return data, nil
 }
 

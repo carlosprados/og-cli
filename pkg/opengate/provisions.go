@@ -107,6 +107,9 @@ func (c *Client) GetProvisionProcessor(ctx context.Context, org, id string) (jso
 	if err := CheckResponse(data, statusCode); err != nil {
 		return nil, err
 	}
+	if err := notFoundIfEmpty(data, statusCode, "provision processor", id); err != nil {
+		return nil, err
+	}
 	return data, nil
 }
 

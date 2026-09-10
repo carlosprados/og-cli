@@ -144,3 +144,20 @@ func TestExplainNotFoundToleratesNilCommand(t *testing.T) {
 		t.Errorf("a nil error must stay nil, got %v", got)
 	}
 }
+
+// Workspaces, dashboards, datamodels and devices answer a missing artifact
+// with 204 and an empty body, which the client reports as a NotFoundError
+// rather than an APIError. The hint has to reach those too.
+func TestExplainNotFoundReachesTheEmptyBodyShape(t *testing.T) {
+	err := explainNotFound(
+		family(t, "list", "Operations"),
+		&opengate.NotFoundError{Kind: "workspace", Identifier: "Operations"},
+	)
+	want := `If "Operations" is a name, map it to an identifier with: og timeseries list`
+	if !strings.Contains(err.Error(), want) {
+		t.Errorf("error = %q, want it to contain %q", err.Error(), want)
+	}
+	if !opengate.IsNotFound(err) {
+		t.Error("IsNotFound no longer sees through the hint")
+	}
+}

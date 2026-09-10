@@ -37,11 +37,7 @@ func explainNotFound(c *cobra.Command, err error) error {
 	if c == nil || err == nil {
 		return err
 	}
-	var apiErr *opengate.APIError
-	if !errors.As(err, &apiErr) {
-		return err
-	}
-	if !notFoundish(apiErr) {
+	if !isMissingArtifact(err) {
 		return err
 	}
 	// Only a command that was handed something to look up can be answered this
@@ -62,6 +58,20 @@ func explainNotFound(c *cobra.Command, err error) error {
 		hint = fmt.Sprintf("If %q is a name, map it to an identifier with: %s", arg, lister)
 	}
 	return &hintedError{err: err, hint: hint}
+}
+
+// isMissingArtifact reports whether the error is the platform saying it has no
+// artifact under the identifier asked for, in any of the shapes it uses.
+func isMissingArtifact(err error) bool {
+	// A 204 with an empty body, which the client turns into a NotFoundError.
+	if opengate.IsNotFound(err) {
+		return true
+	}
+	var apiErr *opengate.APIError
+	if !errors.As(err, &apiErr) {
+		return false
+	}
+	return notFoundish(apiErr)
 }
 
 // notFoundish reports whether the platform is saying "nothing has that
