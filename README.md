@@ -14,9 +14,31 @@ All three interfaces expose the same functionality through the same client libra
 including [named views](#views--project-fields-by-intent) (`--view summary,power`), which
 project common field sets with their value timestamps without memorizing datastream paths.
 
-## Build
+## Install
 
-Requires Go 1.21+ and [Task](https://taskfile.dev/).
+Download the binary for your platform from the
+[latest release](https://github.com/carlosprados/og-cli/releases/latest). No Go
+toolchain needed — the release ships a static binary for six platforms:
+
+| Platform | Asset |
+|----------|-------|
+| Linux | `og_<version>_linux_amd64.tar.gz`, `og_<version>_linux_arm64.tar.gz` |
+| macOS | `og_<version>_darwin_amd64.tar.gz` (Intel), `og_<version>_darwin_arm64.tar.gz` (Apple silicon) |
+| Windows | `og_<version>_windows_amd64.zip`, `og_<version>_windows_arm64.zip` |
+
+Unpack it and put `og` (`og.exe` on Windows) anywhere on your `PATH`. Verify with
+`og version`, and check the download against `checksums.txt` from the same release.
+
+Then authenticate and you are ready:
+
+```bash
+og login
+```
+
+## Build from source
+
+Only needed to work on og itself. Requires the Go version in `go.mod` (1.25.6)
+and [Task](https://taskfile.dev/).
 
 ```bash
 task build      # build ./og binary
@@ -28,11 +50,8 @@ task tidy       # go mod tidy
 task clean      # remove build artifacts
 ```
 
-Or install directly:
-
-```bash
-go install github.com/carlosprados/og-cli/v2@latest
-```
+`go install github.com/carlosprados/og-cli/v2@latest` compiles a copy on your own
+machine. It works, but the release binaries above are the supported way to install.
 
 ## Configuration
 
