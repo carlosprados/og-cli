@@ -231,6 +231,29 @@ All data commands support `--output json|table` (default: `table`). Use the `int
   missing from their structs and were being dropped on every read. When adding
   or reviewing a typed struct, diff it against a live response
   (`curl … | jq -S .` vs `og … -o json | jq -S .`), not against the spec.
+- **"Not found" has no single shape, so no caller can key on the status
+  code.** Handing a family's `get` a name instead of an identifier was probed
+  across seven families live (2026-09-10): `timeseries` answers HTTP 404 with
+  `fields: identifier`, connector and provision functions 404 with
+  `connectorFunctionId` / `provisionProcessorId`, `datasets` HTTP **400**
+  "Element not found.", `rules` HTTP **400** "No rule has been found with this
+  id" — and `workspaces`, `dashboards` and `datamodels` answer with an **empty
+  body**, which surfaces as `parsing <x>: unexpected end of JSON input` because
+  those getters unmarshal without an `IsEmptyResponse` check first. That last
+  group is a real bug and the reason `explainNotFound` cannot reach them.
+  Anything that has to recognise "no such artifact" must look at the context's
+  id field, the message text, AND the empty body.
+- **A hint about an identifier belongs at the one place errors pass through.**
+  43 subcommands across 7 families take a generated identifier (UUID, 24-char
+  hex, or in workspaces no fixed shape at all), and half of them mutate. So the
+  fix for "the 404 does not say how to get an identifier" is `explainNotFound`
+  in `cmd/hints.go`, hooked into `Execute` via cobra's `ExecuteContextC` —
+  which hands back the command that ran, so the hint can name that family's own
+  `list`. Resolving a name to an identifier automatically was considered and
+  rejected: it would touch those 43 entry points, and doing it for a `delete`
+  or `update` would act on a guess. Note the shape check in `looksLikeIdentifier`
+  only picks the wording — never behaviour — precisely because workspace ids
+  like `shared` make shape undecidable.
 - **Closed work leaves the "current" views.** A FINISHED job was observed absent from
   `search/jobs` and its `operation/jobs/{id}/operations` returned HTTP 204, while
   `search/entities/operations/history` returned the operation with its steps. Never
