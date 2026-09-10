@@ -3,7 +3,9 @@ package opengate
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -12,6 +14,24 @@ const (
 	timeseriesPath       = "/north/{v}/timeseries/provision/organizations/%s/%s"
 	timeseriesDataPath   = "/north/{v}/timeseries/provision/organizations/%s/%s/data"
 	timeseriesExportPath = "/north/{v}/timeseries/provision/organizations/%s/%s/export"
+)
+
+// The list endpoint's expansions are opt-in, and which ones an instance
+// accepts depends on its build.
+const (
+	// tsListExpand is what a current platform accepts. The single-item GET
+	// returns every expansion unasked; only the list is opt-in, and without
+	// sorts here the server answers with none at all.
+	tsListExpand = "columns,context,sorts"
+	// tsListExpandLegacy drops sorts. An older on-premises instance validates
+	// expand against a whitelist with no sorts entry and rejects the whole
+	// request with HTTP 400 "Invalid query parameters", so asking for sorts
+	// unconditionally turns a list that would return less into a list that
+	// returns nothing at all (observed on an on-premises v80 instance,
+	// 2026-09-10; api.opengate.es accepts sorts). The API version does not
+	// discriminate — both instances answer to v80 — so degrade on the
+	// rejection itself rather than on a version check.
+	tsListExpandLegacy = "columns,context"
 )
 
 // TimeSeries represents a time series definition.
@@ -74,14 +94,40 @@ type TimeSeriesDataResponse struct {
 	Page    *Page    `json:"page,omitempty"`
 }
 
+// listTimeSeries performs the list request, retrying without sorts when the
+// instance refuses the expansion. The extra round trip is paid only on an
+// instance that does not support sorts anyway, and the caller gets a list
+// missing its sorts instead of an error naming a parameter it never chose.
+func (c *Client) listTimeSeries(ctx context.Context, orgName string) ([]byte, int, error) {
+	base := fmt.Sprintf(timeseriesBasePath, orgName)
+
+	data, statusCode, err := c.Get(ctx, base+"?expand="+tsListExpand)
+	if err != nil {
+		return nil, 0, err
+	}
+	if !rejectsExpand(data, statusCode) {
+		return data, statusCode, nil
+	}
+	return c.Get(ctx, base+"?expand="+tsListExpandLegacy)
+}
+
+// rejectsExpand reports whether a response is the platform refusing the expand
+// parameter itself, as opposed to any other 400. A rejection for a different
+// reason is passed through untouched: retrying it would only hide it.
+func rejectsExpand(data []byte, statusCode int) bool {
+	if statusCode != http.StatusBadRequest {
+		return false
+	}
+	var apiErr *APIError
+	if !errors.As(CheckResponse(data, statusCode), &apiErr) {
+		return false
+	}
+	return apiErr.HasField("expand")
+}
+
 // ListTimeSeries returns all time series in an organization.
 func (c *Client) ListTimeSeries(ctx context.Context, orgName string) (*TimeSeriesListResponse, error) {
-	// Without sorts in the expand list the server answers with none at all —
-	// eight named orderings went missing on the one time series in sensehat.
-	// The single-item GET returns everything unasked; only the list is opt-in.
-	path := fmt.Sprintf(timeseriesBasePath, orgName) + "?expand=columns,context,sorts"
-
-	data, statusCode, err := c.Get(ctx, path)
+	data, statusCode, err := c.listTimeSeries(ctx, orgName)
 	if err != nil {
 		return nil, fmt.Errorf("list timeseries: %w", err)
 	}
@@ -121,9 +167,7 @@ func (c *Client) GetTimeSeries(ctx context.Context, orgName, id string) (*TimeSe
 // ListTimeSeriesRaw returns the time series list as the exact bytes the
 // platform sent, expansions included.
 func (c *Client) ListTimeSeriesRaw(ctx context.Context, orgName string) (json.RawMessage, error) {
-	path := fmt.Sprintf(timeseriesBasePath, orgName) + "?expand=columns,context,sorts"
-
-	data, statusCode, err := c.Get(ctx, path)
+	data, statusCode, err := c.listTimeSeries(ctx, orgName)
 	if err != nil {
 		return nil, fmt.Errorf("list timeseries: %w", err)
 	}

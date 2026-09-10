@@ -205,6 +205,25 @@ All data commands support `--output json|table` (default: `table`). Use the `int
   so a command can look like it works and quietly produce a useless backup.
   When wiring a read that is meant to be complete, compare it against the same
   endpoint with every option turned on.
+- **A query parameter's accepted values are per-build, and a rejected one
+  fails the whole request.** The `timeseries` list validates `expand` against a
+  whitelist: `api.opengate.es` accepts `sorts`, an on-premises instance on the
+  same `v80` does not and answers HTTP 400 "Invalid query parameters" for the
+  entire call — not a response without sorts (reported live from an MRG staging
+  tenant, 2026-09-10; regression shipped in v2.6.0, fixed by degrading in
+  `listTimeSeries`). Two lessons: the API version segment does **not** tell you
+  what an instance supports, so feature-detect on the rejection rather than on
+  `--api-version`; and asking for an optional expansion unconditionally trades
+  "returns less" for "returns nothing" on any instance that has not caught up.
+  When a read must be complete AND must work everywhere, ask for everything and
+  degrade on the 400 that names the parameter.
+- **An error's `context` carries the offending value, not just the field
+  name.** `{"context":[{"value":"sorts","name":"expand"}]}` is the difference
+  between "(fields: expand)", which sends the reader hunting, and
+  "(fields: expand=sorts)", which names the culprit. `APIError.Context` keeps
+  both; `APIError.Fields` is the older names-only view, kept because `pkg/` is a
+  published contract. A diagnosis built on the names-only message is how a
+  rejected `expand` value got misread as og targeting the wrong API version.
 - **The OpenAPI spec under `ogdoc/` is incomplete, so it is not a coverage
   criterion.** Verified live 2026-09-07: every datastream comes back with
   `indexed`, some with `notFilterable`, and every dataset with a `sorts` array

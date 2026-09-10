@@ -198,7 +198,9 @@ which is **not** a `create` payload: OpenGate's GET and POST bodies differ by de
 | `at`/`date` are filterable | path `<datastream>._current.{at,date}`, ISO-8601 value, via `-w` or raw `--filter` |
 | Datastream names are dynamic (defined per-org in datamodels) | discover with `og dm get` or the MCP resource `datamodel-fields` |
 | Timeseries/datasets filter by COLUMN names, not device paths | run `og ts get <id>` / `og ds get <id>` first to learn columns |
-| Some list endpoints return only what you `expand` | `timeseries` list needs `expand=columns,context,sorts`; asking for less silently returns fewer fields, not an error. The single-item GET returns everything unasked |
+| Some list endpoints return only what you `expand`, and the accepted values depend on the instance's build | `timeseries` list asks for `expand=columns,context,sorts`; asking for less silently returns fewer fields, not an error. An older on-premises instance has no `sorts` in its whitelist and rejects the **whole request** with HTTP 400 `Invalid query parameters (fields: expand=sorts)` — og then retries without it, so there the list comes back with no sorts rather than failing (og ≥ 2.8.0; earlier versions just fail). The single-item GET returns everything unasked |
+| A time series is addressed by `identifier`, not by `name` | `og ts get <identifier>` wants the ObjectId-looking hex string; passing the human name returns HTTP 404 `No resource found (fields: identifier)`. Get the mapping from `og ts list` |
+| A 400 names the field it choked on, and the value | og surfaces the error body's context as `(fields: <name>=<value>)`, e.g. `(fields: expand=sorts)`. Read that before theorising about the cause |
 | `/api/workspaces/export/{id}` needs query params to mean anything | without `?dashboard=1&template=1&wiwi=1&view=1` it answers with the workspace shell alone — dashboards: 0, no views, no bundles |
 | The published spec under `ogdoc/` does not list every field the server returns | `indexed` and `notFilterable` (datastreams) and a dataset's `sorts` are all real and all undocumented; probe a live instance before assuming a field does not exist |
 
