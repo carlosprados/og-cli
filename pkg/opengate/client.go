@@ -11,6 +11,7 @@ import (
 	"net/textproto"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -428,20 +429,83 @@ func (c *Client) PostMultipartFile(ctx context.Context, path, fieldName, filePat
 	return data, resp.StatusCode, resp.Header.Get("Location"), nil
 }
 
+// ErrorContext is one entry of an OpenGate error body's context array: the
+// field the platform objected to and, when it reports one, the offending value.
+// The value is what makes a rejection actionable — "Invalid query parameters
+// (fields: expand)" says nothing, "expand=sorts" names the culprit.
+type ErrorContext struct {
+	Name  string
+	Value string
+}
+
+// maxContextValueLen caps a value in the error message. A rejected query
+// parameter is a word; a rejected field's value can be a whole document, and
+// an error message is not the place to print one. Value keeps it in full.
+const maxContextValueLen = 60
+
+// String renders the entry as name=value, or bare name when the platform
+// reported no value.
+func (c ErrorContext) String() string {
+	if c.Value == "" {
+		return c.Name
+	}
+	// Cut by runes: a value can carry accented text, and slicing bytes would
+	// leave half a character behind.
+	v := c.Value
+	if r := []rune(v); len(r) > maxContextValueLen {
+		v = string(r[:maxContextValueLen]) + "..."
+	}
+	return c.Name + "=" + v
+}
+
 // APIError represents an error response from the OpenGate API.
 type APIError struct {
 	StatusCode int
 	Code       string // OpenGate error code (e.g. "0x000065"), when present
 	Message    string
-	Fields     []string // offending field names from the error context, when present
+	// Fields names the offending fields. Deprecated: it drops the value the
+	// platform reported alongside each name; read Context instead. Kept
+	// populated because it is part of this package's published surface.
+	Fields  []string
+	Context []ErrorContext // offending fields with their values, when present
 }
 
 func (e *APIError) Error() string {
 	msg := fmt.Sprintf("OpenGate API error (HTTP %d): %s", e.StatusCode, e.Message)
-	if len(e.Fields) > 0 {
-		msg += fmt.Sprintf(" (fields: %s)", strings.Join(e.Fields, ", "))
+	if parts := e.fieldParts(); len(parts) > 0 {
+		msg += fmt.Sprintf(" (fields: %s)", strings.Join(parts, ", "))
 	}
 	return msg
+}
+
+// fieldParts prefers Context, which carries the values, and falls back to
+// Fields so an APIError built by hand still reports its field names.
+func (e *APIError) fieldParts() []string {
+	if len(e.Context) == 0 {
+		return e.Fields
+	}
+	parts := make([]string, 0, len(e.Context))
+	for _, c := range e.Context {
+		parts = append(parts, c.String())
+	}
+	return parts
+}
+
+// HasField reports whether the error's context names the given field. It is
+// how a caller decides that a rejection is about one specific parameter
+// without matching on the platform's message text.
+func (e *APIError) HasField(name string) bool {
+	for _, c := range e.Context {
+		if c.Name == name {
+			return true
+		}
+	}
+	for _, f := range e.Fields {
+		if f == name {
+			return true
+		}
+	}
+	return false
 }
 
 // CheckResponse returns an APIError if the status code indicates failure.
@@ -452,17 +516,20 @@ func CheckResponse(data []byte, statusCode int) error {
 	msg := string(data)
 	code := ""
 	var fields []string
+	var errCtx []ErrorContext
 	// OpenGate error bodies come in two shapes:
-	//   {"message":"..."}                                                    (simple)
-	//   {"errors":[{"code":"0x..","message":"...","context":[{"name":".."}]}]} (ErrorList)
+	//   {"message":"..."}                                                             (simple)
+	//   {"errors":[{"code":"0x..","message":"..","context":[{"name":"..","value":".."}]}]} (ErrorList)
 	// The context carries the offending field(s) — e.g. a 400 "Forbidden field."
-	// on a datamodel PUT names allowedResourceTypes there, which is otherwise invisible.
+	// on a datamodel PUT names allowedResourceTypes there, which is otherwise
+	// invisible — and, on a rejected query parameter, the value it refused.
 	var errList struct {
 		Errors []struct {
 			Code    string `json:"code"`
 			Message string `json:"message"`
 			Context []struct {
-				Name string `json:"name"`
+				Name  string `json:"name"`
+				Value any    `json:"value"`
 			} `json:"context"`
 		} `json:"errors"`
 	}
@@ -474,6 +541,7 @@ func CheckResponse(data []byte, statusCode int) error {
 		for _, ctx := range errList.Errors[0].Context {
 			if ctx.Name != "" {
 				fields = append(fields, ctx.Name)
+				errCtx = append(errCtx, ErrorContext{Name: ctx.Name, Value: contextValue(ctx.Value)})
 			}
 		}
 	} else {
@@ -484,7 +552,30 @@ func CheckResponse(data []byte, statusCode int) error {
 			msg = errBody.Message
 		}
 	}
-	return &APIError{StatusCode: statusCode, Code: code, Message: msg, Fields: fields}
+	return &APIError{StatusCode: statusCode, Code: code, Message: msg, Fields: fields, Context: errCtx}
+}
+
+// contextValue renders an error context's value, whose type the platform
+// picks: a string for a rejected query parameter, a number elsewhere. Numbers
+// arrive as float64 through encoding/json, so formatting them with %v would
+// print 1e+06 for a large integer.
+func contextValue(v any) string {
+	switch t := v.(type) {
+	case nil:
+		return ""
+	case string:
+		return t
+	case float64:
+		return strconv.FormatFloat(t, 'f', -1, 64)
+	case bool:
+		return strconv.FormatBool(t)
+	default:
+		b, err := json.Marshal(t)
+		if err != nil {
+			return ""
+		}
+		return string(b)
+	}
 }
 
 // IsEmptyResponse returns true when the API returned no content (204 or empty body).
